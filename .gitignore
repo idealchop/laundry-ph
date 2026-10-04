@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+.turbo/
+coverage/
+
+# env (never commit secrets)
+.env
+.env*
+!.env.example
+
+# misc
+.DS_Store
+*.log
+.vercel/
+__pycache__/
