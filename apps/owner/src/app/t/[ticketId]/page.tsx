@@ -5,7 +5,11 @@ import { data, SAMPLE_TICKET_IDS } from "@/data";
 
 type Params = { params: Promise<{ ticketId: string }> };
 
+const usingFirebase = (process.env.NEXT_PUBLIC_DATA_SOURCE ?? "fixtures").toLowerCase() === "firebase";
+
 export function generateStaticParams() {
+  // App Hosting / firebase mode is fully dynamic; skip SSG ticket shells.
+  if (usingFirebase) return [];
   return SAMPLE_TICKET_IDS.map((ticketId) => ({ ticketId }));
 }
 

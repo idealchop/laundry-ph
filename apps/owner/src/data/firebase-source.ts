@@ -22,6 +22,7 @@ import {
   setDoc,
   type DocumentData,
 } from "firebase/firestore";
+import { connection } from "next/server";
 import { getDb } from "@/lib/firebase/client";
 import { shopId as defaultShopId } from "@/lib/firebase/config";
 import type { LaundryDataSource } from "./index";
@@ -56,6 +57,11 @@ async function meta<T>(shopId: string, id: string): Promise<T | null> {
   return snap.exists() ? (snap.data() as T) : null;
 }
 
+/** Opt the request into dynamic rendering so App Hosting does not SSG against Firestore at build. */
+async function dynamicRequest(): Promise<void> {
+  await connection();
+}
+
 export function createFirebaseDataSource(opts?: { shopId?: string }): LaundryDataSource {
   const shopId = opts?.shopId ?? defaultShopId;
 
@@ -66,6 +72,7 @@ export function createFirebaseDataSource(opts?: { shopId?: string }): LaundryDat
     },
 
     async getShop() {
+      await dynamicRequest();
       const data = await requireShop(shopId);
       const shop = { ...data } as Shop & { sample?: boolean };
       delete shop.sample;
@@ -73,35 +80,40 @@ export function createFirebaseDataSource(opts?: { shopId?: string }): LaundryDat
     },
 
     async getTodaySummary() {
+      await dynamicRequest();
       const m = await meta<DaySummary>(shopId, "today");
       if (!m) throw new Error(`Missing shops/${shopId}/meta/today`);
       return m;
     },
 
     async getSchedule() {
+      await dynamicRequest();
       const m = await meta<Schedule>(shopId, "schedule");
       if (!m) throw new Error(`Missing shops/${shopId}/meta/schedule`);
       return m;
     },
 
     async getMachines() {
+      await dynamicRequest();
       const snap = await getDocs(collection(getDb(), "shops", shopId, "machines"));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Machine);
     },
 
     async getOrderQueue() {
+      await dynamicRequest();
       const snap = await getDocs(collection(getDb(), "shops", shopId, "orders"));
       const orders = snap.docs.map((d) => ({ ref: d.id, ...d.data() }) as QueuedOrder);
-      // Stable display order: Waiting first-ish by ref desc.
       return orders.sort((a, b) => b.ref.localeCompare(a.ref));
     },
 
     async getPickupRequests() {
+      await dynamicRequest();
       const snap = await getDocs(collection(getDb(), "shops", shopId, "pickups"));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PickupRequest);
     },
 
     async getVerifiedBooking(ref?: string) {
+      await dynamicRequest();
       const m = await meta<VerifiedBooking>(shopId, "verifiedBooking");
       if (!m) return null;
       if (ref && m.ref !== ref) return null;
@@ -109,34 +121,40 @@ export function createFirebaseDataSource(opts?: { shopId?: string }): LaundryDat
     },
 
     async getCatalog() {
+      await dynamicRequest();
       const m = await meta<Catalog>(shopId, "catalog");
       if (!m) throw new Error(`Missing shops/${shopId}/meta/catalog`);
       return m;
     },
 
     async getTicket(ticketId: string) {
+      await dynamicRequest();
       const snap = await getDoc(doc(getDb(), "public_tickets", ticketId));
       if (!snap.exists()) return null;
       return { id: snap.id, ...snap.data() } as PublicTicket;
     },
 
     async getWeekSales() {
+      await dynamicRequest();
       const m = await meta<{ weekSales: SalesPoint[] }>(shopId, "growth");
       return m?.weekSales ?? [];
     },
 
     async getGrowthStats() {
+      await dynamicRequest();
       const m = await meta<{ stats: GrowthStat[] }>(shopId, "growth");
       return m?.stats ?? [];
     },
 
     async getGrowthTip() {
+      await dynamicRequest();
       const m = await meta<{ tip: GrowthTip }>(shopId, "growth");
       if (!m?.tip) throw new Error(`Missing growth tip for ${shopId}`);
       return m.tip;
     },
 
     async getCustomers() {
+      await dynamicRequest();
       const snap = await getDocs(collection(getDb(), "shops", shopId, "customers"));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Customer);
     },
@@ -149,6 +167,7 @@ export function createFirebaseDataSource(opts?: { shopId?: string }): LaundryDat
       status?: QueuedOrder["status"];
       ticket: PublicTicket;
     }) {
+      await dynamicRequest();
       const order: QueuedOrder & { shopId: string } = {
         ref: input.ref,
         customer: input.customer,

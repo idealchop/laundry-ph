@@ -5,7 +5,7 @@
   "license": "UNLICENSED",
   "packageManager": "pnpm@10.33.4",
   "engines": {
-    "node": ">=20.9"
+    "node": "22.x"
   },
   "scripts": {
     "build:packages": "pnpm --filter \"./packages/**\" -r run build",
@@ -21,6 +21,17 @@
     "firebase:deploy:rules": "firebase deploy --only firestore"
   },
   "devDependencies": {
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "turbo": "2.11.7"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "protobufjs",
+      "sharp",
+      "unrs-resolver",
+      "@firebase/util"
+    ],
+    "ignoredBuiltDependencies": []
   }
 }

@@ -4,6 +4,10 @@
 #
 # FIREBASE_WEBAPP_CONFIG is injected by App Hosting for the linked web app
 # ("Laundry.ph Owner") and mapped to NEXT_PUBLIC_FIREBASE_* in next.config.ts.
+#
+# pnpm monorepo + Turborepo: backend rootDir is apps/owner (firebase.json).
+# The buildpack runs `turbo run build --filter=@laundry-ph/owner`, which builds
+# vendored kit packages first (turbo.json dependsOn ^build) then next build.
 
 runConfig:
   minInstances: 0

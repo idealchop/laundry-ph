@@ -76,21 +76,20 @@ Screens never import fixtures directly. They call `data` from `src/data/index.ts
 | App Hosting backends | `laundry-dev`, `laundry-prod` — **need Blaze** |
 | Web app | Laundry.ph Owner (`1:500578192242:web:f55828f2cb409bebc6ebeb`) |
 | Classic Hosting preview | https://mylaundryph.web.app (static export of the UI + fixtures) |
+| App Hosting DEV | https://laundry-dev--mylaundryph.asia-southeast1.hosted.app (Firestore laundrydb-dev) |
+| App Hosting PROD | https://laundry-prod--mylaundryph.asia-southeast1.hosted.app (backend created; not deployed yet) |
 
 Auth: Email/Password and Google are enabled. Google sign-in may still need an OAuth consent screen / authorized domains tweak in the console for production use.
 
 Config files: `firebase.json`, `.firebaserc`, `firestore.rules`, `apps/owner/apphosting.yaml` (+ `.dev` / `.prod`), `apps/owner/.env.example`.
 
-After upgrading to Blaze:
+Blaze is enabled. `laundrydb-dev` exists and is seeded. Redeploy DEV with:
 
 ```bash
-firebase firestore:databases:create laundrydb-dev --location=asia-southeast1 --project mylaundryph
-firebase deploy --only firestore --project mylaundryph
-pnpm seed:dev
-# Then create App Hosting backends laundry-dev / laundry-prod (see firebase.json)
+firebase deploy --only apphosting:laundry-dev --project mylaundryph --force
+# Optional prod (when ready):
+# firebase deploy --only apphosting:laundry-prod --project mylaundryph --force
 ```
-
-Billing upgrade URL: https://console.firebase.google.com/project/mylaundryph/usage/details
 
 ### Kit usage and extensions
 
