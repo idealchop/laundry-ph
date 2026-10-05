@@ -18,7 +18,7 @@ const PC_MAX = 200;
 /** Pieces that make a "full basket" for per-piece services. */
 const PC_FULL = 30;
 /** Shared horizontal snap row: same left edge (px-5) and snap padding as the page, no scrollbar. */
-const ROW = "-mx-5 grid grid-flow-col overflow-x-auto px-5 scroll-px-5 pb-1 snap-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+const ROW = "-mx-5 grid grid-flow-col overflow-x-auto px-5 scroll-px-5 py-2 snap-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 export interface PosFormProps {
   catalog: Catalog;
@@ -190,38 +190,40 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
             </div>
           ) : null}
 
-          <div className="-mb-1 flex flex-col items-center pt-1">
-            <BasketFill fill={basketFill} size={108} />
-            <div className="relative mt-1 h-1 w-28 overflow-hidden rounded-full bg-grey-200" aria-hidden>
-              <span
-                className="absolute inset-y-0 left-0 w-full origin-left rounded-full bg-ink transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none"
-                style={{ transform: `scaleX(${Math.min(1, basketFill).toFixed(3)})` }}
-              />
-              {perKg ? <span className="absolute inset-y-0 w-0.5 bg-surface" style={{ left: `${Math.min(100, (catalog.minKg / fullAt) * 100)}%` }} /> : null}
-            </div>
-            <span className="mt-1.5 text-[12.5px] font-semibold text-muted">{basketLabel(basketFill, q.minimumApplied)}</span>
-          </div>
-
           <div>
             <FieldLabel id="qty-label" aside={perKg ? `Min. ${catalog.minKg} kg` : "Per piece"}>{perKg ? "Weight" : "Pieces"}</FieldLabel>
-            <div className="flex items-center gap-2.5" role="group" aria-labelledby="qty-label">
-              <IconButton type="button" label={perKg ? "Less 0.5 kg" : "One piece less"} size="lg" icon={<Minus size={22} strokeWidth={1.75} />}
-                disabled={quantity <= 0} onClick={() => { setQtyText(null); setQuantity(quantity - step); }} />
-              <Input hideLabel label={perKg ? "Weight in kilos" : "Number of pieces"} size="lg" inputMode="decimal" containerClassName="min-w-0 flex-1"
-                className="text-center text-[24px] font-extrabold"
-                value={qtyText ?? String(quantity)}
-                onChange={(e) => {
-                  const t = e.target.value.replace(",", ".");
-                  if (!/^\d*\.?\d*$/.test(t)) return;
-                  setQtyText(t);
-                  const v = Number.parseFloat(t);
-                  if (!Number.isNaN(v)) { if (perKg) setKg(Math.min(max, v)); else setPieces(Math.min(max, Math.round(v))); }
-                  else if (t === "") { if (perKg) setKg(0); else setPieces(0); }
-                }}
-                onBlur={() => { setQtyText(null); setQuantity(quantity); }}
-                trailing={<span className="text-[15px] font-bold text-muted">{perKg ? "kg" : "pcs"}</span>} />
-              <IconButton type="button" label={perKg ? "More 0.5 kg" : "One piece more"} size="lg" icon={<Plus size={22} strokeWidth={1.75} />}
-                disabled={quantity >= max} onClick={() => { setQtyText(null); setQuantity(quantity + step); }} />
+            {/* Basket left; − / value / + grouped on the right (value returned into that control cluster). */}
+            <div className="flex items-center gap-3 sm:gap-4" role="group" aria-labelledby="qty-label">
+              <div className="flex w-[84px] flex-none flex-col items-center pt-0.5">
+                <BasketFill fill={basketFill} size={84} />
+                <div className="relative mt-1 h-1 w-[4.5rem] overflow-hidden rounded-full bg-grey-200" aria-hidden>
+                  <span
+                    className="absolute inset-y-0 left-0 w-full origin-left rounded-full bg-ink transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none"
+                    style={{ transform: `scaleX(${Math.min(1, basketFill).toFixed(3)})` }}
+                  />
+                  {perKg ? <span className="absolute inset-y-0 w-0.5 bg-surface" style={{ left: `${Math.min(100, (catalog.minKg / fullAt) * 100)}%` }} /> : null}
+                </div>
+                <span className="mt-1 max-w-[84px] text-center text-[11.5px] font-semibold leading-tight text-muted">{basketLabel(basketFill, q.minimumApplied)}</span>
+              </div>
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <IconButton type="button" label={perKg ? "Less 0.5 kg" : "One piece less"} size="lg" icon={<Minus size={22} strokeWidth={1.75} />}
+                  disabled={quantity <= 0} onClick={() => { setQtyText(null); setQuantity(quantity - step); }} />
+                <Input hideLabel label={perKg ? "Weight in kilos" : "Number of pieces"} size="lg" inputMode="decimal" containerClassName="min-w-0 flex-1"
+                  className="text-center text-[22px] font-extrabold sm:text-[24px]"
+                  value={qtyText ?? String(quantity)}
+                  onChange={(e) => {
+                    const t = e.target.value.replace(",", ".");
+                    if (!/^\d*\.?\d*$/.test(t)) return;
+                    setQtyText(t);
+                    const v = Number.parseFloat(t);
+                    if (!Number.isNaN(v)) { if (perKg) setKg(Math.min(max, v)); else setPieces(Math.min(max, Math.round(v))); }
+                    else if (t === "") { if (perKg) setKg(0); else setPieces(0); }
+                  }}
+                  onBlur={() => { setQtyText(null); setQuantity(quantity); }}
+                  trailing={<span className="text-[15px] font-bold text-muted">{perKg ? "kg" : "pcs"}</span>} />
+                <IconButton type="button" label={perKg ? "More 0.5 kg" : "One piece more"} size="lg" icon={<Plus size={22} strokeWidth={1.75} />}
+                  disabled={quantity >= max} onClick={() => { setQtyText(null); setQuantity(quantity + step); }} />
+              </div>
             </div>
             {q.minimumApplied ? <p className="mt-1.5 text-[12.5px] font-semibold text-muted" role="status">Minimum charge of {catalog.minKg} kg applies.</p> : null}
           </div>
@@ -256,7 +258,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
               ))}
             </div>
             {catalog.services.length > 1 ? (
-              <div className="mt-2 flex justify-center gap-1.5" aria-hidden>
+              <div className="mt-1 flex justify-center gap-1.5" aria-hidden>
                 {catalog.services.map((s, i) => (
                   <span key={s.id} className={`h-1.5 rounded-full transition-all duration-300 ${i === svcIndex ? "w-4 bg-ink" : "w-1.5 bg-grey-300"}`} />
                 ))}
