@@ -33,6 +33,12 @@ export const dayKey = (ms: number) => dayKeyFmt.format(new Date(ms));
 export const timeLabel = (ms: number) => timeFmt.format(new Date(ms));
 /** "Mon, Oct 5" */
 export const shortDate = (ms: number) => shortDateFmt.format(new Date(ms));
+
+const monthDayFmt = new Intl.DateTimeFormat("en-US", { timeZone: SHOP_TZ, month: "short", day: "numeric" });
+/** "Today" or "Oct 6" — calendar date only, no time. */
+export function minimalDate(ms: number, now = Date.now()): string {
+  return dayKey(ms) === dayKey(now) ? "Today" : monthDayFmt.format(new Date(ms));
+}
 /** "Monday, Oct 5" */
 export const longDate = (ms: number) => longDateFmt.format(new Date(ms));
 /** "Mon" */

@@ -9,11 +9,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Customer, DaySummary, GrowthStat, GrowthTip, Order, OrderStatus, SalesPoint, Shop } from "@/data";
-import { money } from "@/lib/format";
+import { money, minimalDate } from "@/lib/format";
 import { customerTag } from "@/lib/orders";
 import { LaundryScene } from "../brand";
 import { SampleNote } from "../SampleNote";
-import { AdvanceButton, statusIcon } from "../ui";
+import { AdvanceButton } from "../ui";
 
 const linkCls = "text-[14px] font-bold underline decoration-grey-300 underline-offset-[3px]";
 
@@ -121,9 +121,9 @@ export function GrowthDashboard({ shop, today, stats, tip, week, queue, customer
           {queue.length ? (
             <div className="max-h-[240px] overflow-y-auto">
               <QueueList label="Orders" items={queue.map((o) => ({
-                id: o.id, leading: <IconTile size={40}>{statusIcon(o.status)}</IconTile>,
+                id: o.id,
                 title: <Link href={`/orders/view?id=${o.id}`} className="hover:underline">{o.customer.name}</Link>,
-                subtitle: <><span className="font-mono">{o.ref}</span> · {o.detail}</>,
+                subtitle: <>{o.detail} · {minimalDate(o.createdAt)}</>,
                 trailing: <AdvanceButton order={o} compact onAdvance={(to) => onAdvance(o, to)} busy={busyId === o.id} />,
               }))} />
             </div>

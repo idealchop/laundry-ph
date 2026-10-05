@@ -1,9 +1,9 @@
 "use client";
 import { Plus, ScanLine } from "lucide-react";
-import { Avatar, Button, Card, EmptyState, HeroBanner, QueueList, SectionHeader, StatCard } from "@river-apps/ui";
+import { Button, Card, EmptyState, HeroBanner, QueueList, SectionHeader, StatCard } from "@river-apps/ui";
 import Link from "next/link";
 import type { DaySummary, Order, OrderStatus, Shop } from "@/data";
-import { money } from "@/lib/format";
+import { money, minimalDate } from "@/lib/format";
 import { LaundryScene } from "../brand";
 import { Greeting } from "../Greeting";
 import { AdvanceButton } from "../ui";
@@ -51,9 +51,8 @@ export function PaidHomeMobile({ shop, today, queue, onAdvance, busyId }: PaidHo
             label="Order queue"
             items={queue.map((o) => ({
               id: o.id,
-              leading: <Avatar name={o.customer.name} preset={o.customer.avatar} size={36} />,
               title: <Link href={`/orders/view?id=${o.id}`} className="hover:underline">{o.customer.name}</Link>,
-              subtitle: <><span className="font-mono">{o.ref}</span> · {o.detail}</>,
+              subtitle: <>{o.detail} · {minimalDate(o.createdAt)}</>,
               trailing: <AdvanceButton order={o} compact onAdvance={(to) => onAdvance(o, to)} busy={busyId === o.id} />,
             }))}
           />

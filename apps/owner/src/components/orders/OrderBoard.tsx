@@ -6,7 +6,7 @@ import { Avatar, Badge, Button, Card, EmptyState, IconTile, ListItem, MonoText, 
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Order, OrderStatus } from "@/data";
-import { money, startOfShopDay, whenLabel } from "@/lib/format";
+import { money, minimalDate, startOfShopDay, whenLabel } from "@/lib/format";
 import { isActive, isDone } from "@/lib/orders";
 import { useAction, useBoardOrders, useShopQuery } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
@@ -260,7 +260,6 @@ function OrderRow({
       as="li"
       variant="row"
       className="border-b border-line py-2.5 last:border-b-0"
-      leading={<Avatar name={o.customer.name} preset={o.customer.avatar} size={40} />}
       title={
         <Link href={`/orders/view?id=${o.id}`} className="hover:underline">
           {o.customer.name}
@@ -268,7 +267,7 @@ function OrderRow({
       }
       subtitle={
         <>
-          <span className="font-mono">{o.ref}</span> · {o.detail} · {money(o.totalCentavos)} · {whenLabel(o.createdAt)}
+          {o.detail} · {minimalDate(o.createdAt)}
         </>
       }
       trailing={
