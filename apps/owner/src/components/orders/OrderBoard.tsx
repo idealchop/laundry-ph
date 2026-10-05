@@ -69,7 +69,7 @@ export function OrderBoard() {
       {loading && orders.length === 0 ? <Spinner label="Loading orders" /> : null}
       {!loading && list.length === 0 ? (
         <EmptyState className="mt-4" title={search ? "No matching orders" : "Nothing here yet"} description={tab === "progress" ? "New walk-in orders start as Received." : undefined}
-          action={<Button href="/orders/new" size="md" variant="secondary">New walk-in order</Button>} />
+          action={<Button href="/orders/new" size="md" variant="secondary">Walk-in</Button>} />
       ) : null}
       <Card padding="none" className="mt-4 px-4 py-1.5" hidden={list.length === 0}>
         <ul aria-label="Orders">

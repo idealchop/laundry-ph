@@ -91,7 +91,7 @@ export function SalesScreen({ embedded = false }: { embedded?: boolean } = {}) {
         <CardHeader title="Transactions" subtitle={`${orders.length} orders${orders.some((o) => !isCounted(o)) ? " (cancelled ones excluded from totals)" : ""}`} />
         {loading && orders.length === 0 ? <Spinner label="Loading sales" /> : null}
         {!loading && orders.length === 0 ? (
-          <EmptyState className="my-3 border-0" title="No sales in this range" description="Orders you create at the counter show up here." action={<Button href="/orders/new" size="md" variant="secondary">New walk-in order</Button>} />
+          <EmptyState className="my-3 border-0" title="No sales in this range" description="Orders you create at the counter show up here." action={<Button href="/orders/new" size="md" variant="secondary">Walk-in</Button>} />
         ) : null}
         <ul aria-label="Transactions" className="mt-1">
           {orders.map((o) => (

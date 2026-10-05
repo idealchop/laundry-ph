@@ -110,7 +110,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
         <div className="mt-auto flex flex-col gap-2.5 px-6 pb-10 pt-6">
           <Button href={ticketPath} target="_blank" rel="noopener" fullWidth>Open customer ticket</Button>
           <Button href={`/orders/view?id=${created.id}`} variant="secondary" fullWidth>View order</Button>
-          <Button variant="ghost" fullWidth onClick={reset} leadingIcon={<Plus size={20} strokeWidth={2} />}>New walk-in order</Button>
+          <Button variant="ghost" fullWidth onClick={reset} leadingIcon={<Plus size={20} strokeWidth={2} />}>Walk-in</Button>
         </div>
       </>
     );
@@ -118,7 +118,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
 
   return (
     <>
-      <FocusHeader title="New walk-in order" backHref="/home" trailing={<Badge variant="soft" className="h-11 rounded-pill px-3 text-[12.5px]">Walk-in</Badge>} />
+      <FocusHeader title="Walk-in" backHref="/home" trailing={<Badge variant="soft" className="h-11 rounded-pill px-3 text-[12.5px]">Walk-in</Badge>} />
       <form
         className="flex flex-1 flex-col"
         onSubmit={(e) => { e.preventDefault(); void submit(); }}

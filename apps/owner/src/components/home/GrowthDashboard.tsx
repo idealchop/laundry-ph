@@ -62,7 +62,7 @@ export function GrowthDashboard({ shop, today, stats, tip, week, queue, customer
           description={`${today.kgWashed} kg washed · ${today.inQueue} orders in progress · ${today.ready} ready for pickup`}
           contentWidth={460}
           actions={<>
-            <Button href="/orders/new" variant="white" size="md" leadingIcon={<Plus size={18} strokeWidth={1.9} />}>New walk-in order</Button>
+            <Button href="/orders/new" variant="white" size="md" leadingIcon={<Plus size={18} strokeWidth={1.9} />}>Walk-in</Button>
             <Button href="/scan/result" variant="ghost-inverse" size="md" leadingIcon={<ScanLine size={18} strokeWidth={1.75} />}>Scan customer</Button>
           </>}
           illustration={<LaundryScene size={268} />}

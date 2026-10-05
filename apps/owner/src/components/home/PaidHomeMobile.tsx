@@ -32,7 +32,7 @@ export function PaidHomeMobile({ shop, today, queue, onAdvance, busyId }: PaidHo
         contentWidth={220}
         actions={
           <>
-            <Button href="/orders/new" variant="white" size="sm" className="h-11 px-3.5 text-[13.5px]" leadingIcon={<Plus size={18} strokeWidth={1.9} />}>New walk-in order</Button>
+            <Button href="/orders/new" variant="white" size="sm" className="h-11 px-3.5 text-[13.5px]" leadingIcon={<Plus size={18} strokeWidth={1.9} />}>Walk-in</Button>
             <Button href="/scan/result" variant="ghost-inverse" size="sm" className="h-11 px-3.5 text-[13.5px]" leadingIcon={<ScanLine size={18} strokeWidth={1.75} />}>Scan customer</Button>
           </>
         }

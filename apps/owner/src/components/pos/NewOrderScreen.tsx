@@ -16,7 +16,7 @@ export function NewOrderScreen() {
   if (!catalog.data) {
     return (
       <>
-        <FocusHeader title="New walk-in order" backHref="/home" />
+        <FocusHeader title="Walk-in" backHref="/home" />
         <div className="px-5 pt-4"><ErrorNote onRetry={catalog.reload}>{catalog.error ?? "No price list found for this shop."}</ErrorNote></div>
       </>
     );
