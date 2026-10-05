@@ -492,6 +492,57 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
       return shopCache;
     },
 
+
+    async updateCatalog(next) {
+      requireUid();
+      const shop = shopCache ?? (await getShop());
+      if (shop.sample) throw new Error("Demo shops can’t edit the price list. Create your own shop to set services and prices.");
+      if (!next.services?.length) throw new Error("Add at least one service.");
+      const services = next.services.map((s) => ({
+        id: String(s.id || "").trim() || `svc-${Date.now()}`,
+        name: String(s.name || "").trim(),
+        unit: s.unit === "pc" ? "pc" : "kg",
+        priceCentavos: Math.max(0, Math.round(Number(s.priceCentavos) || 0)),
+        icon: s.icon,
+      }));
+      if (services.some((s) => s.name.length < 2)) throw new Error("Each service needs a name.");
+      const detergents = (next.detergents ?? []).map((o) => ({
+        id: o.id,
+        name: String(o.name || "").trim(),
+        ...(o.short ? { short: o.short } : {}),
+        priceCentavos: Math.max(0, Math.round(Number(o.priceCentavos) || 0)),
+        ...(o.icon ? { icon: o.icon } : {}),
+      }));
+      const addOns = (next.addOns ?? []).map((o) => ({
+        id: o.id,
+        name: String(o.name || "").trim(),
+        ...(o.short ? { short: o.short } : {}),
+        priceCentavos: Math.max(0, Math.round(Number(o.priceCentavos) || 0)),
+        ...(o.icon ? { icon: o.icon } : {}),
+      }));
+      const returnSlots = next.returnSlots?.length ? next.returnSlots : [{ id: "tomorrow", label: "Tomorrow · 5:00 PM" }];
+      const defaults = {
+        serviceId: services.some((s) => s.id === next.defaults?.serviceId) ? next.defaults.serviceId : services[0]!.id,
+        kg: next.defaults?.kg ?? 5,
+        pieces: next.defaults?.pieces ?? 10,
+        detergentId: detergents.some((d) => d.id === next.defaults?.detergentId) ? next.defaults.detergentId : (detergents[0]?.id ?? ""),
+        addOnIds: Array.isArray(next.defaults?.addOnIds) ? next.defaults.addOnIds : [],
+        returnSlotId: returnSlots.some((r) => r.id === next.defaults?.returnSlotId) ? next.defaults.returnSlotId : returnSlots[0]!.id,
+      };
+      const body = {
+        services,
+        detergents,
+        addOns,
+        minKg: Math.max(0, Number(next.minKg) || 0),
+        returnSlots,
+        defaults,
+        updatedAt: serverTimestamp(),
+      };
+      await setDoc(metaRef("catalog"), body, { merge: true });
+      catalogCache = normCatalog(body);
+      return catalogCache;
+    },
+
     async setShopPlan(patch) {
       requireUid();
       const shop = shopCache ?? (await getShop());

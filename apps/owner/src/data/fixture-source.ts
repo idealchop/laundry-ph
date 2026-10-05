@@ -14,6 +14,7 @@ const store = {
   orders: fx.sampleOrders(),
   customers: fx.customers.map((c) => ({ ...c })),
   shop: { ...fx.shop, address: fx.shop.address ? { ...fx.shop.address } : null, location: fx.shop.location ? { ...fx.shop.location } : null },
+  catalog: structuredClone(fx.catalog),
   nextNo: 423,
   listeners: new Set<Listener>(),
 };
@@ -40,8 +41,40 @@ export function createFixtureDataSource(): LaundryDataSource {
     getMachines: async () => fx.machines,
     getPickupRequests: async () => fx.pickupRequests,
     getVerifiedBooking: async (ref) => (!ref || ref === fx.verifiedBooking.ref ? fx.verifiedBooking : null),
-    getCatalog: async () => fx.catalog,
+    getCatalog: async () => structuredClone(store.catalog),
     getGrowthTip: async () => fx.growthTip,
+    async updateCatalog(next) {
+      if (!next.services?.length) throw new Error("Add at least one service.");
+      const services = next.services.map((s) => ({
+        id: s.id.trim() || `svc-${Date.now()}`,
+        name: s.name.trim(),
+        unit: s.unit === "pc" ? "pc" as const : "kg" as const,
+        priceCentavos: Math.max(0, Math.round(s.priceCentavos)),
+        icon: s.icon,
+      }));
+      if (services.some((s) => s.name.length < 2)) throw new Error("Each service needs a name.");
+      const detergents = (next.detergents ?? []).map((o) => ({
+        id: o.id, name: o.name.trim(), ...(o.short ? { short: o.short } : {}), priceCentavos: Math.max(0, Math.round(o.priceCentavos)), ...(o.icon ? { icon: o.icon } : {}),
+      }));
+      const addOns = (next.addOns ?? []).map((o) => ({
+        id: o.id, name: o.name.trim(), ...(o.short ? { short: o.short } : {}), priceCentavos: Math.max(0, Math.round(o.priceCentavos)), ...(o.icon ? { icon: o.icon } : {}),
+      }));
+      const defaults = {
+        ...next.defaults,
+        serviceId: services.some((s) => s.id === next.defaults?.serviceId) ? next.defaults.serviceId : services[0]!.id,
+        detergentId: detergents.some((d) => d.id === next.defaults?.detergentId) ? next.defaults.detergentId : (detergents[0]?.id ?? ""),
+      };
+      store.catalog = {
+        services,
+        detergents,
+        addOns,
+        minKg: Math.max(0, next.minKg ?? 5),
+        returnSlots: next.returnSlots?.length ? next.returnSlots : store.catalog.returnSlots,
+        defaults: { ...store.catalog.defaults, ...defaults, addOnIds: defaults.addOnIds ?? store.catalog.defaults.addOnIds, returnSlotId: defaults.returnSlotId ?? store.catalog.defaults.returnSlotId, kg: defaults.kg ?? store.catalog.defaults.kg, pieces: defaults.pieces ?? store.catalog.defaults.pieces },
+      };
+      emit();
+      return structuredClone(store.catalog);
+    },
 
     watchOrders: (opts, onData) =>
       subscribe(() => {
@@ -66,7 +99,7 @@ export function createFixtureDataSource(): LaundryDataSource {
         store.customers = [c, ...store.customers];
         customerId = c.id;
       }
-      const base = buildWalkInOrder(fx.catalog, { ...input, customer: { ...input.customer, id: customerId } }, {
+      const base = buildWalkInOrder(store.catalog, { ...input, customer: { ...input.customer, id: customerId } }, {
         shopId: fx.SAMPLE_SHOP_ID, ref, queueNo: store.nextNo - 400, ticketId: ref, now, sample: true,
       });
       const order: Order = { ...base, id: `local-${ref}` };

@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  BadgeCheck, CalendarClock, ChevronRight, CreditCard, History, LogOut, MapPin, MessageSquareText, Pencil, Users,
+  BadgeCheck, CalendarClock, ChevronRight, CreditCard, History, LogOut, MapPin, MessageSquareText, Package, Pencil, Users, Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { Avatar, Button, Card, ListItem, Topbar } from "@river-apps/ui";
@@ -41,6 +41,8 @@ function shopBio(shop: Shop): string {
 
 const HUB_LINKS = [
   { href: "/history", icon: History, title: "History", subtitle: "Sales totals and completed orders" },
+  { href: "/profile/services", icon: Package, title: "Services", subtitle: "Products, prices and POS catalog" },
+  { href: "/profile/accounts", icon: Wallet, title: "Accounts", subtitle: "River Apps scan credits and withdraw" },
   { href: "/customers", icon: Users, title: "Customers", subtitle: "Walk-ins, members and history" },
   { href: "/online", icon: CalendarClock, title: "Online / Schedule", subtitle: "Booking windows and capacity" },
   { href: "/messages", icon: MessageSquareText, title: "Message Automations", subtitle: "SMS templates — coming soon" },

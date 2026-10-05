@@ -39,6 +39,8 @@ export interface LaundryDataSource {
   /** River Mobile booking resolved from a QR (Partner API v1 later). Demo doc only for now. */
   getVerifiedBooking(ref?: string): Promise<VerifiedBooking | null>;
   getCatalog(): Promise<Catalog>;
+  /** Owner: replace price list (services, detergents, add-ons, min kg, defaults). Demo shops refuse writes on Firebase. */
+  updateCatalog(catalog: Catalog): Promise<Catalog>;
   /** Static tip until AI Growth ships; null when the shop has none. */
   getGrowthTip(): Promise<GrowthTip | null>;
 
