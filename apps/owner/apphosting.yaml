@@ -1,0 +1,27 @@
+# Shared App Hosting config for laundry-dev and laundry-prod backends
+# on Firebase project mylaundryph. Per-env values: apphosting.dev.yaml /
+# apphosting.prod.yaml. No secrets here.
+#
+# FIREBASE_WEBAPP_CONFIG is injected by App Hosting for the linked web app
+# ("Laundry.ph Owner") and mapped to NEXT_PUBLIC_FIREBASE_* in next.config.ts.
+
+runConfig:
+  minInstances: 0
+  maxInstances: 2
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  - variable: NEXT_PUBLIC_USE_EMULATORS
+    value: "false"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_DATA_SOURCE
+    value: "firebase"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_SHOP_ID
+    value: "sample-laundry"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_TELEMETRY_DISABLED
+    value: "1"
+    availability: [BUILD, RUNTIME]

@@ -1,10 +1,12 @@
 {
   "name": "laundry-ph",
   "private": true,
-  "description": "Laundry.ph: owner app for neighbourhood laundry shops (River Apps). UI scaffold with sample data.",
+  "description": "Laundry.ph: owner app for neighbourhood laundry shops (River Apps). Firebase project mylaundryph with named DBs laundrydb / laundrydb-dev.",
   "license": "UNLICENSED",
   "packageManager": "pnpm@10.33.4",
-  "engines": { "node": ">=20.9" },
+  "engines": {
+    "node": ">=20.9"
+  },
   "scripts": {
     "build:packages": "pnpm --filter \"./packages/**\" -r run build",
     "dev": "pnpm build:packages && pnpm --filter @laundry-ph/owner dev",
@@ -13,7 +15,10 @@
     "typecheck": "pnpm build:packages && pnpm -r run typecheck",
     "lint": "pnpm --filter @laundry-ph/owner lint",
     "icons:generate": "python3 packages/icons/scripts/generate.py",
-    "clean": "pnpm -r exec rm -rf dist .next"
+    "clean": "pnpm -r exec rm -rf dist .next",
+    "seed:dev": "node scripts/seed-laundrydb-dev.mjs",
+    "build:static": "pnpm build:packages && STATIC_EXPORT=1 pnpm --filter @laundry-ph/owner build",
+    "firebase:deploy:rules": "firebase deploy --only firestore"
   },
   "devDependencies": {
     "typescript": "5.9.3"

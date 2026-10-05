@@ -1,0 +1,94 @@
+rules_version = '2';
+
+// Laundry.ph Firestore rules (project mylaundryph).
+//
+// Databases: laundrydb (prod), laundrydb-dev (dev). Same rules file for both.
+// Model: every shop-scoped document lives under shops/{shopId}/…
+// - Clients never write by default (Admin SDK / future Cloud Functions bypass rules).
+// - Authenticated active members may READ their shop tree.
+// - Seeded demo shops (sample == true) are readable without auth so the UI scaffold
+//   can point at laundrydb-dev before Auth is wired. Remove that branch before launch.
+// - public_tickets/{ticketId} is the customer-facing projection for /t/[ticketId].
+// Default deny everything else. Do NOT use riverdb / aquaflow.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function memberDoc(shopId) {
+      return /databases/$(database)/documents/shops/$(shopId)/members/$(request.auth.uid);
+    }
+
+    function isMember(shopId) {
+      return signedIn()
+        && exists(memberDoc(shopId))
+        && get(memberDoc(shopId)).data.status == 'active'
+        && get(memberDoc(shopId)).data.shopId == shopId;
+    }
+
+    function shopDoc(shopId) {
+      return /databases/$(database)/documents/shops/$(shopId);
+    }
+
+    function isSampleShop(shopId) {
+      return exists(shopDoc(shopId)) && get(shopDoc(shopId)).data.sample == true;
+    }
+
+    match /shops/{shopId} {
+      allow read: if isMember(shopId) || resource.data.sample == true;
+      allow write: if false;
+
+      match /members/{uid} {
+        allow read: if isMember(shopId) || (signedIn() && request.auth.uid == uid);
+        allow write: if false;
+      }
+
+      match /orders/{orderId} {
+        allow read: if isMember(shopId) || isSampleShop(shopId);
+        // Walk-in create once Auth is live; until then seed/Admin only.
+        allow create: if isMember(shopId)
+          && request.resource.data.keys().hasAll(['ref', 'status', 'kg', 'customer'])
+          && request.resource.data.shopId == shopId;
+        allow update, delete: if false;
+      }
+
+      match /customers/{customerId} {
+        allow read: if isMember(shopId) || isSampleShop(shopId);
+        allow write: if false;
+      }
+
+      match /machines/{machineId} {
+        allow read: if isMember(shopId) || isSampleShop(shopId);
+        allow write: if false;
+      }
+
+      match /pickups/{pickupId} {
+        allow read: if isMember(shopId) || isSampleShop(shopId);
+        allow write: if false;
+      }
+
+      match /meta/{docId} {
+        allow read: if isMember(shopId) || isSampleShop(shopId);
+        allow write: if false;
+      }
+
+      match /{document=**} {
+        allow read: if isMember(shopId) || isSampleShop(shopId);
+        allow write: if false;
+      }
+    }
+
+    // Customer ticket page — public-safe projection only (no phone, no address).
+    match /public_tickets/{ticketId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

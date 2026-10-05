@@ -2,7 +2,7 @@
 
 **Laundry.ph** is the River Apps owner app for neighbourhood wash-dry-fold shops in the Philippines: counter POS, machines and order queue, River Mobile pickups, customer tickets, and a Growth Dashboard.
 
-This repo is currently a **UI scaffold with sample data only**. There is no Firebase, backend, auth or deployment yet. Every screen that shows data carries a "Sample data" tag.
+This repo is a **UI scaffold** that defaults to in-memory sample fixtures. Firebase foundation lives in project **`mylaundryph`** (standalone — not Smart Refill / `riverdb`). Set `NEXT_PUBLIC_DATA_SOURCE=firebase` to read from a named Firestore database. Every sample screen still carries a "Sample data" tag.
 
 ## Setup
 
@@ -24,6 +24,9 @@ pnpm dev          # builds the kit packages, then runs the owner app on http://l
 | `pnpm lint` | ESLint (`eslint-config-next`, core-web-vitals + TypeScript), zero warnings allowed |
 | `pnpm icons:generate` | Regenerate `packages/icons` SVGs and `src/raw.ts` from `scripts/art.py` (needs python3) |
 | `pnpm clean` | Remove `dist/` and `.next/` |
+| `pnpm build:static` | Static export of `apps/owner` for classic Firebase Hosting |
+| `pnpm seed:dev` | Seed SAMPLE demo data into `laundrydb-dev` only (needs Blaze + DB) |
+| `pnpm firebase:deploy:rules` | Deploy Firestore rules/indexes to both named databases |
 
 CI (`.github/workflows/ci.yml`) runs install, typecheck, lint and build on every pull request and on pushes to `main`.
 
@@ -49,7 +52,7 @@ apps/
     src/components/
       kit-extensions/            Chip, ChoiceTile, StepTracker, WideSidebar, FieldLabel (to upstream to the kit)
       shell/  home/  partner/  scan/  pos/  ticket/   screen components
-    src/data/                    types.ts, fixtures.ts (sample data), index.ts (LaundryDataSource interface)
+    src/data/                    types, fixtures, firebase-source, index (LaundryDataSource)
     src/lib/                     pricing.ts (POS quote), format.ts (₱ formatting)
 packages/                        vendored River Apps UI Kit (see packages/VENDORED.md)
   tokens/   @river-apps/tokens   colours, radii, shadows, type, fonts → CSS vars + Tailwind theme
@@ -59,7 +62,35 @@ packages/                        vendored River Apps UI Kit (see packages/VENDOR
 
 ### Data access
 
-Screens never import fixtures directly. They call `data` from `src/data/index.ts`, which implements the async `LaundryDataSource` interface (`getTodaySummary`, `getMachines`, `getCatalog`, `getTicket`, …). Today it is backed by `fixtures.ts`. To go live, add a Firestore implementation of the same interface and point `data` at it. `data.isSample` controls the Sample data tags.
+Screens never import fixtures directly. They call `data` from `src/data/index.ts` (`LaundryDataSource`). Default backend is `fixtures.ts`. Set `NEXT_PUBLIC_DATA_SOURCE=firebase` to use `firebase-source.ts` against the named database in `NEXT_PUBLIC_FIRESTORE_DATABASE` (`laundrydb-dev` or `laundrydb`). `data.isSample` controls the Sample data tags.
+
+## Firebase (project `mylaundryph`)
+
+**Standalone.** Own Auth, own Firestore. Do **not** use `aquaflow-management-suite` / `riverdb`.
+
+| Resource | Id / name |
+| --- | --- |
+| Firebase project | `mylaundryph` (display: Mylaundry PH) |
+| Firestore prod | `laundrydb` (asia-southeast1) |
+| Firestore dev | `laundrydb-dev` (asia-southeast1) — **needs Blaze** to create |
+| App Hosting backends | `laundry-dev`, `laundry-prod` — **need Blaze** |
+| Web app | Laundry.ph Owner (`1:500578192242:web:f55828f2cb409bebc6ebeb`) |
+| Classic Hosting preview | https://mylaundryph.web.app (static export of the UI + fixtures) |
+
+Auth: Email/Password and Google are enabled. Google sign-in may still need an OAuth consent screen / authorized domains tweak in the console for production use.
+
+Config files: `firebase.json`, `.firebaserc`, `firestore.rules`, `apps/owner/apphosting.yaml` (+ `.dev` / `.prod`), `apps/owner/.env.example`.
+
+After upgrading to Blaze:
+
+```bash
+firebase firestore:databases:create laundrydb-dev --location=asia-southeast1 --project mylaundryph
+firebase deploy --only firestore --project mylaundryph
+pnpm seed:dev
+# Then create App Hosting backends laundry-dev / laundry-prod (see firebase.json)
+```
+
+Billing upgrade URL: https://console.firebase.google.com/project/mylaundryph/usage/details
 
 ### Kit usage and extensions
 

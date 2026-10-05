@@ -1,0 +1,8 @@
+# Environment "prod" (backend laundry-prod): Firestore database laundrydb.
+env:
+  - variable: NEXT_PUBLIC_APP_ENV
+    value: prod
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIRESTORE_DATABASE
+    value: laundrydb
+    availability: [BUILD, RUNTIME]

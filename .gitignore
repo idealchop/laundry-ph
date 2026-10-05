@@ -15,9 +15,13 @@ coverage/
 .env
 .env*
 !.env.example
+!.env*.example
 
 # misc
 .DS_Store
 *.log
 .vercel/
 __pycache__/
+
+# firebase local cache
+.firebase/

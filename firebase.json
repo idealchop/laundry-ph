@@ -1,0 +1,73 @@
+{
+  "firestore": [
+    {
+      "database": "laundrydb",
+      "rules": "firestore.rules",
+      "indexes": "firestore.indexes.json"
+    },
+    {
+      "database": "laundrydb-dev",
+      "rules": "firestore.rules",
+      "indexes": "firestore.indexes.json"
+    }
+  ],
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Mylaundry PH",
+        "supportEmail": "jimboy@smartrefill.io"
+      }
+    }
+  },
+  "hosting": {
+    "public": "apps/owner/out",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css|svg|png|jpg|jpeg|gif|webp|woff2)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public,max-age=31536000,immutable"
+          }
+        ]
+      }
+    ]
+  },
+  "apphosting": [
+    {
+      "backendId": "laundry-dev",
+      "rootDir": "apps/owner",
+      "ignore": [
+        "**/node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "**/.next",
+        "**/out",
+        "**/dist",
+        "**/.env",
+        "**/.env.*.local"
+      ]
+    },
+    {
+      "backendId": "laundry-prod",
+      "rootDir": "apps/owner",
+      "ignore": [
+        "**/node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "**/.next",
+        "**/out",
+        "**/dist",
+        "**/.env",
+        "**/.env.*.local"
+      ]
+    }
+  ]
+}

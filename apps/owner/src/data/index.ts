@@ -1,11 +1,12 @@
 /**
  * Data access for the Laundry.ph owner UI.
  *
- * Components only talk to `data` through the `LaundryDataSource` interface. Today it is backed by
- * in-memory sample fixtures; later a Firestore implementation (workspaces/{shopId}/…, public_tickets)
- * can be dropped in here without changing any screen. Methods are async on purpose.
+ * Components only talk to `data` through the `LaundryDataSource` interface.
+ * Default: in-memory fixtures. Set NEXT_PUBLIC_DATA_SOURCE=firebase to use the
+ * named Firestore database in project mylaundryph (laundrydb / laundrydb-dev).
  */
 import * as fx from "./fixtures";
+import { createFirebaseDataSource } from "./firebase-source";
 import type {
   Catalog, Customer, DaySummary, GrowthStat, GrowthTip, Machine, PickupRequest, PublicTicket, QueuedOrder, SalesPoint, Schedule, Shop,
   VerifiedBooking,
@@ -14,7 +15,7 @@ import type {
 export * from "./types";
 
 export interface LaundryDataSource {
-  /** True while the app shows seeded sample data (drives <SampleDataTag />). */
+  /** True while the app shows seeded sample / demo data (drives <SampleDataTag />). */
   readonly isSample: boolean;
   getShop(): Promise<Shop>;
   getTodaySummary(): Promise<DaySummary>;
@@ -31,6 +32,15 @@ export interface LaundryDataSource {
   getGrowthStats(): Promise<GrowthStat[]>;
   getGrowthTip(): Promise<GrowthTip>;
   getCustomers(): Promise<Customer[]>;
+  /** Optional: persist a walk-in order + public ticket (Firebase source). */
+  createWalkInOrder?(input: {
+    ref: string;
+    customer: QueuedOrder["customer"];
+    kg: number;
+    detail: string;
+    status?: QueuedOrder["status"];
+    ticket: PublicTicket;
+  }): Promise<QueuedOrder>;
 }
 
 export const sampleDataSource: LaundryDataSource = {
@@ -50,8 +60,16 @@ export const sampleDataSource: LaundryDataSource = {
   getCustomers: async () => fx.customers,
 };
 
-/** The active data source. Swap for a Firestore-backed implementation in a later phase. */
-export const data: LaundryDataSource = sampleDataSource;
+function resolveDataSource(): LaundryDataSource {
+  const mode = (process.env.NEXT_PUBLIC_DATA_SOURCE ?? "fixtures").toLowerCase();
+  if (mode === "firebase") {
+    return createFirebaseDataSource();
+  }
+  return sampleDataSource;
+}
 
-/** Ticket ids that exist in the sample data (used to pre-render /t/[ticketId]). */
+/** The active data source (fixtures by default; firebase when env says so). */
+export const data: LaundryDataSource = resolveDataSource();
+
+/** Ticket ids that exist in the sample fixtures (used to pre-render /t/[ticketId]). */
 export const SAMPLE_TICKET_IDS = fx.tickets.map((t) => t.id);
