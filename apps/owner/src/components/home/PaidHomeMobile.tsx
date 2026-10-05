@@ -1,9 +1,8 @@
 "use client";
-import { ArrowRight, Plus, ScanLine } from "lucide-react";
-import { DryerIcon, Icon3D } from "@river-apps/icons";
-import { Avatar, Button, Card, EmptyState, HeroBanner, IconButton, IconTile, QueueList, ResourceCard, SectionHeader, StatCard } from "@river-apps/ui";
+import { Plus, ScanLine } from "lucide-react";
+import { Avatar, Button, Card, EmptyState, HeroBanner, QueueList, SectionHeader, StatCard } from "@river-apps/ui";
 import Link from "next/link";
-import type { DaySummary, Machine, Order, OrderStatus, Shop } from "@/data";
+import type { DaySummary, Order, OrderStatus, Shop } from "@/data";
 import { money } from "@/lib/format";
 import { LaundryScene } from "../brand";
 import { Greeting } from "../Greeting";
@@ -12,7 +11,6 @@ import { AdvanceButton } from "../ui";
 export interface PaidHomeMobileProps {
   shop: Shop;
   today: DaySummary;
-  machines: Machine[];
   /** Open orders (received … ready), oldest first. */
   queue: Order[];
   onAdvance: (order: Order, to: OrderStatus) => void;
@@ -20,8 +18,7 @@ export interface PaidHomeMobileProps {
 }
 
 /** Paid home on phones (and tablets below the `lg` breakpoint). */
-export function PaidHomeMobile({ shop, today, machines, queue, onAdvance, busyId }: PaidHomeMobileProps) {
-  const busy = machines.filter((m) => m.status === "running").length;
+export function PaidHomeMobile({ shop, today, queue, onAdvance, busyId }: PaidHomeMobileProps) {
   return (
     <div className="mx-auto w-full max-w-[560px] pb-4">
       <Greeting title={shop.name} name={shop.ownerName} avatar={shop.ownerAvatar} notifications={today.notifications} />
@@ -42,6 +39,9 @@ export function PaidHomeMobile({ shop, today, machines, queue, onAdvance, busyId
         <StatCard className="pb-3" label="Ready" value={String(today.ready)} />
         <StatCard className="pb-3" label="Unpaid" value={money(today.unpaidCentavos)} />
       </div>
+      <div className="px-4 pt-3">
+        <Button href="/orders/new" fullWidth leadingIcon={<Plus size={20} strokeWidth={2} />}>New walk-in order</Button>
+      </div>
       <SectionHeader className="px-5 pb-1 pt-4" title="Order queue" aside={<Link href="/orders" className="underline decoration-grey-300 underline-offset-[3px]">{`${today.inQueue} in progress · ${today.ready} ready`}</Link>} />
       <Card padding="none" className="mx-4 px-4 py-1.5">
         {queue.length ? (
@@ -59,34 +59,6 @@ export function PaidHomeMobile({ shop, today, machines, queue, onAdvance, busyId
           <EmptyState className="my-2 border-0 py-5" title="No orders in the queue" description="New walk-in orders show up here." />
         )}
       </Card>
-      <div className="px-4 pt-3">
-        <Button href="/orders/new" fullWidth leadingIcon={<Plus size={20} strokeWidth={2} />}>New walk-in order</Button>
-      </div>
-      {machines.length ? <SectionHeader className="px-5 pb-2.5 pt-4" title="Machines" aside={`${busy} of ${machines.length} in use`} /> : null}
-      <div className="grid grid-cols-2 gap-2.5 px-4">
-        {machines.map((m) =>
-          m.status === "running" ? (
-            <ResourceCard
-              key={m.id}
-              icon={<IconTile size={48} className="-ml-[5px] -mt-[5px]"><Icon3D name={m.kind} size={38} /></IconTile>}
-              eyebrow={`${m.name} · ${m.stage}`}
-              title={`${m.customerName} · ${m.kg} kg`}
-              meta={m.orderRef}
-              progress={{ value: m.progress ?? 0, label: `${m.minutesLeft}m`, ariaLabel: `${m.name}: ${m.minutesLeft} minutes left` }}
-            />
-          ) : (
-            <ResourceCard
-              key={m.id}
-              variant="inverse"
-              icon={<DryerIcon size={38} />}
-              eyebrow={<>{m.name} · <b className="text-on-ink">Free</b></>}
-              title="Load next order"
-              meta={m.nextOrderRef ? `Next: ${m.nextOrderRef}` : undefined}
-              action={<IconButton variant="white" label={`Load next order into ${m.name}`} className="-mr-1 -mt-0.5 size-11" icon={<ArrowRight size={20} strokeWidth={2.2} />} />}
-            />
-          ),
-        )}
-      </div>
     </div>
   );
 }

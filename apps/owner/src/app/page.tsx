@@ -50,7 +50,7 @@ export default function WelcomePage() {
       </div>
       <div className="px-7 pt-[26px]">
         <h1 className="text-[31px] font-extrabold leading-[1.12] tracking-[-0.03em]">Run your laundry<br />from your phone</h1>
-        <p className="mt-2.5 text-[16px] font-medium text-muted">Orders, machines and today’s sales in one simple app.</p>
+        <p className="mt-2.5 text-[16px] font-medium text-muted">Orders, pickups and today’s sales in one simple app.</p>
       </div>
       <div className="mt-auto flex flex-col gap-2.5 px-6 pb-10 pt-6">
         <Button href="/sign-in/phone" fullWidth leadingIcon={<Smartphone size={20} strokeWidth={1.75} />}>Continue with phone number</Button>

@@ -16,7 +16,6 @@ export function HomeScreen() {
   const since = useMemo(() => startOfShopDay(now, -13), [now]);
   const { orders, error, loading } = useBoardOrders(since);
   const { customers } = useCustomers();
-  const machines = useShopQuery((s) => s.getMachines());
   const tip = useShopQuery((s) => s.getGrowthTip());
   const pickups = useShopQuery((s) => s.getPickupRequests());
   const action = useAction();
@@ -42,7 +41,7 @@ export function HomeScreen() {
     <>
       {err ? <ErrorNote className="mx-4 mt-3 lg:mx-[30px]">{err}</ErrorNote> : null}
       <div className="lg:hidden">
-        <PaidHomeMobile shop={shop} today={today} machines={machines.data ?? []} queue={queue} onAdvance={onAdvance} busyId={busyId} />
+        <PaidHomeMobile shop={shop} today={today} queue={queue} onAdvance={onAdvance} busyId={busyId} />
       </div>
       <div className="hidden lg:block">
         <GrowthDashboard shop={shop} today={today} stats={stats} tip={tip.data ?? null} week={week} queue={queue} customers={customers} onAdvance={onAdvance} busyId={busyId} />
