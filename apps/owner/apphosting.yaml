@@ -1,13 +1,12 @@
 # Shared App Hosting config for laundry-dev and laundry-prod backends
-# on Firebase project mylaundryph. Per-env values: apphosting.dev.yaml /
-# apphosting.prod.yaml. No secrets here.
+# on Firebase project mylaundryph. Per-env overlays: apphosting.dev.yaml /
+# apphosting.prod.yaml (when the backend environment is set). No secrets here.
 #
 # FIREBASE_WEBAPP_CONFIG is injected by App Hosting for the linked web app
 # ("Laundry.ph Owner") and mapped to NEXT_PUBLIC_FIREBASE_* in next.config.ts.
 #
 # pnpm monorepo + Turborepo: backend rootDir is apps/owner (firebase.json).
-# The buildpack runs `turbo run build --filter=@laundry-ph/owner`, which builds
-# vendored kit packages first (turbo.json dependsOn ^build) then next build.
+# The buildpack runs `turbo run build --filter=@laundry-ph/owner`.
 
 runConfig:
   minInstances: 0
@@ -25,6 +24,14 @@ env:
     availability: [BUILD, RUNTIME]
   - variable: NEXT_PUBLIC_SHOP_ID
     value: "sample-laundry"
+    availability: [BUILD, RUNTIME]
+  # Default DB for laundry-dev (and any backend without a prod overlay).
+  # laundry-prod overrides this to laundrydb via apphosting.prod.yaml.
+  - variable: NEXT_PUBLIC_FIRESTORE_DATABASE
+    value: laundrydb-dev
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_APP_ENV
+    value: dev
     availability: [BUILD, RUNTIME]
   - variable: NEXT_TELEMETRY_DISABLED
     value: "1"
