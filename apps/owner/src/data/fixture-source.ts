@@ -117,6 +117,12 @@ export function createFixtureDataSource(): LaundryDataSource {
       emit();
       return { ...store.shop };
     },
+    async setShopPhotos(photoUrls) {
+      const cleaned = [...new Set(photoUrls.filter((u) => typeof u === "string" && u.startsWith("https://")))].slice(0, 6);
+      store.shop = { ...store.shop, photoUrls: cleaned };
+      emit();
+      return { ...store.shop };
+    },
     async setShopPlan(patch) {
       store.shop = {
         ...store.shop,

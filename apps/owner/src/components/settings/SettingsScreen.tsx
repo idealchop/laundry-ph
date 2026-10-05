@@ -12,6 +12,7 @@ import { useAction, useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
 import { ErrorNote } from "../ui";
 import { LocationPicker } from "./LocationPicker";
+import { ShopPhotos } from "./ShopPhotos";
 
 function profileKey(shop: Shop): string {
   const a = shop.address;
@@ -30,7 +31,7 @@ export function SettingsScreen() {
   const { openAuthCta, isAuthenticated } = useAuthGate();
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
-      <Topbar className="px-1" title="Settings" subtitle={<>Shop profile, address and plan <SampleNote className="ml-1 align-middle" /></>} />
+      <Topbar className="px-1" title="Settings" subtitle={<>Shop profile, photos, address and plan <SampleNote className="ml-1 align-middle" /></>} />
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card className="px-4 py-3.5">
           <b className="text-[16px]">Shop</b>
@@ -75,6 +76,7 @@ export function SettingsScreen() {
         </Card>
 
         <ProfileEditor key={profileKey(shop)} shop={shop} source={source} reload={reload} />
+        <ShopPhotos shop={shop} />
       </div>
     </div>
   );

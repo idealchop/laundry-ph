@@ -235,6 +235,7 @@ function shopFromSnap(snap: DocumentSnapshot): Shop {
     dailyTargetCentavos: typeof d.dailyTargetCentavos === "number" ? d.dailyTargetCentavos : undefined,
     address: toAddress(d.address),
     location: toLocation(d.location),
+    photoUrls: Array.isArray(d.photoUrls) ? d.photoUrls.filter((u): u is string => typeof u === "string" && u.startsWith("https://")).slice(0, 6) : [],
     planSource: toPlanSource(d.planSource),
     planExpiresAt: typeof d.planExpiresAt === "number" ? d.planExpiresAt : ms(d.planExpiresAt),
   };
@@ -478,6 +479,16 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
       if (typeof patch.dailyTargetCentavos === "number") body.dailyTargetCentavos = Math.max(0, Math.round(patch.dailyTargetCentavos));
       await updateDoc(shopDocRef(), body);
       shopCache = { ...shop, name, area, ownerName, address, location, dailyTargetCentavos: body.dailyTargetCentavos ?? shop.dailyTargetCentavos };
+      return shopCache;
+    },
+
+    async setShopPhotos(photoUrls) {
+      requireUid();
+      const shop = shopCache ?? (await getShop());
+      if (shop.sample) throw new Error("Demo shops can’t change photos. Create your own shop to upload storefront photos.");
+      const cleaned = [...new Set(photoUrls.filter((u) => typeof u === "string" && u.startsWith("https://")))].slice(0, 6);
+      await updateDoc(shopDocRef(), { photoUrls: cleaned, photosUpdatedAt: serverTimestamp() });
+      shopCache = { ...shop, photoUrls: cleaned };
       return shopCache;
     },
 

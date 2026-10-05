@@ -25,6 +25,7 @@ export const shop: Shop = {
     lng: 121.0573,
     formattedAddress: "12 Mabini St., Kapitolyo, Pasig, Metro Manila",
   },
+  photoUrls: [],
 };
 
 export const schedule: Schedule = {

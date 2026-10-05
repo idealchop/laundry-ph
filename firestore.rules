@@ -5,7 +5,7 @@ rules_version = '2';
 //
 // Model (money = integer centavos, times = server timestamps):
 //   users/{uid}                         { shopId }  which shop a login opens (self only)
-//   shops/{shopId}                      shop profile (+ ownerUid, tier/plan, address, location; sample == true for demo)
+//   shops/{shopId}                      shop profile (+ ownerUid, tier/plan, address, location, photoUrls; sample == true for demo)
 //   shops/{shopId}/members/{uid}        { uid, shopId, role: owner|staff, status: active|disabled }
 //   shops/{shopId}/orders/{orderId}     walk-in orders; status received→washing→drying→folding→ready→claimed|delivered
 //   shops/{shopId}/customers/{id}       customers (visits, spentCentavos)
@@ -84,7 +84,7 @@ service cloud.firestore {
         && request.resource.data.name.size() >= 2
         && request.resource.data.keys().hasOnly([
           'id', 'name', 'area', 'ownerName', 'ownerAvatar', 'tier', 'ownerUid', 'sample', 'dailyTargetCentavos', 'createdAt',
-          'address', 'location', 'planSource', 'planExpiresAt'
+          'address', 'location', 'photoUrls', 'planSource', 'planExpiresAt'
         ])
         && request.resource.data.createdAt == request.time;
 
@@ -97,7 +97,7 @@ service cloud.firestore {
         && request.resource.data.tier in ['paid', 'partner']
         && changedOnly([
           'name', 'area', 'ownerName', 'ownerAvatar', 'dailyTargetCentavos',
-          'address', 'location', 'tier', 'planSource', 'planExpiresAt', 'planUpdatedAt'
+          'address', 'location', 'photoUrls', 'photosUpdatedAt', 'tier', 'planSource', 'planExpiresAt', 'planUpdatedAt'
         ]);
       allow delete: if false;
 

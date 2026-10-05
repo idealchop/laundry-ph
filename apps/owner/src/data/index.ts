@@ -57,6 +57,8 @@ export interface LaundryDataSource {
 
   /** Owner: save shop name, area, address and map pin. Demo shops refuse writes. */
   updateShopProfile(patch: ShopProfileUpdate): Promise<Shop>;
+  /** Replace shop photo gallery URLs (River Mobile listing). */
+  setShopPhotos(photoUrls: string[]): Promise<Shop>;
   /** Owner / demo billing: set Partner vs Paid (+ source + expiry). */
   setShopPlan(patch: ShopPlanUpdate): Promise<Shop>;
 }

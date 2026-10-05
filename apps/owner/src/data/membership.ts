@@ -89,7 +89,7 @@ export async function createShop(user: User, input: { name: string; area: string
   const b1 = writeBatch(db);
   b1.set(doc(db, "shops", shopId), {
     id: shopId, name, area: input.area.trim(), ownerName, ownerAvatar: avatarFor(ownerName), tier: "partner",
-    planSource: null, planExpiresAt: null, address: null, location: null,
+    planSource: null, planExpiresAt: null, address: null, location: null, photoUrls: [],
     ownerUid: user.uid, sample: false, dailyTargetCentavos: 500_000, createdAt: serverTimestamp(),
   });
   b1.set(doc(db, "shops", shopId, "members", user.uid), {

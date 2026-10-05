@@ -51,6 +51,8 @@ export interface Shop {
   address?: ShopAddress | null;
   /** Map pin for River Mobile (lat/lng + formatted address). */
   location?: ShopLocation | null;
+  /** Shop storefront / interior photos for River Mobile listing (download URLs). */
+  photoUrls?: string[];
   /** How Paid was unlocked; null on Partner. */
   planSource?: PlanSource;
   /** Epoch ms when a monthly Paid plan ends; null for lifetime / Partner. */
@@ -64,6 +66,8 @@ export interface ShopProfileUpdate {
   ownerName: string;
   address: ShopAddress | null;
   location: ShopLocation | null;
+  /** HTTPS download URLs from Firebase Storage (max 6). */
+  photoUrls?: string[];
   dailyTargetCentavos?: Centavos;
 }
 

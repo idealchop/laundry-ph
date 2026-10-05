@@ -1,0 +1,31 @@
+rules_version = '2';
+// Laundry.ph shop photos for River Mobile listing.
+// Path: shops/{shopId}/photos/{fileName}
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+    // Membership may live in laundrydb-dev (App Hosting dev) or laundrydb (prod).
+    function isShopMember(shopId) {
+      return signedIn() && (
+        firestore.exists(/databases/laundrydb-dev/documents/shops/$(shopId)/members/$(request.auth.uid))
+        || firestore.exists(/databases/laundrydb/documents/shops/$(shopId)/members/$(request.auth.uid))
+      );
+    }
+    function isImage() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+    function under5mb() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+
+    match /shops/{shopId}/photos/{fileName} {
+      // Public read so River Mobile (and ticket pages later) can show storefront photos.
+      allow read: if true;
+      allow create, update: if isShopMember(shopId) && isImage() && under5mb()
+        && fileName.size() < 180;
+      allow delete: if isShopMember(shopId);
+    }
+  }
+}

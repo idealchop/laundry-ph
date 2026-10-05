@@ -1,11 +1,13 @@
 import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
 import { connectAuthEmulator, getAuth, type Auth } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { firebaseWebConfig, firestoreDatabaseId, hasFirebaseWebConfig } from "./config";
 
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 let auth: Auth | null = null;
+let storage: FirebaseStorage | null = null;
 
 /** Local emulators (firebase emulators:start --only auth,firestore). Never on App Hosting. */
 const useEmulators = process.env.NEXT_PUBLIC_USE_EMULATORS === "true";
@@ -42,4 +44,10 @@ export function getFirebaseAuth(): Auth {
     auth.settings.appVerificationDisabledForTesting = true;
   }
   return auth;
+}
+
+export function getFirebaseStorage(): FirebaseStorage {
+  if (storage) return storage;
+  storage = getStorage(getFirebaseApp());
+  return storage;
 }
