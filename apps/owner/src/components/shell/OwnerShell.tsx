@@ -49,10 +49,11 @@ export function OwnerShell({ children }: { children: ReactNode }) {
   /** Map legacy Paid routes onto the new IA for active highlighting. */
   const paidPath =
     pathname === "/settings" || pathname.startsWith("/settings/")
+      || pathname === "/history" || pathname.startsWith("/history/")
+      || pathname === "/sales" || pathname.startsWith("/sales/")
+      || pathname === "/more"
       ? "/profile"
-      : pathname === "/sales" || pathname.startsWith("/sales/") || pathname === "/more"
-        ? (pathname === "/more" ? "/profile" : "/history")
-        : pathname;
+      : pathname;
   const { user, loading } = useAuth();
   const { openAuthCta, isAuthenticated } = useAuthGate();
   const authPrompted = useRef(false);

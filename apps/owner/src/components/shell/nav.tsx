@@ -7,27 +7,26 @@ import type { NavItem } from "@river-apps/ui";
 const side = { size: 20, strokeWidth: 1.75 } as const;
 const tab = { size: 22, strokeWidth: 1.75 } as const;
 
-/** Paid desktop sidebar — mirrors mobile IA; secondary tools live under Profile. */
+/** Paid desktop sidebar — mirrors mobile IA; History + tools live under Profile. */
 export const PAID_NAV: NavItem[] = [
   { key: "home", label: "Home", href: "/home", icon: <House {...side} /> },
   { key: "orders", label: "Orders", href: "/orders", icon: <List {...side} /> },
-  { key: "history", label: "History", href: "/history", icon: <History {...side} /> },
   { key: "community", label: "Community", href: "/community", icon: <MessagesSquare {...side} /> },
   { key: "profile", label: "Profile", href: "/profile", icon: <Settings {...side} /> },
 ];
 
-/** Secondary desktop links (hub targets also on Profile). */
+/** Secondary desktop links (also on Profile hub). */
 export const PAID_SECONDARY_NAV: NavItem[] = [
+  { key: "history", label: "History", href: "/history", icon: <History {...side} /> },
   { key: "online", label: "Online / Schedule", href: "/online", icon: <CalendarClock {...side} /> },
   { key: "customers", label: "Customers", href: "/customers", icon: <Users {...side} /> },
   { key: "messages", label: "Messages", href: "/messages", icon: <MessageSquareText {...side} /> },
 ];
 
-/** Paid mobile tabs — icons rendered as Icon3D in OwnerTabBar. */
+/** Paid mobile tabs (4) — icons rendered as Icon3D in OwnerTabBar. */
 export const PAID_TABS: NavItem[] = [
   { key: "home", label: "Home", href: "/home", icon: <House {...tab} /> },
   { key: "orders", label: "Orders", href: "/orders", icon: <List {...tab} /> },
-  { key: "history", label: "History", href: "/history", icon: <History {...tab} /> },
   { key: "community", label: "Community", href: "/community", icon: <MessagesSquare {...tab} /> },
   { key: "profile", label: "Profile", href: "/profile", icon: <Settings {...tab} /> },
 ];
@@ -36,7 +35,6 @@ export const PAID_TABS: NavItem[] = [
 export const PAID_TAB_ICONS: Record<string, IconName> = {
   home: "washer",
   orders: "basket",
-  history: "folded",
   community: "chat",
   profile: "shield",
 };

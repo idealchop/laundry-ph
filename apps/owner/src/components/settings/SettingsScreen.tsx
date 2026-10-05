@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  BadgeCheck, CalendarClock, ChevronRight, CreditCard, LogOut, MapPin, MessageSquareText, Pencil, Users,
+  BadgeCheck, CalendarClock, ChevronRight, CreditCard, History, LogOut, MapPin, MessageSquareText, Pencil, Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
@@ -54,6 +54,7 @@ function shopBio(shop: Shop): string {
 }
 
 const HUB_LINKS = [
+  { href: "/history", icon: History, title: "History", subtitle: "Sales totals and completed orders" },
   { href: "/customers", icon: Users, title: "Customers", subtitle: "Walk-ins, members and history" },
   { href: "/online", icon: CalendarClock, title: "Online / Schedule", subtitle: "Booking windows and capacity" },
   { href: "/messages", icon: MessageSquareText, title: "Message Automations", subtitle: "SMS templates — coming soon" },
