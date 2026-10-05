@@ -14,7 +14,7 @@ export interface ComposerHandle {
 }
 
 /**
- * Threads-style "What's new?" composer. Text + up to 4 photos (from device or an image link).
+ * "What's new?" composer. Text + up to 4 photos (from device or an image link).
  * Device photos are downscaled to JPEG data URLs and kept on this device for now.
  */
 export const Composer = forwardRef<ComposerHandle, { me: PostAuthor; onPost: (body: string, images: string[]) => boolean; className?: string }>(
@@ -91,10 +91,11 @@ export const Composer = forwardRef<ComposerHandle, { me: PostAuthor; onPost: (bo
 
     return (
       <section aria-label="New post" className={cn("px-4 pb-3.5 pt-4 lg:px-5", className)}>
-        <div className="flex gap-3">
-          <Avatar name={me.name} preset={me.photoUrl ? undefined : me.avatar} src={me.photoUrl} size={40} />
-          <div className="min-w-0 flex-1">
-            <b className="block truncate text-[15px] font-extrabold leading-tight tracking-[-0.01em]">{me.name}</b>
+        <div className="flex items-center gap-2.5">
+          <Avatar name={me.name} preset={me.photoUrl ? undefined : me.avatar} src={me.photoUrl} size={40} className="flex-none" />
+          <b className="min-w-0 truncate text-[15px] font-extrabold leading-tight tracking-[-0.01em]">{me.name}</b>
+        </div>
+        <div className="mt-2.5">
             <label htmlFor="community-composer" className="sr-only">Write a post</label>
             <textarea
               id="community-composer"
@@ -116,7 +117,7 @@ export const Composer = forwardRef<ComposerHandle, { me: PostAuthor; onPost: (bo
                 }
               }}
               placeholder="What’s new at your shop?"
-              className="mt-1 block w-full resize-none bg-transparent text-[15px] font-medium leading-[1.45] text-ink outline-none placeholder:text-muted"
+              className="block w-full resize-none bg-transparent text-[15px] font-medium leading-[1.45] text-ink outline-none placeholder:text-muted"
             />
 
             {images.length ? (
@@ -208,7 +209,6 @@ export const Composer = forwardRef<ComposerHandle, { me: PostAuthor; onPost: (bo
                 </Button>
               </span>
             </div>
-          </div>
         </div>
       </section>
     );

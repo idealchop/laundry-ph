@@ -9,7 +9,7 @@ import { PostCard } from "./PostCard";
 import { SEED_POSTS, updateCommunityStore, useCommunityStore, useNow, type CommunityPost, type CommunityStore, type PostAuthor, type PostReply } from "./posts";
 
 /**
- * River Apps community for laundry shop owners. Threads-style feed with large
+ * River Apps community for laundry shop owners. Single-column feed with large
  * Facebook-style photos. Demo posts + your own posts, saved on this device.
  */
 export function CommunityScreen() {

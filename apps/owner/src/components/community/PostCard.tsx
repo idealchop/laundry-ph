@@ -20,8 +20,8 @@ export interface PostCardProps {
 }
 
 /**
- * Threads-style post: avatar + thread line on the left, name · time, text, large rounded
- * media, outline actions (like, reply, repost, share), then "N replies · N likes".
+ * Single-column feed post: avatar + name/time on one row, then body, media, actions,
+ * and replies all flush left (no thread rail / left avatar column).
  */
 export function PostCard({ post, now, me, onLike, onRepost, onShare, onReply, onDelete, onHide, onCopy }: PostCardProps) {
   const [expanded, setExpanded] = useState(false);
@@ -39,70 +39,56 @@ export function PostCard({ post, now, me, onLike, onRepost, onShare, onReply, on
 
   return (
     <article className="px-4 pb-3 pt-4 lg:px-5" aria-label={`Post by ${post.author.name}`}>
-      <div className="flex gap-3">
-        {/* Left rail: avatar + thread line */}
-        <div className="flex w-10 flex-none flex-col items-center">
-          <Avatar name={post.author.name} preset={post.author.photoUrl ? undefined : post.author.avatar} src={post.author.photoUrl} size={40} />
-          {hasFooter ? <span aria-hidden className="mt-2 w-[2px] flex-1 rounded-full bg-grey-200" /> : null}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <header className="flex items-start gap-2">
-            <div className="min-w-0 flex-1 leading-tight">
-              <div className="flex min-w-0 items-center gap-1.5">
-                <b className="truncate text-[15px] font-extrabold tracking-[-0.01em] text-ink">{post.author.name}</b>
-                {post.author.verified ? <BadgeCheck size={16} strokeWidth={2.2} className="flex-none fill-[#0095F6] text-white" aria-label="Verified" /> : null}
-                <span className="flex-none text-[14px] font-medium text-muted">{shortAge(post.createdAt, post.ageMin, now)}</span>
-              </div>
-              {post.author.meta ? <p className="mt-0.5 truncate text-[12.5px] font-semibold text-muted">{post.author.meta}</p> : null}
-            </div>
-            <PostMenu mine={!!post.mine} onDelete={onDelete} onHide={onHide} onCopy={onCopy} />
-          </header>
-
-          {post.body ? (
-            <div className="mt-1.5">
-              <p className={cn("whitespace-pre-line break-words text-[15px] font-medium leading-[1.45] text-ink", long && !expanded && "line-clamp-6")}>{post.body}</p>
-              {long && !expanded ? (
-                <button type="button" onClick={() => setExpanded(true)} className="mt-0.5 text-[14px] font-bold text-muted hover:text-ink">
-                  See more
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-
-          <PostMedia images={post.images} alt={post.body ? post.body.slice(0, 120) : `Photo by ${post.author.name}`} className="mt-3" />
-
-          <div className="-ml-2 mt-2 flex items-center gap-0.5 text-ink-2">
-            <Action label={post.liked ? "Unlike" : "Like"} pressed={!!post.liked} onClick={onLike} count={post.likes}>
-              <Heart size={20} strokeWidth={1.9} className={cn("transition-transform", post.liked && "scale-110 fill-[#FF3040] text-[#FF3040]")} />
-            </Action>
-            <Action label="Reply" onClick={() => openReplies(true)} count={replyCount}>
-              <MessageCircle size={20} strokeWidth={1.9} className="-scale-x-100" />
-            </Action>
-            <Action label={post.reposted ? "Undo repost" : "Repost"} pressed={!!post.reposted} onClick={onRepost} count={post.reposts}>
-              <Repeat2 size={21} strokeWidth={1.9} className={cn(post.reposted && "text-ink")} />
-            </Action>
-            <Action label="Share" onClick={onShare}>
-              <Send size={19} strokeWidth={1.9} />
-            </Action>
+      <header className="flex items-start gap-2.5">
+        <Avatar name={post.author.name} preset={post.author.photoUrl ? undefined : post.author.avatar} src={post.author.photoUrl} size={40} className="flex-none" />
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <b className="truncate text-[15px] font-extrabold tracking-[-0.01em] text-ink">{post.author.name}</b>
+            {post.author.verified ? <BadgeCheck size={16} strokeWidth={2.2} className="flex-none fill-[#0095F6] text-white" aria-label="Verified" /> : null}
+            <span className="flex-none text-[14px] font-medium text-muted">{shortAge(post.createdAt, post.ageMin, now)}</span>
           </div>
+          {post.author.meta ? <p className="mt-0.5 truncate text-[12.5px] font-semibold text-muted">{post.author.meta}</p> : null}
         </div>
+        <PostMenu mine={!!post.mine} onDelete={onDelete} onHide={onHide} onCopy={onCopy} />
+      </header>
+
+      {post.body ? (
+        <div className="mt-2.5">
+          <p className={cn("whitespace-pre-line break-words text-[15px] font-medium leading-[1.45] text-ink", long && !expanded && "line-clamp-6")}>{post.body}</p>
+          {long && !expanded ? (
+            <button type="button" onClick={() => setExpanded(true)} className="mt-0.5 text-[14px] font-bold text-muted hover:text-ink">
+              See more
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <PostMedia images={post.images} alt={post.body ? post.body.slice(0, 120) : `Photo by ${post.author.name}`} className="mt-3" />
+
+      <div className="-ml-2 mt-2 flex items-center gap-0.5 text-ink-2">
+        <Action label={post.liked ? "Unlike" : "Like"} pressed={!!post.liked} onClick={onLike} count={post.likes}>
+          <Heart size={20} strokeWidth={1.9} className={cn("transition-transform", post.liked && "scale-110 fill-[#FF3040] text-[#FF3040]")} />
+        </Action>
+        <Action label="Reply" onClick={() => openReplies(true)} count={replyCount}>
+          <MessageCircle size={20} strokeWidth={1.9} className="-scale-x-100" />
+        </Action>
+        <Action label={post.reposted ? "Undo repost" : "Repost"} pressed={!!post.reposted} onClick={onRepost} count={post.reposts}>
+          <Repeat2 size={21} strokeWidth={1.9} className={cn(post.reposted && "text-ink")} />
+        </Action>
+        <Action label="Share" onClick={onShare}>
+          <Send size={19} strokeWidth={1.9} />
+        </Action>
       </div>
 
-      {/* Footer: replier avatars at the bottom of the rail + summary */}
       {hasFooter ? (
-        <div className="mt-0.5 flex items-center gap-3">
-          <div className="flex w-10 flex-none justify-center">
-            {repliers.length ? (
-              <span className="flex -space-x-1.5">
-                {repliers.map((a) => (
-                  <Avatar key={a.name} name={a.name} preset={a.photoUrl ? undefined : a.avatar} src={a.photoUrl} size={18} className="ring-2 ring-surface" />
-                ))}
-              </span>
-            ) : (
-              <span aria-hidden className="size-1.5 rounded-full bg-grey-200" />
-            )}
-          </div>
+        <div className="mt-1 flex items-center gap-2.5">
+          {repliers.length ? (
+            <span className="flex -space-x-1.5">
+              {repliers.map((a) => (
+                <Avatar key={a.name} name={a.name} preset={a.photoUrl ? undefined : a.avatar} src={a.photoUrl} size={18} className="ring-2 ring-surface" />
+              ))}
+            </span>
+          ) : null}
           <p className="text-[14px] font-medium text-muted">
             {replyCount > 0 ? (
               <button type="button" onClick={() => setShowReplies((v) => !v)} className="hover:text-ink hover:underline" aria-expanded={showReplies}>
@@ -150,13 +136,13 @@ function Replies({
   };
   return (
     <div className="mt-3 border-t border-line pt-3">
-      <ul className="flex flex-col gap-3" aria-label="Replies">
+      <ul className="flex flex-col gap-3.5" aria-label="Replies">
         {post.replies.map((r) => (
           <ReplyRow key={r.id} reply={r} now={now} />
         ))}
       </ul>
       {post.moreReplies ? (
-        <p className="mt-2 pl-11 text-[13px] font-semibold text-muted"> + {post.moreReplies} more {post.moreReplies === 1 ? "reply" : "replies"}</p>
+        <p className="mt-2 text-[13px] font-semibold text-muted"> + {post.moreReplies} more {post.moreReplies === 1 ? "reply" : "replies"}</p>
       ) : null}
       <form
         className="mt-3 flex items-end gap-2.5"
@@ -196,15 +182,15 @@ function Replies({
 
 function ReplyRow({ reply, now }: { reply: PostReply; now: number | null }) {
   return (
-    <li className="flex gap-2.5">
-      <Avatar name={reply.author.name} preset={reply.author.photoUrl ? undefined : reply.author.avatar} src={reply.author.photoUrl} size={32} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5 leading-tight">
+    <li>
+      <div className="flex items-center gap-2.5">
+        <Avatar name={reply.author.name} preset={reply.author.photoUrl ? undefined : reply.author.avatar} src={reply.author.photoUrl} size={32} className="flex-none" />
+        <div className="flex min-w-0 items-center gap-1.5 leading-tight">
           <b className="truncate text-[14px] font-extrabold text-ink">{reply.author.name}</b>
-          <span className="text-[13px] font-medium text-muted">{shortAge(reply.createdAt, reply.ageMin, now)}</span>
+          <span className="flex-none text-[13px] font-medium text-muted">{shortAge(reply.createdAt, reply.ageMin, now)}</span>
         </div>
-        <p className="mt-0.5 whitespace-pre-line break-words text-[14.5px] font-medium leading-snug text-ink">{reply.body}</p>
       </div>
+      <p className="mt-1.5 whitespace-pre-line break-words text-[14.5px] font-medium leading-snug text-ink">{reply.body}</p>
     </li>
   );
 }
