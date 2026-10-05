@@ -1,120 +1,146 @@
 "use client";
 
-import { Heart, MessageCircle, Plus } from "lucide-react";
-import { Avatar, Button, Card, Topbar } from "@river-apps/ui";
+import { SquarePen } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Button, Card, Topbar } from "@river-apps/ui";
+import { useShop } from "@/lib/shop";
+import { Composer, type ComposerHandle } from "./Composer";
+import { PostCard } from "./PostCard";
+import { SEED_POSTS, updateCommunityStore, useCommunityStore, useNow, type CommunityPost, type CommunityStore, type PostAuthor, type PostReply } from "./posts";
 
-type SamplePost = {
-  id: string;
-  author: string;
-  handle: string;
-  avatar: "sky" | "rose" | "mint" | "butter" | "lilac" | "peach" | "indigo";
-  time: string;
-  body: string;
-  likes: number;
-  replies: number;
-};
-
-const SAMPLE_POSTS: SamplePost[] = [
-  {
-    id: "p1",
-    author: "Marites Laundry",
-    handle: "marites.pasig",
-    avatar: "rose",
-    time: "2h",
-    body: "Tip: batch fold while the next load dries — cuts afternoon rush by half. Who else does this?",
-    likes: 24,
-    replies: 6,
-  },
-  {
-    id: "p2",
-    author: "Kapitolyo Wash",
-    handle: "kapitolyo.wash",
-    avatar: "sky",
-    time: "5h",
-    body: "Looking for a reliable rider for River Mobile pickups in Pasig / Mandaluyong. Drop a rec below.",
-    likes: 11,
-    replies: 9,
-  },
-  {
-    id: "p3",
-    author: "Fresh Cycle Co.",
-    handle: "freshcycle",
-    avatar: "mint",
-    time: "Yesterday",
-    body: "We just posted our shop photos for the River Mobile listing. Excited for Partner Phase 2!",
-    likes: 38,
-    replies: 4,
-  },
-  {
-    id: "p4",
-    author: "Laundry.ph",
-    handle: "laundry.ph",
-    avatar: "indigo",
-    time: "2d",
-    body: "Community feed preview — this will connect to the River Mobile community so shop owners can share ops tips, hire help, and swap supplier finds.",
-    likes: 56,
-    replies: 12,
-  },
-];
-
-/** Threads-style community feed stub — will connect to River Mobile community. */
+/**
+ * River Apps community for laundry shop owners. Threads-style feed with large
+ * Facebook-style photos. Demo posts + your own posts, saved on this device.
+ */
 export function CommunityScreen() {
+  const { shop } = useShop();
+  const me: PostAuthor = useMemo(
+    () => ({ name: shop.name, meta: shop.area || undefined, avatar: shop.ownerAvatar, photoUrl: shop.photoUrls?.[0] }),
+    [shop.name, shop.area, shop.ownerAvatar, shop.photoUrls],
+  );
+
+  const store = useCommunityStore();
+  const now = useNow();
+  const [toast, setToast] = useState<string | null>(null);
+  const composerRef = useRef<ComposerHandle>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flash = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2200);
+  }, []);
+
+  const update = (fn: (s: CommunityStore) => CommunityStore, done?: string) => {
+    const ok = updateCommunityStore(fn);
+    if (!ok) flash("Storage is full on this device. Try fewer or smaller photos.");
+    else if (done) flash(done);
+    return ok;
+  };
+
+  const posts = useMemo(() => {
+    const hidden = new Set(store.hidden);
+    const liked = new Set(store.liked);
+    const reposted = new Set(store.reposted);
+    return [...store.mine, ...SEED_POSTS]
+      .filter((p) => !hidden.has(p.id))
+      .map((p) => {
+        const isLiked = liked.has(p.id);
+        const isReposted = reposted.has(p.id);
+        return {
+          ...p,
+          liked: isLiked,
+          reposted: isReposted,
+          likes: p.likes + (isLiked ? 1 : 0),
+          reposts: p.reposts + (isReposted ? 1 : 0),
+          replies: [...p.replies, ...(store.replies[p.id] ?? [])],
+        };
+      });
+  }, [store]);
+
+  const toggle = (list: string[], id: string) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+
+  const share = async (p: CommunityPost) => {
+    const url = `${window.location.origin}/community#${p.id}`;
+    const text = p.body ? `${p.author.name}: ${p.body.slice(0, 140)}` : `Post by ${p.author.name}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Laundry.ph Community", text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      flash("Link copied");
+    } catch {
+      /* share sheet dismissed */
+    }
+  };
+
   return (
-    <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[680px] lg:px-[30px] lg:pt-6">
+    <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[640px] lg:px-[30px] lg:pt-6">
       <Topbar
         className="px-1"
         title="Community"
-        subtitle={
-          <>
-            River Mobile community · coming soon
-          </>
+        subtitle="River Apps · laundry shop owners"
+        actions={
+          <Button size="sm" variant="secondary" pill leadingIcon={<SquarePen size={16} strokeWidth={2} />} onClick={() => composerRef.current?.focus()}>
+            New post
+          </Button>
         }
       />
 
-      <Card className="mt-4 px-4 py-3.5">
-        <div className="flex items-start gap-3">
-          <Avatar name="You" preset="butter" size={40} />
-          <div className="min-w-0 flex-1">
-            <p className="text-[14.5px] font-medium text-muted">Share a tip with other laundry shops…</p>
-            <Button className="mt-2.5" size="sm" variant="secondary" disabled leadingIcon={<Plus size={16} strokeWidth={2} />}>
-              Post (soon)
-            </Button>
-          </div>
-        </div>
+      <Card padding="none" className="mt-4 overflow-hidden">
+        <Composer ref={composerRef} me={me} onPost={(body, images) => {
+          const post: CommunityPost = {
+            id: `mine-${Date.now().toString(36)}`,
+            author: me,
+            body,
+            images,
+            createdAt: Date.now(),
+            likes: 0,
+            reposts: 0,
+            replies: [],
+            mine: true,
+          };
+          return update((st) => ({ ...st, mine: [post, ...st.mine] }), "Posted");
+        }} />
       </Card>
 
-      <p className="mt-3 px-1 text-[12.5px] font-semibold text-muted">
-        Posts below are a preview — this feed will connect to the River Mobile community.
-      </p>
+      <Card padding="none" className="mt-3 overflow-hidden">
+        <ul className="divide-y divide-line" aria-label="Community posts">
+          {posts.map((p) => (
+            <li key={p.id} id={p.id} className="scroll-mt-20">
+              <PostCard
+                post={p}
+                now={now}
+                me={me}
+                onLike={() => update((st) => ({ ...st, liked: toggle(st.liked, p.id) }))}
+                onRepost={() => {
+                  update((st) => ({ ...st, reposted: toggle(st.reposted, p.id) }), p.reposted ? undefined : "Reposted");
+                }}
+                onShare={() => void share(p)}
+                onReply={(body) => {
+                  const r: PostReply = { id: `r-${Date.now().toString(36)}`, author: me, body, createdAt: Date.now() };
+                  update((st) => ({ ...st, replies: { ...st.replies, [p.id]: [...(st.replies[p.id] ?? []), r] } }));
+                }}
+                onDelete={p.mine ? () => {
+                  update((st) => ({ ...st, mine: st.mine.filter((x) => x.id !== p.id) }), "Post deleted");
+                } : undefined}
+                onHide={() => {
+                  update((st) => ({ ...st, hidden: [...st.hidden, p.id] }), "Post hidden");
+                }}
+                onCopy={() => {
+                  void navigator.clipboard?.writeText(p.body).then(() => flash("Copied"), () => undefined);
+                }}
+              />
+            </li>
+          ))}
+        </ul>
+        <p className="border-t border-line px-5 py-4 text-center text-[13px] font-semibold text-muted">You’re all caught up</p>
+      </Card>
 
-      <ul className="mt-3 flex flex-col gap-2.5" aria-label="Community posts">
-        {SAMPLE_POSTS.map((p) => (
-          <li key={p.id}>
-            <Card className="px-4 py-3.5">
-              <div className="flex gap-3">
-                <Avatar name={p.author} preset={p.avatar} size={40} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    <b className="text-[14.5px] font-extrabold tracking-[-0.01em]">{p.author}</b>
-                    <span className="text-[13px] font-semibold text-muted">@{p.handle}</span>
-                    <span className="text-[12.5px] font-semibold text-subtle">· {p.time}</span>
-                    
-                  </div>
-                  <p className="mt-1.5 text-[15px] font-medium leading-snug text-ink">{p.body}</p>
-                  <div className="mt-3 flex items-center gap-4 text-muted">
-                    <span className="inline-flex items-center gap-1.5 text-[12.5px] font-bold">
-                      <Heart size={16} strokeWidth={1.75} aria-hidden /> {p.likes}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 text-[12.5px] font-bold">
-                      <MessageCircle size={16} strokeWidth={1.75} aria-hidden /> {p.replies}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </li>
-        ))}
-      </ul>
+      <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-[70] flex justify-center lg:bottom-8">
+        {toast ? <span className="rounded-pill bg-ink px-4 py-2.5 text-[14px] font-bold text-on-ink shadow-raised">{toast}</span> : null}
+      </div>
     </div>
   );
 }
