@@ -42,7 +42,7 @@ CI (`.github/workflows/ci.yml`) runs install, typecheck, lint and build on every
 | `/orders/view?id=<orderId>` | Order detail: status timeline, payment, ticket link |
 | `/partner` | Partner home: scan River Mobile customers, schedule, pickups to accept |
 | `/scan/result?code=<ticket URL or LDY-####>` | Look up a real ticket by scanned or typed code and open the order. The River Mobile booking card is demo only (Partner API comes in Phase 2) |
-| `/orders/new` | Walk-in counter POS: kg stepper, service, detergent, add-ons, optional customer (search or new), return date, live total. **Create ticket** writes the order + public ticket, then shows the ticket link |
+| `/orders/new` | Walk-in counter POS: kg stepper, service, detergent, add-ons, optional customer (search or new), return date, live total. **Record Sale** writes the order + public ticket, then shows the ticket link |
 | `/t/[ticketId]` | Public customer ticket (no login, no app shell). Live status from `public_tickets` with a masked name. GCash / SMS / feedback are UI only for now. Seeded sample: `/t/LDY-0418-SAMPLE08` |
 | `/customers` | Customer list (search, visits, spend) and add customer, from Firestore |
 | `/sales` | Sales from orders: today / 7 / 30 days, gross, collected, unpaid, kg, daily chart, CSV export |
@@ -130,7 +130,7 @@ After sign-in, the app finds your shop in this order: `users/{uid}.shopId`, then
 
 1. Open https://laundry-dev--mylaundryph.asia-southeast1.hosted.app, or run locally with `apps/owner/.env.development.example` copied to `.env.local` and then `pnpm dev`.
 2. Sign in with `917 123 4567` / `123456`. `/home` shows the seeded queue (`LDY-0415…0418`) with the Sample data tag.
-3. **New order** (`/orders/new`): set kg, service, add-ons and optionally a customer, then tap **Create ticket**. The success screen shows `LDY-####` and the ticket link.
+3. **New order** (`/orders/new`): set kg, service, add-ons and optionally a customer, then tap **Record Sale**. The success screen shows `LDY-####` and the ticket link.
 4. Open the ticket link in a private window (no login). It shows *Received*, a masked name and the amount due.
 5. Back on `/home` or `/orders`, tap the advance button: Washing → Drying → Folding → Ready → Claimed. The public ticket updates live. Try **Undo** and **Mark paid**.
 6. `/customers`: the walk-in customer shows with visits and spend. Add one manually.

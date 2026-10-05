@@ -12,8 +12,9 @@ export interface ChoiceTileProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
    * "stacked" = icon above bold title + subtitle (legacy grids).
    * "inline" = icon left of text (payment methods).
    * "compact" = icon + price on one row, name below — minimal, not bold (POS services).
+   * "card" = roomy carousel card: big icon left, bold name + price, check on the right (POS services, one per view).
    */
-  layout?: "stacked" | "inline" | "compact";
+  layout?: "stacked" | "inline" | "compact" | "card";
 }
 
 /**
@@ -25,6 +26,7 @@ export interface ChoiceTileProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
 export function ChoiceTile({ selected = false, icon, title, subtitle, layout = "stacked", className, type = "button", ...rest }: ChoiceTileProps) {
   const stacked = layout === "stacked";
   const compact = layout === "compact";
+  const card = layout === "card";
   return (
     <button
       type={type}
@@ -34,12 +36,21 @@ export function ChoiceTile({ selected = false, icon, title, subtitle, layout = "
         stacked && "flex flex-col items-start gap-1 rounded-panel p-3",
         compact && "flex flex-col items-stretch gap-1.5 rounded-panel p-2.5",
         layout === "inline" && "flex min-h-[60px] items-center gap-2.5 rounded-tile px-3",
+        card && "flex min-h-[84px] items-center gap-3.5 rounded-panel py-3.5 pl-3.5 pr-12",
         selected ? "bg-surface ring-2 ring-ink" : "bg-grey-100 hover:bg-grey-200",
         className,
       )}
       {...rest}
     >
-      {compact ? (
+      {card ? (
+        <>
+          <span className="flex size-14 flex-none items-center justify-center rounded-tile bg-surface">{icon}</span>
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <b className="truncate text-[16px] font-bold leading-tight tracking-[-0.015em] text-ink">{title}</b>
+            {subtitle ? <small className="truncate text-[13.5px] font-semibold text-muted">{subtitle}</small> : null}
+          </span>
+        </>
+      ) : compact ? (
         <>
           <span className="flex items-center gap-1.5">
             {icon}
@@ -56,6 +67,14 @@ export function ChoiceTile({ selected = false, icon, title, subtitle, layout = "
           </span>
         </>
       )}
+      {card ? (
+        <span aria-hidden className={cn(
+          "absolute right-4 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full",
+          selected ? "bg-ink text-on-ink" : "border-2 border-grey-300 bg-surface",
+        )}>
+          {selected ? <Check size={14} strokeWidth={3} /> : null}
+        </span>
+      ) : null}
       {(stacked || compact) && selected ? (
         <span aria-hidden className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-full bg-ink text-on-ink">
           <Check size={13} strokeWidth={3} />

@@ -1,6 +1,6 @@
 "use client";
-import { CalendarDays, Copy, Minus, Plus, User, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CalendarDays, ChevronDown, Copy, Minus, Plus, ReceiptText, User, X } from "lucide-react";
+import { useId, useMemo, useRef, useState } from "react";
 import { Icon3D } from "@river-apps/icons";
 import { Avatar, Badge, Button, Input, IconButton, MonoText, SuccessState } from "@river-apps/ui";
 import type { Catalog, Customer, NewWalkInOrder, Order } from "@/data";
@@ -10,10 +10,15 @@ import { quote } from "@/lib/pricing";
 import { Chip, ChoiceTile, FieldLabel } from "../kit-extensions";
 import { FocusHeader } from "../FocusHeader";
 import { ErrorNote } from "../ui";
+import { BasketFill, basketLabel } from "./BasketFill";
 
 const KG_STEP = 0.5;
 const KG_MAX = 50;
 const PC_MAX = 200;
+/** Pieces that make a "full basket" for per-piece services. */
+const PC_FULL = 30;
+/** Shared horizontal snap row: same left edge (px-5) and snap padding as the page, no scrollbar. */
+const ROW = "-mx-5 grid grid-flow-col overflow-x-auto px-5 scroll-px-5 pb-1 snap-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 export interface PosFormProps {
   catalog: Catalog;
@@ -42,6 +47,10 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
   const [copied, setCopied] = useState(false);
   /** When false, order is anonymous walk-in (no name/mobile field). */
   const [addingCustomer, setAddingCustomer] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [svcIndex, setSvcIndex] = useState(0);
+  const svcRow = useRef<HTMLDivElement>(null);
+  const breakdownId = useId();
 
   const service = catalog.services.find((s) => s.id === serviceId) ?? catalog.services[0]!;
   const perKg = service.unit === "kg";
@@ -49,6 +58,10 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
   const step = perKg ? KG_STEP : 1;
   const max = perKg ? KG_MAX : PC_MAX;
   const q = useMemo(() => quote(catalog, { serviceId, quantity, detergentId, addOnIds }), [catalog, serviceId, quantity, detergentId, addOnIds]);
+  /** Basket is "full" at twice the minimum (at least 8 kg); per-piece services fill at PC_FULL pieces. */
+  const fullAt = perKg ? Math.max(catalog.minKg * 2, 8) : PC_FULL;
+  const basketFill = quantity / fullAt;
+  const roundingCentavos = q.totalCentavos > 0 ? q.totalCentavos - q.subtotalCentavos : 0;
   const returnLabel = catalog.returnSlots.find((r) => r.id === returnSlotId)?.label ?? "";
   const matches = useMemo(() => {
     const t = customer.trim().toLowerCase();
@@ -90,7 +103,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
   };
   const reset = () => {
     setCustomer(""); setPicked(null); setAddingCustomer(false); setServiceId(d.serviceId); setKg(d.kg); setPieces(d.pieces); setDetergentId(d.detergentId);
-    setAddOnIds(d.addOnIds); setReturnSlotId(d.returnSlotId); setCreated(null); setQtyText(null); setError(null); setCopied(false);
+    setAddOnIds(d.addOnIds); setReturnSlotId(d.returnSlotId); setCreated(null); setQtyText(null); setError(null); setCopied(false); setShowBreakdown(false);
   };
 
   if (created) {
@@ -177,6 +190,18 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
             </div>
           ) : null}
 
+          <div className="-mb-1 flex flex-col items-center pt-1">
+            <BasketFill fill={basketFill} size={108} />
+            <div className="relative mt-1 h-1 w-28 overflow-hidden rounded-full bg-grey-200" aria-hidden>
+              <span
+                className="absolute inset-y-0 left-0 w-full origin-left rounded-full bg-ink transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none"
+                style={{ transform: `scaleX(${Math.min(1, basketFill).toFixed(3)})` }}
+              />
+              {perKg ? <span className="absolute inset-y-0 w-0.5 bg-surface" style={{ left: `${Math.min(100, (catalog.minKg / fullAt) * 100)}%` }} /> : null}
+            </div>
+            <span className="mt-1.5 text-[12.5px] font-semibold text-muted">{basketLabel(basketFill, q.minimumApplied)}</span>
+          </div>
+
           <div>
             <FieldLabel id="qty-label" aside={perKg ? `Min. ${catalog.minKg} kg` : "Per piece"}>{perKg ? "Weight" : "Pieces"}</FieldLabel>
             <div className="flex items-center gap-2.5" role="group" aria-labelledby="qty-label">
@@ -203,34 +228,54 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
 
           <div role="group" aria-labelledby="svc-label">
             <FieldLabel id="svc-label">Service</FieldLabel>
-            <div className="-mx-5 grid auto-cols-[calc((100%-1rem)/3)] grid-flow-col gap-2 overflow-x-auto px-5 pb-0.5 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div
+              ref={svcRow}
+              className={`${ROW} auto-cols-[calc(100%-2.75rem)] gap-2.5 snap-mandatory`}
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                const first = el.firstElementChild as HTMLElement | null;
+                if (!first) return;
+                const i = Math.round(el.scrollLeft / (first.offsetWidth + 10));
+                setSvcIndex(Math.max(0, Math.min(catalog.services.length - 1, i)));
+              }}
+            >
               {catalog.services.map((s) => (
                 <ChoiceTile
                   key={s.id}
-                  layout="compact"
+                  layout="card"
                   selected={s.id === serviceId}
-                  onClick={() => { setServiceId(s.id); setQtyText(null); }}
-                  className="snap-start"
-                  icon={<Icon3D name={s.icon} size={28} />}
+                  onClick={(e) => {
+                    setServiceId(s.id); setQtyText(null);
+                    e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
+                  }}
+                  className="snap-start snap-always"
+                  icon={<Icon3D name={s.icon} size={40} />}
                   title={s.name}
-                  subtitle={`${money(s.priceCentavos)}/${s.unit}`}
+                  subtitle={`${money(s.priceCentavos)} / ${s.unit}`}
                 />
               ))}
             </div>
+            {catalog.services.length > 1 ? (
+              <div className="mt-2 flex justify-center gap-1.5" aria-hidden>
+                {catalog.services.map((s, i) => (
+                  <span key={s.id} className={`h-1.5 rounded-full transition-all duration-300 ${i === svcIndex ? "w-4 bg-ink" : "w-1.5 bg-grey-300"}`} />
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div role="group" aria-labelledby="det-label">
             <FieldLabel id="det-label" aside={catalog.detergents.filter((o) => o.priceCentavos > 0).map((o) => `${o.short ?? o.name} +${money(o.priceCentavos)}`).join(" · ") || undefined}>Detergent</FieldLabel>
-            <div className="-mx-5 grid auto-cols-[calc((100%-1rem)/3)] grid-flow-col gap-2 overflow-x-auto px-5 pb-0.5 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className={`${ROW} auto-cols-max gap-2 snap-proximity`}>
               {catalog.detergents.map((o) => (
                 <Chip
                   key={o.id}
                   selected={o.id === detergentId}
                   onClick={() => setDetergentId(o.id)}
-                  className="w-full snap-start justify-center px-2"
-                  icon={o.icon ? <Icon3D name={o.icon} size={26} /> : undefined}
+                  className="snap-start"
+                  icon={o.icon ? <Icon3D name={o.icon} size={24} /> : undefined}
                 >
-                  <span className="truncate">{o.short ?? o.name}</span>
+                  <span className="whitespace-nowrap">{o.short ?? o.name}</span>
                 </Chip>
               ))}
             </div>
@@ -238,16 +283,16 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
 
           <div role="group" aria-labelledby="add-label">
             <FieldLabel id="add-label" aside="Optional">Add-ons</FieldLabel>
-            <div className="-mx-5 grid auto-cols-[calc((100%-1rem)/3)] grid-flow-col gap-2 overflow-x-auto px-5 pb-0.5 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className={`${ROW} auto-cols-max gap-2 snap-proximity`}>
               {catalog.addOns.map((o) => (
                 <Chip
                   key={o.id}
                   selected={addOnIds.includes(o.id)}
                   onClick={() => toggleAddOn(o.id)}
-                  className="w-full snap-start justify-center px-2"
+                  className="snap-start"
                   icon={o.icon ? <Icon3D name={o.icon} size={24} /> : undefined}
                 >
-                  <span className="truncate">{o.name} +{money(o.priceCentavos)}</span>
+                  <span className="whitespace-nowrap">{o.name} <span className="text-muted">+{money(o.priceCentavos)}</span></span>
                 </Chip>
               ))}
             </div>
@@ -273,15 +318,54 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
 
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface lg:static lg:mt-auto">
           <div className="mx-auto w-full max-w-[560px] px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-3">
+            <div
+              id={breakdownId}
+              className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${showBreakdown ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+              inert={!showBreakdown}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div className="mb-3 max-h-[38vh] overflow-y-auto rounded-tile bg-grey-100 px-3.5 py-3">
+                  <ul className="flex flex-col gap-2 text-[13px]" aria-label="Total breakdown">
+                    {q.lines.map((l) => (
+                      <li key={l.label} className="flex items-baseline justify-between gap-3">
+                        <span className="min-w-0 font-semibold text-ink">{l.label}</span>
+                        <span className="flex-none font-mono font-semibold tabular-nums">{money(l.amountCentavos)}</span>
+                      </li>
+                    ))}
+                    {roundingCentavos !== 0 ? (
+                      <li className="flex items-baseline justify-between gap-3 text-muted">
+                        <span className="font-semibold">Rounded to the nearest peso</span>
+                        <span className="flex-none font-mono font-semibold tabular-nums">{roundingCentavos > 0 ? "+" : "−"}{money(Math.abs(roundingCentavos))}</span>
+                      </li>
+                    ) : null}
+                    <li className="flex items-baseline justify-between gap-3 border-t border-line pt-2">
+                      <b>Total</b>
+                      <b className="flex-none font-mono tabular-nums">{money(q.totalCentavos)}</b>
+                    </li>
+                  </ul>
+                  {q.minimumApplied ? <p className="mt-2 text-[12px] font-semibold text-muted">Minimum charge of {catalog.minKg} kg applies ({quantity} kg weighed).</p> : null}
+                </div>
+              </div>
+            </div>
             <div className="mb-2 flex items-end justify-between gap-3">
-              <span className="flex min-w-0 flex-col leading-[1.25]">
+              <span className="flex min-w-0 flex-col items-start leading-[1.25]">
                 <b className="text-[13.5px]">Total</b>
-                <small className="truncate text-[12.5px] font-semibold text-muted">{q.summary}</small>
+                <button
+                  type="button"
+                  aria-expanded={showBreakdown}
+                  aria-controls={breakdownId}
+                  onClick={() => setShowBreakdown((v) => !v)}
+                  className="-mx-1 -my-2 inline-flex min-h-11 max-w-full items-center gap-1 rounded-[8px] px-1 text-[12.5px] font-semibold text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-ink"
+                >
+                  <ReceiptText size={14} strokeWidth={2} className="flex-none" />
+                  <span className="flex-none font-bold text-ink underline decoration-grey-300 underline-offset-[3px]">{showBreakdown ? "Hide breakdown" : "Breakdown"}</span>
+                  <ChevronDown size={15} strokeWidth={2.2} className={`flex-none transition-transform duration-300 ${showBreakdown ? "rotate-180" : ""}`} />
+                </button>
               </span>
               <b className="text-[26px] font-extrabold tracking-[-0.03em]" aria-live="polite">{money(q.totalCentavos)}</b>
             </div>
             {error ? <ErrorNote className="mb-2">{error}</ErrorNote> : null}
-            <Button type="submit" fullWidth disabled={q.totalCentavos <= 0 || saving} leadingIcon={<Plus size={20} strokeWidth={2.2} />}>{saving ? "Saving…" : "Create ticket"}</Button>
+            <Button type="submit" fullWidth disabled={q.totalCentavos <= 0 || saving} leadingIcon={<Plus size={20} strokeWidth={2.2} />}>{saving ? "Saving…" : "Record Sale"}</Button>
           </div>
         </div>
       </form>
