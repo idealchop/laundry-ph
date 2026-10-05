@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Badge, Card, ListItem } from "@river-apps/ui";
 import { CalendarClock, MessageSquareText, ScanLine, Smartphone, Store } from "lucide-react";
 import { FocusHeader } from "@/components/FocusHeader";
@@ -11,6 +12,7 @@ export const FEATURES = [
     title: "Walk-in POS",
     subtitle: "Counter orders, tickets and queue",
     status: "Paid" as const,
+    href: "/orders/new",
   },
   {
     id: "listing",
@@ -18,6 +20,7 @@ export const FEATURES = [
     title: "River Mobile listing",
     subtitle: "Shop appears for nearby customers",
     status: "Partner" as const,
+    href: "/profile/edit",
   },
   {
     id: "scan",
@@ -25,6 +28,7 @@ export const FEATURES = [
     title: "Scan credits",
     subtitle: "River Apps settles each accepted scan",
     status: "Partner" as const,
+    href: "/profile?credits=1",
   },
   {
     id: "online",
@@ -32,6 +36,7 @@ export const FEATURES = [
     title: "Online bookings",
     subtitle: "Windows, capacity and phone bookings",
     status: "Paid" as const,
+    href: "/online",
   },
   {
     id: "messages",
@@ -39,6 +44,7 @@ export const FEATURES = [
     title: "Message automations",
     subtitle: "SMS templates — coming soon",
     status: "Coming soon" as const,
+    href: "/messages",
   },
 ] as const;
 
@@ -54,22 +60,24 @@ export function FeaturesScreen() {
               const Icon = f.icon;
               return (
                 <li key={f.id}>
-                  <ListItem
-                    variant="row"
-                    className="py-2.5"
-                    leading={
-                      <span className="inline-flex size-10 items-center justify-center rounded-tile bg-grey-100">
-                        <Icon size={18} strokeWidth={1.75} />
-                      </span>
-                    }
-                    title={f.title}
-                    subtitle={f.subtitle}
-                    trailing={
-                      <Badge variant="soft" size="sm">
-                        {f.status}
-                      </Badge>
-                    }
-                  />
+                  <Link href={f.href} className="block rounded-tile focus-visible:outline-2 focus-visible:outline-ink">
+                    <ListItem
+                      variant="row"
+                      className="py-2.5"
+                      leading={
+                        <span className="inline-flex size-10 items-center justify-center rounded-tile bg-grey-100">
+                          <Icon size={18} strokeWidth={1.75} />
+                        </span>
+                      }
+                      title={f.title}
+                      subtitle={f.subtitle}
+                      trailing={
+                        <Badge variant="soft" size="sm">
+                          {f.status}
+                        </Badge>
+                      }
+                    />
+                  </Link>
                 </li>
               );
             })}

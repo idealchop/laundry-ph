@@ -4,7 +4,8 @@ import {
   BadgeCheck, ChevronLeft, ChevronRight, CreditCard, History, LogOut, MapPin, Package, Pencil, Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Avatar, Badge, Button, Card, ListItem, Topbar } from "@river-apps/ui";
 import type { Shop } from "@/data";
 import { firestoreDatabaseId } from "@/lib/firebase/config";
@@ -58,7 +59,11 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
   const { shop, member, source, isGuest } = useShop();
   const { user } = useAuth();
   const { openAuthCta, isAuthenticated } = useAuthGate();
+  const searchParams = useSearchParams();
   const [view, setView] = useState<"hub" | "credits">("hub");
+  useEffect(() => {
+    if (searchParams.get("credits") === "1") setView("credits");
+  }, [searchParams]);
   const photo = shop.photoUrls?.[0];
   const handle = shopHandle(shop.name);
   const place = locationLine(shop);
@@ -169,44 +174,6 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        {/* Features — dedicated card with list visible */}
-        <Card padding="none" className="px-2 py-1.5 lg:col-span-2">
-          <div className="flex items-center justify-between px-2.5 pt-3">
-            <b className="text-[16px]">Features</b>
-            <Link
-              href="/profile/features"
-              className="text-[13.5px] font-bold underline decoration-grey-300 underline-offset-[3px]"
-            >
-              See all
-            </Link>
-          </div>
-          <ul className="mt-1">
-            {FEATURES.map((f) => {
-              const Icon = f.icon;
-              return (
-                <li key={f.id}>
-                  <ListItem
-                    variant="row"
-                    className="py-2"
-                    leading={
-                      <span className="inline-flex size-10 items-center justify-center rounded-tile bg-grey-100">
-                        <Icon size={18} strokeWidth={1.75} />
-                      </span>
-                    }
-                    title={f.title}
-                    subtitle={f.subtitle}
-                    trailing={
-                      <Badge variant="soft" size="sm">
-                        {f.status}
-                      </Badge>
-                    }
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        </Card>
-
         <Card padding="none" className="px-3.5 py-1.5 lg:col-span-2">
           <b className="block px-1 pt-3 text-[16px]">Setup</b>
           <ul className="mt-1">
@@ -223,6 +190,62 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
                       subtitle={it.subtitle}
                       trailing={<ChevronRight size={20} strokeWidth={1.75} className="text-subtle" />}
                     />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+
+        {/* Features — each row opens its destination; badges stay */}
+        <Card padding="none" className="px-2 py-1.5 lg:col-span-2">
+          <div className="flex items-center justify-between px-2.5 pt-3">
+            <b className="text-[16px]">Features</b>
+            <Link
+              href="/profile/features"
+              className="text-[13.5px] font-bold underline decoration-grey-300 underline-offset-[3px]"
+            >
+              See all
+            </Link>
+          </div>
+          <ul className="mt-1">
+            {FEATURES.map((f) => {
+              const Icon = f.icon;
+              const row = (
+                <ListItem
+                  variant="row"
+                  className="py-2"
+                  leading={
+                    <span className="inline-flex size-10 items-center justify-center rounded-tile bg-grey-100">
+                      <Icon size={18} strokeWidth={1.75} />
+                    </span>
+                  }
+                  title={f.title}
+                  subtitle={f.subtitle}
+                  trailing={
+                    <Badge variant="soft" size="sm">
+                      {f.status}
+                    </Badge>
+                  }
+                />
+              );
+              if (f.id === "scan") {
+                return (
+                  <li key={f.id}>
+                    <button
+                      type="button"
+                      onClick={() => setView("credits")}
+                      className="block w-full rounded-tile text-left focus-visible:outline-2 focus-visible:outline-ink"
+                    >
+                      {row}
+                    </button>
+                  </li>
+                );
+              }
+              return (
+                <li key={f.id}>
+                  <Link href={f.href} className="block rounded-tile focus-visible:outline-2 focus-visible:outline-ink">
+                    {row}
                   </Link>
                 </li>
               );
