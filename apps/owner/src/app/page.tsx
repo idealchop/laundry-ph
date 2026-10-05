@@ -57,9 +57,8 @@ export default function WelcomePage() {
         <Button fullWidth variant="ghost" onClick={browseAsGuest}>Continue as guest</Button>
         {error ? <p role="alert" className="text-center text-[13.5px] font-semibold">{error}</p> : null}
         <p className="mt-1.5 text-center text-[12.5px] font-medium text-muted">
-          Guest browse is free — we’ll open sign-in when you enter the app. Dismiss anytime; sign in to save changes.
+          By continuing you agree to our Terms and Privacy Policy.
         </p>
-        <p className="text-center text-[12.5px] font-medium text-muted">Demo: +63 917 123 4567 · code 123456</p>
       </div>
     </AuthScreen>
   );

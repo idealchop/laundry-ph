@@ -71,7 +71,7 @@ export function OwnerShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading || authPrompted.current || user || isAuthenticated) return;
     authPrompted.current = true;
-    openAuthCta("Sign in to sync your shop. You can dismiss and keep browsing.");
+    openAuthCta("Sign in to sync your shop and save changes.");
   }, [loading, user, isAuthenticated, openAuthCta]);
 
   return (

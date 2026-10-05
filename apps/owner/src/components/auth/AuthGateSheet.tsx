@@ -2,11 +2,11 @@
 
 /**
  * Bottom sheet sign-in — mirrors River Mobile AuthGateSheet.
- * Guest can dismiss; signing in stays on the current screen and resumes the pending action.
+ * Two-step: method list → chosen method (phone form / OTP). Guest can dismiss.
  */
 import { ChatIcon } from "@river-apps/icons";
 import { Button, OtpInput, PhoneInput, formatPhilippineMobile, cn } from "@river-apps/ui";
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { GoogleG } from "@/components/brand";
 import {
@@ -20,15 +20,21 @@ type Props = {
   subtitle?: string;
 };
 
+type Step = "methods" | "phone" | "code";
+
 export function AuthGateSheet(props: Props) {
   if (!props.open) return null;
   return <AuthGateSheetOpen key="open" {...props} />;
 }
 
-function AuthGateSheetOpen({ onClose, onAuthenticated, subtitle = "Sign in to sync your shop. You can dismiss and keep browsing." }: Props) {
+function AuthGateSheetOpen({
+  onClose,
+  onAuthenticated,
+  subtitle = "Sign in to sync your shop and save changes.",
+}: Props) {
   const { user } = useAuth();
   const btnId = `laundry-gate-${useId().replace(/:/g, "")}`;
-  const [step, setStep] = useState<"methods" | "code">("methods");
+  const [step, setStep] = useState<Step>("methods");
   const [formatted, setFormatted] = useState("");
   const [e164, setE164] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -78,6 +84,18 @@ function AuthGateSheetOpen({ onClose, onAuthenticated, subtitle = "Sign in to sy
     }
   }
 
+  function goMethods() {
+    setStep("methods");
+    setCode("");
+    setError(null);
+  }
+
+  function goPhone() {
+    setStep("phone");
+    setCode("");
+    setError(null);
+  }
+
   const pending = pendingPhone();
   const national = pending ? formatPhilippineMobile(pending.phoneE164.replace(/^\+63/, "")) : "";
 
@@ -93,42 +111,75 @@ function AuthGateSheetOpen({ onClose, onAuthenticated, subtitle = "Sign in to sy
         </div>
         <div className="max-h-[min(70dvh,560px)] overflow-y-auto px-5 pb-6 pt-5">
           <h2 id="laundry-auth-gate-title" className="text-[24px] font-extrabold leading-[1.15] tracking-[-0.025em]">
-            Sign up or log in
+            {step === "phone" ? "Your mobile number" : step === "code" ? "Enter the code" : "Sign up or log in"}
           </h2>
-          <p className="mt-2 text-[14.5px] font-medium leading-snug text-muted">{subtitle}</p>
+          <p className="mt-2 text-[14.5px] font-medium leading-snug text-muted">
+            {step === "phone"
+              ? "We’ll text you a 6-digit code to sign in."
+              : step === "code"
+                ? `Code sent to +63 ${national}.`
+                : subtitle}
+          </p>
 
           {step === "methods" ? (
+            <div className="mt-5 flex flex-col gap-2.5">
+              <Button
+                type="button"
+                fullWidth
+                disabled={busy}
+                leadingIcon={<ChatIcon size={20} />}
+                onClick={() => goPhone()}
+              >
+                Continue with phone
+              </Button>
+              <Button type="button" fullWidth variant="secondary" leadingIcon={<GoogleG />} disabled={busy} onClick={() => void google()}>
+                Continue with Google
+              </Button>
+              {error ? <p role="alert" className="text-center text-[13.5px] font-semibold">{error}</p> : null}
+            </div>
+          ) : null}
+
+          {step === "phone" ? (
             <form onSubmit={(e) => void sendCode(e)} className="mt-5 flex flex-col gap-2.5">
               <PhoneInput
                 label="Mobile number"
                 value={formatted}
-                onChange={(f, v) => { setFormatted(f); setE164(v); }}
-                hint="Demo: 917 123 4567 · code 123456"
+                onChange={(f, v) => { setFormatted(f); setE164(v); setError(null); }}
+                autoFocus
                 error={error ?? undefined}
               />
               <Button id={btnId} type="submit" fullWidth disabled={busy || !e164} leadingIcon={<ChatIcon size={20} />}>
                 {busy ? "Sending…" : "Continue with phone"}
               </Button>
-              <Button type="button" fullWidth variant="secondary" leadingIcon={<GoogleG />} disabled={busy} onClick={() => void google()}>
-                Continue with Google
+              <Button
+                type="button"
+                fullWidth
+                variant="ghost"
+                disabled={busy}
+                leadingIcon={<ArrowLeft size={18} strokeWidth={2.2} />}
+                onClick={goMethods}
+              >
+                Back
               </Button>
             </form>
-          ) : (
+          ) : null}
+
+          {step === "code" ? (
             <div className="mt-5 flex flex-col gap-3">
-              <p className="text-[14.5px] font-medium text-muted">Code sent to +63 {national}.</p>
               <OtpInput value={code} onChange={setCode} onComplete={(v) => void verify(v)} autoFocus error={!!error} />
               {error ? <p role="alert" className="text-[13.5px] font-semibold">{error}</p> : null}
               <Button fullWidth disabled={busy || code.length < 6} onClick={() => void verify()}>
                 {busy ? "Verifying…" : "Verify & continue"}
               </Button>
-              <Button fullWidth variant="ghost" disabled={busy} onClick={() => { setStep("methods"); setCode(""); setError(null); }}>
+              <Button fullWidth variant="ghost" disabled={busy} onClick={goPhone}>
                 Use a different number
               </Button>
             </div>
-          )}
+          ) : null}
 
-          {step === "methods" && error ? <p role="alert" className="mt-3 text-center text-[13.5px] font-semibold">{error}</p> : null}
-          <p className="mt-4 text-center text-[12px] font-medium text-muted">You can dismiss and keep browsing. Sign in to sync your shop and save changes.</p>
+          <p className="mt-4 text-center text-[12px] font-medium text-muted">
+            By continuing you agree to our Terms and Privacy Policy.
+          </p>
         </div>
       </div>
     </div>
