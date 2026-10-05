@@ -3,8 +3,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { SampleNote } from "./SampleNote";
 
-/** Top bar for full-screen tasks: round back/close link, centred title (+ sample tag), optional trailing slot. */
-export function FocusHeader({ title, backHref, variant = "back", trailing }: { title: string; backHref: string; variant?: "back" | "close"; trailing?: ReactNode }) {
+/** Top bar for full-screen tasks: round back/close link, optional centred title (+ sample tag), optional trailing slot. */
+export function FocusHeader({ title, backHref, variant = "back", trailing }: { title?: string; backHref: string; variant?: "back" | "close"; trailing?: ReactNode }) {
   return (
     <div className="flex h-14 flex-none items-center justify-between gap-2 px-5 pt-1">
       <Link
@@ -14,9 +14,9 @@ export function FocusHeader({ title, backHref, variant = "back", trailing }: { t
       >
         {variant === "close" ? <X size={22} strokeWidth={1.75} /> : <ChevronLeft size={22} strokeWidth={1.75} />}
       </Link>
-      <span className="flex min-w-0 flex-col items-center leading-tight">
-        <span className="truncate text-[15px] font-bold">{title}</span>
-        <SampleNote className="mt-0.5" />
+      <span className="flex min-w-0 flex-1 flex-col items-center leading-tight">
+        {title ? <span className="truncate text-[15px] font-bold">{title}</span> : null}
+        <SampleNote className={title ? "mt-0.5" : undefined} />
       </span>
       {trailing ?? <span className="w-11" />}
     </div>

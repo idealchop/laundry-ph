@@ -40,6 +40,8 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  /** When false, order is anonymous walk-in (no name/mobile field). */
+  const [addingCustomer, setAddingCustomer] = useState(false);
 
   const service = catalog.services.find((s) => s.id === serviceId) ?? catalog.services[0]!;
   const perKg = service.unit === "kg";
@@ -81,8 +83,13 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
     else setPieces(clean);
   };
   const toggleAddOn = (id: string) => setAddOnIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  const dismissCustomer = () => {
+    setAddingCustomer(false);
+    setPicked(null);
+    setCustomer("");
+  };
   const reset = () => {
-    setCustomer(""); setPicked(null); setServiceId(d.serviceId); setKg(d.kg); setPieces(d.pieces); setDetergentId(d.detergentId);
+    setCustomer(""); setPicked(null); setAddingCustomer(false); setServiceId(d.serviceId); setKg(d.kg); setPieces(d.pieces); setDetergentId(d.detergentId);
     setAddOnIds(d.addOnIds); setReturnSlotId(d.returnSlotId); setCreated(null); setQtyText(null); setError(null); setCopied(false);
   };
 
@@ -118,37 +125,57 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
 
   return (
     <>
-      <FocusHeader title="Walk-in" backHref="/home" trailing={<Badge variant="soft" className="h-11 rounded-pill px-3 text-[12.5px]">Walk-in</Badge>} />
+      <FocusHeader
+        backHref="/home"
+        trailing={
+          addingCustomer || picked ? (
+            <button
+              type="button"
+              aria-label="Back to anonymous walk-in"
+              onClick={dismissCustomer}
+              className="inline-flex size-11 flex-none items-center justify-center rounded-full bg-grey-100 text-ink transition-colors hover:bg-grey-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              <X size={20} strokeWidth={1.75} />
+            </button>
+          ) : (
+            <Button type="button" variant="secondary" size="xs" pill onClick={() => setAddingCustomer(true)}>
+              Add customer
+            </Button>
+          )
+        }
+      />
       <form
         className="flex flex-1 flex-col"
         onSubmit={(e) => { e.preventDefault(); void submit(); }}
       >
         <div className="flex flex-col gap-3 px-5 pb-48 pt-1 lg:pb-4">
-          <div className="relative">
-            <Input size="md" label="Customer (optional)" hideLabel value={picked ? `${picked.name}${picked.phone ? ` · ${picked.phone}` : ""}` : customer}
-              readOnly={Boolean(picked)}
-              onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name · mobile (optional)" autoComplete="off"
-              leadingIcon={picked ? <Avatar name={picked.name} preset={picked.avatar} size={24} /> : <User size={18} strokeWidth={1.75} />}
-              trailing={picked ? (
-                <button type="button" aria-label="Clear customer" onClick={() => { setPicked(null); setCustomer(""); }} className="-mr-2 inline-flex size-11 items-center justify-center"><X size={18} /></button>
-              ) : <Badge variant="outline">{customer.trim() ? "New" : "Walk-in"}</Badge>} />
-            {matches.length ? (
-              <ul role="listbox" aria-label="Matching customers" className="absolute inset-x-0 top-[50px] z-20 rounded-tile bg-surface p-1 shadow-popover">
-                {matches.map((c) => (
-                  <li key={c.id}>
-                    <button type="button" role="option" aria-selected={false} onClick={() => { setPicked(c); setCustomer(""); }}
-                      className="flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-left hover:bg-grey-100">
-                      <Avatar name={c.name} preset={c.avatar} size={30} />
-                      <span className="flex min-w-0 flex-col leading-tight">
-                        <b className="truncate text-[14px]">{c.name}</b>
-                        <small className="text-[12px] font-semibold text-muted">{c.phone ?? "No mobile"} · {c.visits} visits</small>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
+          {addingCustomer || picked ? (
+            <div className="relative">
+              <Input size="md" label="Customer (optional)" hideLabel value={picked ? `${picked.name}${picked.phone ? ` · ${picked.phone}` : ""}` : customer}
+                readOnly={Boolean(picked)}
+                onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name · mobile (optional)" autoComplete="off"
+                leadingIcon={picked ? <Avatar name={picked.name} preset={picked.avatar} size={24} /> : <User size={18} strokeWidth={1.75} />}
+                trailing={picked ? (
+                  <button type="button" aria-label="Clear customer" onClick={() => { setPicked(null); setCustomer(""); }} className="-mr-2 inline-flex size-11 items-center justify-center"><X size={18} /></button>
+                ) : undefined} />
+              {matches.length ? (
+                <ul role="listbox" aria-label="Matching customers" className="absolute inset-x-0 top-[50px] z-20 rounded-tile bg-surface p-1 shadow-popover">
+                  {matches.map((c) => (
+                    <li key={c.id}>
+                      <button type="button" role="option" aria-selected={false} onClick={() => { setPicked(c); setCustomer(""); }}
+                        className="flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-left hover:bg-grey-100">
+                        <Avatar name={c.name} preset={c.avatar} size={30} />
+                        <span className="flex min-w-0 flex-col leading-tight">
+                          <b className="truncate text-[14px]">{c.name}</b>
+                          <small className="text-[12px] font-semibold text-muted">{c.phone ?? "No mobile"} · {c.visits} visits</small>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
 
           <div>
             <FieldLabel id="qty-label" aside={perKg ? `Min. ${catalog.minKg} kg` : "Per piece"}>{perKg ? "Weight" : "Pieces"}</FieldLabel>
