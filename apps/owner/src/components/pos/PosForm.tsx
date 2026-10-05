@@ -176,20 +176,34 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
 
           <div role="group" aria-labelledby="svc-label">
             <FieldLabel id="svc-label">Service</FieldLabel>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="-mx-5 grid auto-cols-[calc((100%-1rem)/3)] grid-flow-col gap-2 overflow-x-auto px-5 pb-0.5 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {catalog.services.map((s) => (
-                <ChoiceTile key={s.id} selected={s.id === serviceId} onClick={() => { setServiceId(s.id); setQtyText(null); }}
-                  icon={<Icon3D name={s.icon} size={34} />} title={s.name} subtitle={`${money(s.priceCentavos)}/${s.unit}`} />
+                <ChoiceTile
+                  key={s.id}
+                  layout="compact"
+                  selected={s.id === serviceId}
+                  onClick={() => { setServiceId(s.id); setQtyText(null); }}
+                  className="snap-start"
+                  icon={<Icon3D name={s.icon} size={28} />}
+                  title={s.name}
+                  subtitle={`${money(s.priceCentavos)}/${s.unit}`}
+                />
               ))}
             </div>
           </div>
 
           <div role="group" aria-labelledby="det-label">
             <FieldLabel id="det-label" aside={catalog.detergents.filter((o) => o.priceCentavos > 0).map((o) => `${o.short ?? o.name} +${money(o.priceCentavos)}`).join(" · ") || undefined}>Detergent</FieldLabel>
-            <div className="flex flex-wrap gap-2">
+            <div className="-mx-5 grid auto-cols-[calc((100%-1rem)/3)] grid-flow-col gap-2 overflow-x-auto px-5 pb-0.5 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {catalog.detergents.map((o) => (
-                <Chip key={o.id} selected={o.id === detergentId} onClick={() => setDetergentId(o.id)} icon={o.icon ? <Icon3D name={o.icon} size={26} /> : undefined}>
-                  {o.short ?? o.name}
+                <Chip
+                  key={o.id}
+                  selected={o.id === detergentId}
+                  onClick={() => setDetergentId(o.id)}
+                  className="w-full snap-start justify-center px-2"
+                  icon={o.icon ? <Icon3D name={o.icon} size={26} /> : undefined}
+                >
+                  <span className="truncate">{o.short ?? o.name}</span>
                 </Chip>
               ))}
             </div>
@@ -197,10 +211,16 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
 
           <div role="group" aria-labelledby="add-label">
             <FieldLabel id="add-label" aside="Optional">Add-ons</FieldLabel>
-            <div className="flex flex-wrap gap-2">
+            <div className="-mx-5 grid auto-cols-[calc((100%-1rem)/3)] grid-flow-col gap-2 overflow-x-auto px-5 pb-0.5 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {catalog.addOns.map((o) => (
-                <Chip key={o.id} selected={addOnIds.includes(o.id)} onClick={() => toggleAddOn(o.id)} icon={o.icon ? <Icon3D name={o.icon} size={24} /> : undefined}>
-                  {o.name} +{money(o.priceCentavos)}
+                <Chip
+                  key={o.id}
+                  selected={addOnIds.includes(o.id)}
+                  onClick={() => toggleAddOn(o.id)}
+                  className="w-full snap-start justify-center px-2"
+                  icon={o.icon ? <Icon3D name={o.icon} size={24} /> : undefined}
+                >
+                  <span className="truncate">{o.name} +{money(o.priceCentavos)}</span>
                 </Chip>
               ))}
             </div>
