@@ -3,7 +3,7 @@ import { Avatar, Button, Topbar } from "@river-apps/ui";
 import Link from "next/link";
 import { SampleNote } from "./SampleNote";
 
-/** Phone header: avatar, "Good morning", a bold title, Online Orders + profile. */
+/** Phone header: "Good morning", bold title, Online Orders + profile (no left avatar). */
 export function Greeting({
   title,
   avatar,
@@ -20,7 +20,6 @@ export function Greeting({
     <Topbar
       variant="greeting"
       className="pt-1"
-      leading={<Avatar name={name} preset={avatar} size={44} />}
       eyebrow={<span className="inline-flex items-center gap-1.5">Good morning <SampleNote /></span>}
       title={title}
       actions={
