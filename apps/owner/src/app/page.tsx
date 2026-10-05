@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, FloatingCard, ProgressRing, SampleDataTag } from "@river-apps/ui";
+import { Button, FloatingCard, ProgressRing } from "@river-apps/ui";
 import { CoinIcon } from "@river-apps/icons";
 import { Smartphone } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -46,7 +46,6 @@ export default function WelcomePage() {
         </div>
         <FloatingCard className="absolute left-[18px] top-[22px]" icon={<ProgressRing value={58} size={36} thickness={4.5} label="18m" labelSize={9} />} title="Washer 1" subtitle="Washing" />
         <FloatingCard className="absolute right-4 top-[70px]" icon={<CoinIcon size={30} />} title="+₱248" subtitle="New walk-in" />
-        <SampleDataTag className="absolute bottom-3 right-3">Illustration</SampleDataTag>
       </div>
       <div className="px-7 pt-[26px]">
         <h1 className="text-[31px] font-extrabold leading-[1.12] tracking-[-0.03em]">Run your laundry<br />from your phone</h1>

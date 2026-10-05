@@ -2,7 +2,6 @@
 
 import { Heart, MessageCircle, Plus } from "lucide-react";
 import { Avatar, Button, Card, Topbar } from "@river-apps/ui";
-import { SampleNote } from "../SampleNote";
 
 type SamplePost = {
   id: string;
@@ -67,7 +66,7 @@ export function CommunityScreen() {
         title="Community"
         subtitle={
           <>
-            River Mobile community · coming soon <SampleNote className="ml-1 align-middle" show />
+            River Mobile community · coming soon
           </>
         }
       />
@@ -85,7 +84,7 @@ export function CommunityScreen() {
       </Card>
 
       <p className="mt-3 px-1 text-[12.5px] font-semibold text-muted">
-        Sample posts below — this feed will connect to the River Mobile community.
+        Posts below are a preview — this feed will connect to the River Mobile community.
       </p>
 
       <ul className="mt-3 flex flex-col gap-2.5" aria-label="Community posts">
@@ -99,9 +98,7 @@ export function CommunityScreen() {
                     <b className="text-[14.5px] font-extrabold tracking-[-0.01em]">{p.author}</b>
                     <span className="text-[13px] font-semibold text-muted">@{p.handle}</span>
                     <span className="text-[12.5px] font-semibold text-subtle">· {p.time}</span>
-                    <span className="rounded-pill bg-grey-100 px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-muted">
-                      Sample
-                    </span>
+                    
                   </div>
                   <p className="mt-1.5 text-[15px] font-medium leading-snug text-ink">{p.body}</p>
                   <div className="mt-3 flex items-center gap-4 text-muted">

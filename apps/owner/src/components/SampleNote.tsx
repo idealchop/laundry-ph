@@ -1,15 +1,7 @@
-"use client";
-
-import { SampleDataTag } from "@river-apps/ui";
-import { dataMode } from "@/data";
-import { useShopState } from "@/lib/shop";
-
 /**
- * "Sample data" tag, shown while the screen shows demo data: the in-memory fixtures, or a
- * Firestore shop seeded with sample == true. Pass `show` to decide explicitly (public ticket).
+ * Previously showed a "Sample data" tag on demo shops. Hidden per product ask —
+ * keep the export so call sites don't need a mass delete.
  */
-export function SampleNote({ className, show }: { className?: string; show?: boolean }) {
-  const s = useShopState();
-  const visible = show ?? (s?.status === "ready" ? s.isSample : dataMode() === "fixtures");
-  return visible ? <SampleDataTag className={className} /> : null;
+export function SampleNote(_props: { className?: string; show?: boolean }) {
+  return null;
 }
