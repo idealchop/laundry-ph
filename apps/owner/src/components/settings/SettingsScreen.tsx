@@ -4,7 +4,7 @@ import {
   BadgeCheck, CalendarClock, ChevronRight, CreditCard, History, LogOut, MapPin, MessageSquareText, Pencil, Users,
 } from "lucide-react";
 import Link from "next/link";
-import { Avatar, Badge, Button, Card, ListItem, Topbar } from "@river-apps/ui";
+import { Avatar, Button, Card, ListItem, Topbar } from "@river-apps/ui";
 import type { Shop } from "@/data";
 import { firestoreDatabaseId } from "@/lib/firebase/config";
 import { useAuthGate } from "@/components/auth/AuthGateProvider";
@@ -85,7 +85,6 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
           <p className="mt-2 inline-flex items-center gap-1.5 text-[13.5px] font-bold text-ink">
             <BadgeCheck size={16} strokeWidth={2.25} className="text-ink" aria-hidden />
             River partner
-            {shop.sample ? <Badge variant="soft" size="sm" className="ml-1">Demo</Badge> : null}
           </p>
           <p className="mt-2 text-[14.5px] font-medium leading-snug text-ink/80">{bio}</p>
           {place ? (

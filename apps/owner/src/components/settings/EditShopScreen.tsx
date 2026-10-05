@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPin } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { Badge, Button, Card, Input } from "@river-apps/ui";
 import type { Shop, ShopAddress, ShopLocation } from "@/data";
@@ -67,6 +68,7 @@ function ProfileEditor({
   reload: () => void;
   onBusyChange?: (busy: boolean) => void;
 }) {
+  const router = useRouter();
   const { busy, error, run, setError } = useAction();
   const [saved, setSaved] = useState(false);
   const [name, setName] = useState(shop.name);
@@ -107,6 +109,7 @@ function ProfileEditor({
     if (ok) {
       setSaved(true);
       reload();
+      router.push("/profile");
     }
   }
 
