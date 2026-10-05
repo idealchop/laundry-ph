@@ -3,13 +3,13 @@ import { Check } from "lucide-react";
 import { useState } from "react";
 import { Button, StatusDot } from "@river-apps/ui";
 
-/** Decline / Accept for a verified booking. UI-only: shows the accepted state locally. */
+/** Decline / Accept for a verified River Mobile booking. Demo only: the Partner API (Phase 2) will persist it. */
 export function ScanActions({ total, bookingRef }: { total: string; bookingRef: string }) {
   const [accepted, setAccepted] = useState(false);
   return (
     <div className="mt-auto flex flex-col gap-2 px-6 pb-10 pt-3">
       <p className="flex items-baseline justify-between text-[13.5px] font-semibold text-muted">
-        {accepted ? <StatusDot role="status">Accepted · {bookingRef} added to today’s orders</StatusDot> : "Estimated total"}
+        {accepted ? <StatusDot role="status">Demo only · {bookingRef} not saved (Partner API in Phase 2)</StatusDot> : "Estimated total"}
         <span className="text-[20px] font-extrabold tracking-[-0.02em] text-ink">{total}</span>
       </p>
       {accepted ? (

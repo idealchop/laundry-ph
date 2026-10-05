@@ -1,28 +1,18 @@
 /**
  * SAMPLE DATA ONLY. Every name, number, address and order reference here is made up for the
  * Laundry.ph UI scaffold. Screens that show this data carry a <SampleDataTag />.
+ * Money is integer centavos. scripts/seed-laundrydb-dev.mjs mirrors this file.
  */
 import type {
-  Catalog, Customer, DaySummary, GrowthStat, GrowthTip, Machine, PickupRequest, PublicTicket, QueuedOrder, SalesPoint, Schedule, Shop,
-  VerifiedBooking,
+  Catalog, Customer, GrowthTip, Machine, NewWalkInOrder, Order, PickupRequest, Schedule, Shop, VerifiedBooking,
 } from "./types";
+import { buildWalkInOrder, formatRef } from "@/lib/orders";
 
-export const shop: Shop = { id: "sample-laundry", name: "Sample Laundry", area: "Kapitolyo, Pasig", ownerName: "Liza", ownerAvatar: "rose", tier: "paid" };
+export const SAMPLE_SHOP_ID = "sample-laundry";
 
-export const today: DaySummary = {
-  isoDate: "2026-10-04",
-  dateLabel: "Sun, Oct 4",
-  longDateLabel: "Sunday, Oct 4",
-  sales: 8450,
-  orders: 23,
-  kgWashed: 46,
-  inQueue: 7,
-  ready: 5,
-  unpaid: 1120,
-  dailyTarget: 10000,
-  newRiverMobilePickups: 3,
-  newCustomersThisWeek: 5,
-  notifications: 3,
+export const shop: Shop = {
+  id: SAMPLE_SHOP_ID, name: "Sample Laundry", area: "Kapitolyo, Pasig", ownerName: "Liza", ownerAvatar: "rose", tier: "paid",
+  sample: true, dailyTargetCentavos: 1_000_000,
 };
 
 export const schedule: Schedule = {
@@ -44,15 +34,8 @@ export const machines: Machine[] = [
   { id: "d2", kind: "dryer", name: "Dryer 2", status: "free", nextOrderRef: "LDY-0414" },
 ];
 
-export const orderQueue: QueuedOrder[] = [
-  { ref: "LDY-0418", customer: { name: "Joy P.", avatar: "lilac" }, kg: 6.5, detail: "6.5 kg · Wash-Dry-Fold", status: "Waiting" },
-  { ref: "LDY-0417", customer: { name: "Ben T.", avatar: "peach" }, kg: 8, detail: "8 kg · Wash & Dry", status: "Folding" },
-  { ref: "LDY-0416", customer: { name: "Rico D.", avatar: "mint" }, kg: 5, detail: "5 kg · Pickup", status: "Ready" },
-  { ref: "LDY-0415", customer: { name: "Ana L.", avatar: "butter" }, kg: 4, detail: "4 kg · Wash & Dry", status: "Washing" },
-];
-
 export const pickupRequests: PickupRequest[] = [
-  { id: "p1", kind: "pickup", serviceName: "Wash-Dry-Fold", icon: "basket", window: "10:00–11:00 AM", estimateKg: 6, estimate: 250, customer: { name: "Maria S.", avatar: "peach" }, area: "Kapitolyo", distanceKm: 1.2, isNew: true },
+  { id: "p1", kind: "pickup", serviceName: "Wash-Dry-Fold", icon: "basket", window: "10:00–11:00 AM", estimateKg: 6, estimateCentavos: 25_000, customer: { name: "Maria S.", avatar: "peach" }, area: "Kapitolyo", distanceKm: 1.2, isNew: true },
   { id: "p2", kind: "dropoff", serviceName: "Press only", icon: "iron", window: "1:30 PM", pieces: 12, ref: "LDY-0421", customer: { name: "Paolo R.", avatar: "indigo" }, isNew: true },
   { id: "p3", kind: "pickup", serviceName: "Wash & Dry", icon: "bubbles", window: "3:00 PM", estimateKg: 8, customer: { name: "Ana L.", avatar: "butter" }, isNew: false },
 ];
@@ -65,70 +48,70 @@ export const verifiedBooking: VerifiedBooking = {
   serviceName: "Wash-Dry-Fold",
   serviceIcon: "washer",
   estimateKg: 6,
-  estimate: 210,
-  addOns: [{ name: "Fabric softener", price: 20 }, { name: "Stain removal", price: 40 }],
-  pickup: { window: "today, 10–11 AM", address: "12 Mabini St., Kapitolyo, Pasig", fee: 40 },
+  estimateCentavos: 21_000,
+  addOns: [
+    { name: "Fabric softener", priceCentavos: 2_000 },
+    { name: "Stain removal", priceCentavos: 4_000 },
+  ],
+  pickup: { window: "today, 10–11 AM", address: "12 Mabini St., Kapitolyo, Pasig", feeCentavos: 4_000 },
 };
 
 export const catalog: Catalog = {
   services: [
-    { id: "wdf", name: "Wash-Dry-Fold", unit: "kg", price: 35, icon: "washer" },
-    { id: "wd", name: "Wash & Dry", unit: "kg", price: 30, icon: "bubbles" },
-    { id: "press", name: "Press only", unit: "pc", price: 15, icon: "iron" },
+    { id: "wdf", name: "Wash-Dry-Fold", unit: "kg", priceCentavos: 3_500, icon: "washer" },
+    { id: "wd", name: "Wash & Dry", unit: "kg", priceCentavos: 3_000, icon: "bubbles" },
+    { id: "press", name: "Press only", unit: "pc", priceCentavos: 1_500, icon: "iron" },
   ],
   detergents: [
-    { id: "shop", name: "Shop detergent", short: "Shop", price: 0 },
-    { id: "hypo", name: "Hypoallergenic", price: 25, icon: "detergent" },
-    { id: "own", name: "Customer’s own", short: "Own", price: 0 },
+    { id: "shop", name: "Shop detergent", short: "Shop", priceCentavos: 0 },
+    { id: "hypo", name: "Hypoallergenic", priceCentavos: 2_500, icon: "detergent" },
+    { id: "own", name: "Customer’s own", short: "Own", priceCentavos: 0 },
   ],
   addOns: [
-    { id: "softener", name: "Fabric softener", price: 20 },
-    { id: "rinse", name: "Extra rinse", price: 15, icon: "drop" },
-    { id: "stain", name: "Stain removal", price: 40, icon: "sparkle" },
-    { id: "sameday", name: "Same-day", price: 50 },
+    { id: "softener", name: "Fabric softener", priceCentavos: 2_000 },
+    { id: "rinse", name: "Extra rinse", priceCentavos: 1_500, icon: "drop" },
+    { id: "stain", name: "Stain removal", priceCentavos: 4_000, icon: "sparkle" },
+    { id: "sameday", name: "Same-day", priceCentavos: 5_000 },
   ],
   minKg: 5,
   returnSlots: [
     { id: "today", label: "Today · 6:00 PM" },
-    { id: "mon", label: "Mon, Oct 5 · 5:00 PM" },
-    { id: "tue", label: "Tue, Oct 6 · 5:00 PM" },
+    { id: "tomorrow", label: "Tomorrow · 5:00 PM" },
+    { id: "2days", label: "In 2 days · 5:00 PM" },
   ],
-  defaults: { serviceId: "wdf", kg: 6.5, pieces: 10, detergentId: "shop", addOnIds: ["softener"], returnSlotId: "mon", customer: "Joy Pascual · 0917 555 0142" },
-  nextQueueNo: 18,
-  nextTicketRef: "LDY-0422",
+  defaults: { serviceId: "wdf", kg: 6.5, pieces: 10, detergentId: "shop", addOnIds: ["softener"], returnSlotId: "tomorrow" },
 };
-
-export const tickets: PublicTicket[] = [
-  {
-    id: "LDY-0418", shopName: shop.name, queueNo: 18, maskedName: "Joy P.", stage: "drying",
-    stageTimes: { received: "9:10 AM", washing: "1:05 PM", drying: "2:20 PM" }, readyBy: "today by 5:00 PM", updatedAt: "2:41 PM",
-    kg: 6.5, serviceName: "Wash-Dry-Fold", amountDue: 248, paid: false,
-  },
-  {
-    id: "LDY-0422", shopName: shop.name, queueNo: 19, maskedName: "Joy P.", stage: "received",
-    stageTimes: { received: "2:45 PM" }, readyBy: "Mon, Oct 5 by 5:00 PM", updatedAt: "2:45 PM",
-    kg: 6.5, serviceName: "Wash-Dry-Fold", amountDue: 248, paid: false,
-  },
-  {
-    id: "LDY-0416", shopName: shop.name, queueNo: 16, maskedName: "Rico D.", stage: "ready",
-    stageTimes: { received: "8:02 AM", washing: "8:30 AM", drying: "9:25 AM", folding: "10:20 AM", ready: "10:48 AM" }, readyBy: "today by 12:00 PM", updatedAt: "10:48 AM",
-    kg: 5, serviceName: "Wash-Dry-Fold", amountDue: 0, paid: true,
-  },
-];
-
-export const weekSales: SalesPoint[] = [5200, 6100, 5800, 7400, 6900, 9800, 8450].map((value, i) => ({ value, label: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i]! }));
-
-export const growthStats: GrowthStat[] = [
-  { id: "kg", label: "Kilos this week", value: "312 kg", caption: "+8% vs last week", icon: "washer" },
-  { id: "avg", label: "Average ticket", value: "₱367", caption: "+₱22 vs last week", icon: "coin" },
-  { id: "addon", label: "Top add-on", value: "Fabric softener", caption: "41% of orders", icon: "detergent" },
-];
 
 export const growthTip: GrowthTip = { tag: "AI", title: "Growth tip", text: "Tuesdays are slow. Try a ₱20-off voucher for returning customers." };
 
 export const customers: Customer[] = [
-  { id: "c1", name: "Maria S.", avatar: "rose", source: "River Mobile", visits: 14, tag: "Member", spent: 4920 },
-  { id: "c2", name: "Joy P.", avatar: "lilac", source: "Walk-in", visits: 9, tag: "Regular", spent: 2310 },
-  { id: "c3", name: "Carlo M.", avatar: "sky", source: "Walk-in", visits: 1, tag: "New", spent: 248 },
-  { id: "c4", name: "Grace V.", avatar: "indigo", source: "River Mobile", visits: 6, tag: "Member", spent: 1860 },
+  { id: "c1", name: "Maria Santos", avatar: "rose", source: "River Mobile", visits: 14, tag: "Member", spentCentavos: 492_000, phone: "09175550101" },
+  { id: "c2", name: "Joy Pascual", avatar: "lilac", source: "Walk-in", visits: 9, tag: "Regular", spentCentavos: 231_000, phone: "09175550142" },
+  { id: "c3", name: "Carlo Mendoza", avatar: "sky", source: "Walk-in", visits: 1, tag: "New", spentCentavos: 24_800 },
+  { id: "c4", name: "Grace Villanueva", avatar: "indigo", source: "River Mobile", visits: 6, tag: "Member", spentCentavos: 186_000 },
 ];
+
+/** Sample orders placed relative to `now` so "today" always has data. */
+export function sampleOrders(now = Date.now()): Order[] {
+  const H = 3600_000;
+  const specs: { no: number; ago: number; input: NewWalkInOrder; status: Order["status"]; paid?: boolean }[] = [
+    { no: 418, ago: 5 * H, status: "drying", input: { customer: { id: "c2", name: "Joy Pascual" }, serviceId: "wdf", quantity: 6.5, detergentId: "shop", addOnIds: ["softener"], returnSlotId: "today" } },
+    { no: 417, ago: 6 * H, status: "folding", input: { customer: { name: "Ben Torres" }, serviceId: "wd", quantity: 8, detergentId: "hypo", addOnIds: [], returnSlotId: "today" } },
+    { no: 416, ago: 7 * H, status: "ready", paid: true, input: { customer: { name: "Rico Dela Cruz" }, serviceId: "wdf", quantity: 5, detergentId: "shop", addOnIds: ["stain"], returnSlotId: "today" } },
+    { no: 415, ago: 3 * H, status: "washing", input: { customer: { name: "Ana Lim" }, serviceId: "wd", quantity: 4, detergentId: "own", addOnIds: ["rinse"], returnSlotId: "tomorrow" } },
+    { no: 414, ago: 26 * H, status: "claimed", paid: true, input: { customer: { id: "c4", name: "Grace Villanueva" }, serviceId: "wdf", quantity: 7, detergentId: "shop", addOnIds: ["softener"], returnSlotId: "today" } },
+    { no: 413, ago: 50 * H, status: "claimed", paid: true, input: { customer: { id: "c1", name: "Maria Santos" }, serviceId: "press", quantity: 12, detergentId: "shop", addOnIds: [], returnSlotId: "today" } },
+  ];
+  return specs.map((s) => {
+    const createdAt = now - s.ago;
+    const ref = formatRef(s.no);
+    const o = buildWalkInOrder(catalog, s.input, { shopId: SAMPLE_SHOP_ID, ref, queueNo: s.no - 400, ticketId: `${ref}-SAMPLE0${String(s.no).slice(-1)}`, now: createdAt, sample: true });
+    const flow: Order["status"][] = ["received", "washing", "drying", "folding", "ready", "claimed"];
+    const stageTimes: Order["stageTimes"] = {};
+    flow.slice(0, flow.indexOf(s.status) + 1).forEach((st, i) => { stageTimes[st] = createdAt + i * 40 * 60_000; });
+    return {
+      ...o, id: `sample-${s.no}`, status: s.status, stageTimes, updatedAt: Math.max(...Object.values(stageTimes)),
+      ...(s.paid ? { paymentStatus: "paid" as const, paymentMethod: "cash" as const, paidCentavos: o.totalCentavos } : {}),
+    };
+  });
+}

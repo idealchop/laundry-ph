@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Icon3D } from "@river-apps/icons";
 import { Avatar, Button, IconButton, IconTile, ListItem, StatusDot } from "@river-apps/ui";
 import type { PickupRequest } from "@/data";
-import { peso } from "@/lib/format";
+import { money } from "@/lib/format";
 
 /** A new River Mobile pickup with Accept / Decline. UI-only: the decision lives in local state. */
 export function PickupRequestCard({ request }: { request: PickupRequest }) {
@@ -15,7 +15,7 @@ export function PickupRequestCard({ request }: { request: PickupRequest }) {
       leading={<IconTile><Icon3D name={r.icon} size={36} /></IconTile>}
       title={`${r.kind === "pickup" ? "Pickup" : "Drop-off"} · ${r.serviceName}`}
       subtitle={<>{r.window}{r.estimateKg ? ` · about ${r.estimateKg} kg` : ""}</>}
-      trailing={r.estimate ? <span className="text-[16px] font-extrabold">~{peso(r.estimate)}</span> : undefined}
+      trailing={r.estimateCentavos ? <span className="text-[16px] font-extrabold">~{money(r.estimateCentavos)}</span> : undefined}
       footer={<>
         <span className="flex items-center gap-[11px]">
           <Avatar name={r.customer.name} preset={r.customer.avatar} size={30} />

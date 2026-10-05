@@ -1,14 +1,12 @@
 import { FocusSurface } from "@/components/FocusHeader";
-import { PosForm } from "@/components/pos/PosForm";
-import { data } from "@/data";
+import { NewOrderScreen } from "@/components/pos/NewOrderScreen";
 
 export const metadata = { title: "New walk-in order" };
 
-export default async function NewOrderPage() {
-  const catalog = await data.getCatalog();
+export default function NewOrderPage() {
   return (
     <FocusSurface>
-      <PosForm catalog={catalog} />
+      <NewOrderScreen />
     </FocusSurface>
   );
 }

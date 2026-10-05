@@ -1,12 +1,16 @@
 /**
- * Domain types for the Laundry.ph owner UI. They mirror the planned Firestore model
- * (`workspaces/{shopId}/…`, `public_tickets/{token}`) closely enough to swap the sample
- * fixtures for real reads later without touching components.
+ * Domain types for the Laundry.ph owner UI. They mirror the Firestore model
+ * (`shops/{shopId}/…`, `public_tickets/{ticketId}`, see firebase-source.ts).
+ *
+ * Money: transactional amounts (orders, tickets, customers, sales) are integer
+ * CENTAVOS (`…Centavos` fields). Catalog prices are centavos too.
  */
 import type { AvatarPreset, IconName } from "@river-apps/icons";
 
-/** Philippine pesos. Whole or decimal pesos (not centavos). */
+/** Philippine pesos. Whole or decimal pesos (display only; never persisted). */
 export type Peso = number;
+/** Integer centavos (₱1 = 100). Every persisted money value uses this. */
+export type Centavos = number;
 
 export type Tier = "partner" | "paid";
 
@@ -17,6 +21,19 @@ export interface Shop {
   ownerName: string;
   ownerAvatar: AvatarPreset;
   tier: Tier;
+  /** Seeded demo shop (drives the "Sample data" tag). */
+  sample?: boolean;
+  ownerUid?: string;
+  /** Daily sales goal shown on the dashboard. */
+  dailyTargetCentavos?: Centavos;
+}
+
+export type MemberRole = "owner" | "staff";
+export interface Membership {
+  uid: string;
+  shopId: string;
+  role: MemberRole;
+  status: "active" | "disabled";
 }
 
 export interface PersonRef {
@@ -30,13 +47,13 @@ export interface DaySummary {
   dateLabel: string;
   /** e.g. "Sunday, Oct 4" */
   longDateLabel: string;
-  sales: Peso;
+  salesCentavos: Centavos;
   orders: number;
   kgWashed: number;
   inQueue: number;
   ready: number;
-  unpaid: Peso;
-  dailyTarget: Peso;
+  unpaidCentavos: Centavos;
+  dailyTargetCentavos: Centavos;
   newRiverMobilePickups: number;
   newCustomersThisWeek: number;
   notifications: number;
@@ -73,13 +90,88 @@ export interface Machine {
   nextOrderRef?: string;
 }
 
-export type QueueStatus = "Waiting" | "Washing" | "Drying" | "Folding" | "Ready";
-export interface QueuedOrder {
+/**
+ * Order lifecycle. Flow: received → washing → drying → folding → ready → claimed (walk-in
+ * pick-up at the counter) or delivered (River Mobile / rider drop-off). `cancelled` is terminal.
+ */
+export type OrderStatus = "received" | "washing" | "drying" | "folding" | "ready" | "claimed" | "delivered" | "cancelled";
+export const ORDER_FLOW: OrderStatus[] = ["received", "washing", "drying", "folding", "ready"];
+export const ACTIVE_STATUSES: OrderStatus[] = ["received", "washing", "drying", "folding"];
+export const DONE_STATUSES: OrderStatus[] = ["claimed", "delivered"];
+export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
+  received: "Received",
+  washing: "Washing",
+  drying: "Drying",
+  folding: "Folding",
+  ready: "Ready",
+  claimed: "Claimed",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
+
+export type PaymentStatus = "unpaid" | "paid";
+export type PaymentMethod = "cash" | "gcash";
+export type OrderSource = "walk-in" | "river-mobile";
+
+export interface OrderLine {
+  label: string;
+  amountCentavos: Centavos;
+}
+export interface OrderOption {
+  id: string;
+  name: string;
+  priceCentavos: Centavos;
+}
+
+/** shops/{shopId}/orders/{orderId}. Timestamps are epoch milliseconds on the client. */
+export interface Order {
+  id: string;
+  shopId: string;
+  /** Human ticket number, e.g. "LDY-0423" (unique per shop, from meta/counters). */
   ref: string;
-  customer: PersonRef;
+  /** Daily queue number shown at the counter. */
+  queueNo: number;
+  /** public_tickets/{ticketId} token (unguessable). */
+  ticketId: string;
+  source: OrderSource;
+  status: OrderStatus;
+  customer: PersonRef & { phone?: string };
+  customerId?: string | null;
+  serviceId: string;
+  serviceName: string;
+  unit: "kg" | "pc";
+  /** Entered quantity (kg or pieces). */
+  quantity: number;
+  /** Billed quantity after the minimum-kg rule. */
+  billedQuantity: number;
+  /** Kilos (0 for per-piece services). */
   kg: number;
+  detergent: OrderOption | null;
+  addOns: OrderOption[];
+  lines: OrderLine[];
+  subtotalCentavos: Centavos;
+  totalCentavos: Centavos;
+  paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod | null;
+  paidCentavos: Centavos;
+  /** e.g. "Mon, Oct 5 · 5:00 PM" */
+  readyBy: string;
+  /** One-line summary, e.g. "6.5 kg · Wash-Dry-Fold". */
   detail: string;
-  status: QueueStatus;
+  stageTimes: Partial<Record<OrderStatus, number>>;
+  createdAt: number;
+  updatedAt: number;
+  createdBy?: string;
+  sample?: boolean;
+}
+
+export interface NewWalkInOrder {
+  customer: { id?: string | null; name: string; phone?: string };
+  serviceId: string;
+  quantity: number;
+  detergentId: string;
+  addOnIds: string[];
+  returnSlotId: string;
 }
 
 export interface PickupRequest {
@@ -90,7 +182,7 @@ export interface PickupRequest {
   window: string;
   estimateKg?: number;
   pieces?: number;
-  estimate?: Peso;
+  estimateCentavos?: Centavos;
   customer: PersonRef;
   area?: string;
   distanceKm?: number;
@@ -100,7 +192,7 @@ export interface PickupRequest {
 
 export interface PricedLine {
   name: string;
-  price: Peso;
+  priceCentavos: Centavos;
 }
 export interface VerifiedBooking {
   ref: string;
@@ -110,16 +202,17 @@ export interface VerifiedBooking {
   serviceName: string;
   serviceIcon: IconName;
   estimateKg: number;
-  estimate: Peso;
+  estimateCentavos: Centavos;
   addOns: PricedLine[];
-  pickup: { window: string; address: string; fee: Peso };
+  pickup: { window: string; address: string; feeCentavos: Centavos };
 }
 
 export interface CatalogService {
   id: string;
   name: string;
   unit: "kg" | "pc";
-  price: Peso;
+  /** Per kg or per piece. */
+  priceCentavos: Centavos;
   icon: IconName;
 }
 export interface CatalogOption {
@@ -127,7 +220,7 @@ export interface CatalogOption {
   name: string;
   /** Short label for chips, e.g. "Shop". Falls back to name. */
   short?: string;
-  price: Peso;
+  priceCentavos: Centavos;
   icon?: IconName;
 }
 export interface ReturnSlot {
@@ -142,33 +235,45 @@ export interface Catalog {
   minKg: number;
   returnSlots: ReturnSlot[];
   /** Pre-filled values for a new walk-in ticket. */
-  defaults: { serviceId: string; kg: number; pieces: number; detergentId: string; addOnIds: string[]; returnSlotId: string; customer: string };
-  nextQueueNo: number;
-  nextTicketRef: string;
+  defaults: { serviceId: string; kg: number; pieces: number; detergentId: string; addOnIds: string[]; returnSlotId: string };
 }
 
 export type TicketStage = "received" | "washing" | "drying" | "folding" | "ready";
 export const TICKET_STAGES: TicketStage[] = ["received", "washing", "drying", "folding", "ready"];
 
-/** Public-safe projection shown on /t/[ticketId] (no login). */
+/**
+ * Public-safe projection shown on /t/[ticketId] (no login): no phone, no address,
+ * masked name only. Written by shop members alongside the order.
+ */
 export interface PublicTicket {
   id: string;
+  shopId: string;
   shopName: string;
+  ref: string;
   queueNo: number;
   maskedName: string;
   stage: TicketStage;
-  stageTimes: Partial<Record<TicketStage, string>>;
+  /** Set once the customer has the laundry back. */
+  done?: "claimed" | "delivered" | null;
+  cancelled?: boolean;
+  /** Epoch ms per stage. */
+  stageTimes: Partial<Record<TicketStage, number>>;
   readyBy: string;
-  updatedAt: string;
+  /** Epoch ms. */
+  updatedAt: number;
   kg: number;
+  quantityLabel: string;
   serviceName: string;
-  amountDue: Peso;
+  totalCentavos: Centavos;
+  amountDueCentavos: Centavos;
   paid: boolean;
+  sample?: boolean;
 }
 
 export interface SalesPoint {
   label: string;
-  value: Peso;
+  /** Centavos. */
+  value: Centavos;
 }
 export interface GrowthStat {
   id: string;
@@ -184,12 +289,27 @@ export interface GrowthTip {
 }
 
 export type CustomerTag = "Member" | "Regular" | "New";
+/** shops/{shopId}/customers/{customerId} */
 export interface Customer {
   id: string;
   name: string;
+  /** Lower-cased name for search. */
+  nameLower?: string;
+  phone?: string | null;
   avatar: AvatarPreset;
   source: "River Mobile" | "Walk-in";
   visits: number;
-  tag: CustomerTag;
-  spent: Peso;
+  /** Stored tag ("Member" is manual); New/Regular derive from visits when absent. */
+  tag?: CustomerTag | null;
+  spentCentavos: Centavos;
+  lastVisitAt?: number | null;
+  createdAt?: number | null;
+  notes?: string | null;
+}
+
+export interface NewCustomer {
+  name: string;
+  phone?: string;
+  source?: Customer["source"];
+  notes?: string;
 }

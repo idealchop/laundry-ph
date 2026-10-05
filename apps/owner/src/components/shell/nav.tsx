@@ -9,7 +9,8 @@ const tab = { size: 22, strokeWidth: 1.75 } as const;
 /** Paid tier: the five modules from the Laundry.ph feature map, plus Settings. */
 export const PAID_NAV: NavItem[] = [
   { key: "growth", label: "Growth Dashboard", href: "/home", icon: <TrendingUp {...side} /> },
-  { key: "online", label: "Online / Schedule", href: "/online", icon: <CalendarClock {...side} />, badge: 3 },
+  { key: "orders", label: "Orders", href: "/orders", icon: <List {...side} /> },
+  { key: "online", label: "Online / Schedule", href: "/online", icon: <CalendarClock {...side} /> },
   { key: "sales", label: "Sales Record", href: "/sales", icon: <ReceiptText {...side} /> },
   { key: "customers", label: "Customers", href: "/customers", icon: <Users {...side} /> },
   { key: "messages", label: "Message Automations", href: "/messages", icon: <MessageSquareText {...side} /> },
@@ -17,7 +18,7 @@ export const PAID_NAV: NavItem[] = [
 ];
 export const PAID_TABS: NavItem[] = [
   { key: "home", label: "Home", href: "/home", icon: <House {...tab} /> },
-  { key: "orders", label: "Orders", href: "/online", icon: <List {...tab} /> },
+  { key: "orders", label: "Orders", href: "/orders", icon: <List {...tab} /> },
   { key: "sales", label: "Sales", href: "/sales", icon: <ChartColumn {...tab} /> },
   { key: "more", label: "More", href: "/more", icon: <Ellipsis {...tab} /> },
 ];

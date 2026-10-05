@@ -1,119 +1,83 @@
 /**
  * Data access for the Laundry.ph owner UI.
  *
- * Components only talk to `data` through the `LaundryDataSource` interface.
- * Default: in-memory fixtures. Set NEXT_PUBLIC_DATA_SOURCE=firebase to use the
- * named Firestore database in project mylaundryph (laundrydb / laundrydb-dev).
+ * Components talk to a shop-bound `LaundryDataSource` (see `useShop()` in lib/shop.tsx).
+ * Backends:
+ *   - firebase (default when NEXT_PUBLIC_DATA_SOURCE=firebase and the web config is present):
+ *     the signed-in user's shop in the named Firestore DB (laundrydb / laundrydb-dev).
+ *   - fixtures: in-memory sample shop, fully interactive but nothing persists. Used only when
+ *     NEXT_PUBLIC_DATA_SOURCE=fixtures, NEXT_PUBLIC_DEMO_FIXTURES=1, or Firebase is not configured.
+ *
+ * There is no silent fallback from Firestore to fixtures: a failed Firestore read shows an
+ * error on screen so a broken shop is never mistaken for real data.
  */
-import * as fx from "./fixtures";
-import { createFirebaseDataSource } from "./firebase-source";
+import { hasFirebaseWebConfig } from "@/lib/firebase/config";
 import type {
-  Catalog, Customer, DaySummary, GrowthStat, GrowthTip, Machine, PickupRequest, PublicTicket, QueuedOrder, SalesPoint, Schedule, Shop,
-  VerifiedBooking,
+  Catalog, Customer, GrowthTip, Machine, NewCustomer, NewWalkInOrder, Order, OrderStatus, PaymentMethod, PickupRequest,
+  PublicTicket, Schedule, Shop, VerifiedBooking,
 } from "./types";
 
 export * from "./types";
 
+export type Unsubscribe = () => void;
+export type DataMode = "firebase" | "fixtures";
+
+export interface WatchOrdersOptions {
+  /** Only orders created at or after this epoch ms. */
+  sinceMs?: number;
+  /** Only open orders (received … ready), any age. */
+  openOnly?: boolean;
+}
+
 export interface LaundryDataSource {
-  /** True while the app shows seeded sample / demo data (drives <SampleDataTag />). */
-  readonly isSample: boolean;
+  readonly mode: DataMode;
+  readonly shopId: string;
   getShop(): Promise<Shop>;
-  getTodaySummary(): Promise<DaySummary>;
   getSchedule(): Promise<Schedule>;
   getMachines(): Promise<Machine[]>;
-  getOrderQueue(): Promise<QueuedOrder[]>;
   getPickupRequests(): Promise<PickupRequest[]>;
-  /** The booking a River Mobile QR scan resolved to (Partner API v1 later). */
+  /** River Mobile booking resolved from a QR (Partner API v1 later). Demo doc only for now. */
   getVerifiedBooking(ref?: string): Promise<VerifiedBooking | null>;
   getCatalog(): Promise<Catalog>;
-  /** Public-safe ticket projection for /t/[ticketId]. Null when unknown or expired. */
+  /** Static tip until AI Growth ships; null when the shop has none. */
+  getGrowthTip(): Promise<GrowthTip | null>;
+
+  /** Live orders, newest first. */
+  watchOrders(opts: WatchOrdersOptions, onData: (orders: Order[]) => void, onError: (e: Error) => void): Unsubscribe;
+  watchOrder(orderId: string, onData: (order: Order | null) => void, onError: (e: Error) => void): Unsubscribe;
+  /** Resolve a scanned / typed code: ticket URL, ticket id, ref ("LDY-0423", "423") or order id. */
+  findOrder(code: string): Promise<Order | null>;
+  /** Create a walk-in order + its public ticket (+ customer upsert) atomically. */
+  createWalkInOrder(input: NewWalkInOrder): Promise<Order>;
+  setOrderStatus(orderId: string, status: OrderStatus): Promise<void>;
+  markOrderPaid(orderId: string, method: PaymentMethod): Promise<void>;
+
+  watchCustomers(onData: (customers: Customer[]) => void, onError: (e: Error) => void): Unsubscribe;
+  createCustomer(input: NewCustomer): Promise<Customer>;
+}
+
+/** Public, no-login reads for /t/[ticketId]. */
+export interface PublicTicketSource {
   getTicket(ticketId: string): Promise<PublicTicket | null>;
-  getWeekSales(): Promise<SalesPoint[]>;
-  getGrowthStats(): Promise<GrowthStat[]>;
-  getGrowthTip(): Promise<GrowthTip>;
-  getCustomers(): Promise<Customer[]>;
-  /** Optional: persist a walk-in order + public ticket (Firebase source). */
-  createWalkInOrder?(input: {
-    ref: string;
-    customer: QueuedOrder["customer"];
-    kg: number;
-    detail: string;
-    status?: QueuedOrder["status"];
-    ticket: PublicTicket;
-  }): Promise<QueuedOrder>;
+  watchTicket(ticketId: string, onData: (t: PublicTicket | null) => void, onError: (e: Error) => void): Unsubscribe;
 }
 
-export const sampleDataSource: LaundryDataSource = {
-  isSample: true,
-  getShop: async () => fx.shop,
-  getTodaySummary: async () => fx.today,
-  getSchedule: async () => fx.schedule,
-  getMachines: async () => fx.machines,
-  getOrderQueue: async () => fx.orderQueue,
-  getPickupRequests: async () => fx.pickupRequests,
-  getVerifiedBooking: async (ref) => (!ref || ref === fx.verifiedBooking.ref ? fx.verifiedBooking : null),
-  getCatalog: async () => fx.catalog,
-  getTicket: async (id) => fx.tickets.find((t) => t.id.toLowerCase() === id.toLowerCase()) ?? null,
-  getWeekSales: async () => fx.weekSales,
-  getGrowthStats: async () => fx.growthStats,
-  getGrowthTip: async () => fx.growthTip,
-  getCustomers: async () => fx.customers,
-};
-
-/** Prefer Firebase; if a read fails (e.g. empty laundrydb before real shops), use fixtures. */
-function withFixturesFallback(primary: LaundryDataSource, fallback: LaundryDataSource): LaundryDataSource {
-  const wrap = <T,>(fn: () => Promise<T>, fb: () => Promise<T>) => async () => {
-    try {
-      return await fn();
-    } catch {
-      return fb();
-    }
-  };
-  return {
-    get isSample() {
-      return primary.isSample;
-    },
-    getShop: wrap(() => primary.getShop(), () => fallback.getShop()),
-    getTodaySummary: wrap(() => primary.getTodaySummary(), () => fallback.getTodaySummary()),
-    getSchedule: wrap(() => primary.getSchedule(), () => fallback.getSchedule()),
-    getMachines: wrap(() => primary.getMachines(), () => fallback.getMachines()),
-    getOrderQueue: wrap(() => primary.getOrderQueue(), () => fallback.getOrderQueue()),
-    getPickupRequests: wrap(() => primary.getPickupRequests(), () => fallback.getPickupRequests()),
-    getVerifiedBooking: async (ref) => {
-      try {
-        return await primary.getVerifiedBooking(ref);
-      } catch {
-        return fallback.getVerifiedBooking(ref);
-      }
-    },
-    getCatalog: wrap(() => primary.getCatalog(), () => fallback.getCatalog()),
-    getTicket: async (id) => {
-      try {
-        const t = await primary.getTicket(id);
-        if (t) return t;
-      } catch {
-        /* fall through */
-      }
-      return fallback.getTicket(id);
-    },
-    getWeekSales: wrap(() => primary.getWeekSales(), () => fallback.getWeekSales()),
-    getGrowthStats: wrap(() => primary.getGrowthStats(), () => fallback.getGrowthStats()),
-    getGrowthTip: wrap(() => primary.getGrowthTip(), () => fallback.getGrowthTip()),
-    getCustomers: wrap(() => primary.getCustomers(), () => fallback.getCustomers()),
-    createWalkInOrder: primary.createWalkInOrder?.bind(primary),
-  };
-}
-
-function resolveDataSource(): LaundryDataSource {
+/** Which backend this build uses. */
+export function dataMode(): DataMode {
   const mode = (process.env.NEXT_PUBLIC_DATA_SOURCE ?? "fixtures").toLowerCase();
-  if (mode === "firebase") {
-    return withFixturesFallback(createFirebaseDataSource(), sampleDataSource);
-  }
-  return sampleDataSource;
+  const demo = process.env.NEXT_PUBLIC_DEMO_FIXTURES === "1";
+  if (mode === "firebase" && !demo && hasFirebaseWebConfig()) return "firebase";
+  return "fixtures";
 }
 
-/** The active data source (fixtures by default; firebase when env says so). */
-export const data: LaundryDataSource = resolveDataSource();
-
-/** Ticket ids that exist in the sample fixtures (used to pre-render /t/[ticketId]). */
-export const SAMPLE_TICKET_IDS = fx.tickets.map((t) => t.id);
+/** Extract the code from a scanned ticket URL ("…/t/LDY-0423-ABCD2345") or return the trimmed input. */
+export function normalizeCode(raw: string): string {
+  const s = raw.trim();
+  const m = s.match(/\/t\/([^/?#\s]+)/);
+  return decodeURIComponent(m?.[1] ?? s).toUpperCase();
+}
+/** "423", "0423", "ldy-423" → "LDY-0423"; null when it doesn't look like a ref. */
+export function refFromCode(code: string): string | null {
+  const m = code.match(/^(?:LDY-?)?(\d{1,6})$/i);
+  return m ? `LDY-${m[1]!.padStart(4, "0")}` : null;
+}

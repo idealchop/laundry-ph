@@ -1,11 +1,14 @@
-import { notFound } from "next/navigation";
-import { ScanResult } from "@/components/scan/ScanResult";
-import { data } from "@/data";
+import { Suspense } from "react";
+import { ScanScreen } from "@/components/scan/ScanScreen";
+import { Spinner } from "@/components/ui";
 
 export const metadata = { title: "Scan result" };
 
-export default async function ScanResultPage() {
-  const booking = await data.getVerifiedBooking();
-  if (!booking) notFound();
-  return <ScanResult booking={booking} />;
+/** `/scan/result?code=<ticket link | ticket id | LDY-0423>` resolves a real ticket in the shop. */
+export default function ScanResultPage() {
+  return (
+    <Suspense fallback={<Spinner label="Loading" />}>
+      <ScanScreen />
+    </Suspense>
+  );
 }

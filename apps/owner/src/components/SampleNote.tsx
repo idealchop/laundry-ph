@@ -1,7 +1,15 @@
-import { SampleDataTag } from "@river-apps/ui";
-import { data } from "@/data";
+"use client";
 
-/** Renders the kit SampleDataTag only while the app runs on sample fixtures. */
-export function SampleNote({ className }: { className?: string }) {
-  return data.isSample ? <SampleDataTag className={className} /> : null;
+import { SampleDataTag } from "@river-apps/ui";
+import { dataMode } from "@/data";
+import { useShopState } from "@/lib/shop";
+
+/**
+ * "Sample data" tag, shown while the screen shows demo data: the in-memory fixtures, or a
+ * Firestore shop seeded with sample == true. Pass `show` to decide explicitly (public ticket).
+ */
+export function SampleNote({ className, show }: { className?: string; show?: boolean }) {
+  const s = useShopState();
+  const visible = show ?? (s?.status === "ready" ? s.isSample : dataMode() === "fixtures");
+  return visible ? <SampleDataTag className={className} /> : null;
 }

@@ -1,0 +1,119 @@
+/**
+ * In-memory LaundryDataSource over the sample fixtures. Fully interactive (create orders,
+ * move statuses, add customers) but nothing persists past a page reload. Only used when the
+ * build is not pointed at Firestore (see dataMode()).
+ */
+import { avatarFor, buildWalkInOrder, formatRef, nextStatus, toPublicTicket } from "@/lib/orders";
+import { ACTIVE_STATUSES, type Customer, type Order, type PublicTicket } from "./types";
+import * as fx from "./fixtures";
+import { normalizeCode, refFromCode, type LaundryDataSource, type PublicTicketSource, type Unsubscribe } from "./index";
+
+type Listener = () => void;
+
+const store = {
+  orders: fx.sampleOrders(),
+  customers: fx.customers.map((c) => ({ ...c })),
+  nextNo: 423,
+  listeners: new Set<Listener>(),
+};
+const emit = () => store.listeners.forEach((l) => l());
+const subscribe = (fn: Listener): Unsubscribe => {
+  store.listeners.add(fn);
+  fn();
+  return () => store.listeners.delete(fn);
+};
+const sorted = (orders: Order[]) => [...orders].sort((a, b) => b.createdAt - a.createdAt);
+const OPEN = [...ACTIVE_STATUSES, "ready"];
+
+export function createFixtureDataSource(): LaundryDataSource {
+  const findById = (id: string) => store.orders.find((o) => o.id === id) ?? null;
+  const patch = (id: string, fn: (o: Order) => Order) => {
+    store.orders = store.orders.map((o) => (o.id === id ? fn(o) : o));
+    emit();
+  };
+  return {
+    mode: "fixtures",
+    shopId: fx.SAMPLE_SHOP_ID,
+    getShop: async () => fx.shop,
+    getSchedule: async () => fx.schedule,
+    getMachines: async () => fx.machines,
+    getPickupRequests: async () => fx.pickupRequests,
+    getVerifiedBooking: async (ref) => (!ref || ref === fx.verifiedBooking.ref ? fx.verifiedBooking : null),
+    getCatalog: async () => fx.catalog,
+    getGrowthTip: async () => fx.growthTip,
+
+    watchOrders: (opts, onData) =>
+      subscribe(() => {
+        let list = store.orders;
+        if (opts.sinceMs != null) list = list.filter((o) => o.createdAt >= opts.sinceMs!);
+        if (opts.openOnly) list = list.filter((o) => OPEN.includes(o.status));
+        onData(sorted(list));
+      }),
+    watchOrder: (id, onData) => subscribe(() => onData(findById(id))),
+    async findOrder(raw) {
+      const code = normalizeCode(raw);
+      const ref = refFromCode(code);
+      return store.orders.find((o) => o.ticketId.toUpperCase() === code || o.id.toUpperCase() === code || o.ref === code || (ref && o.ref === ref)) ?? null;
+    },
+    async createWalkInOrder(input) {
+      const now = Date.now();
+      const ref = formatRef(store.nextNo++);
+      let customerId = input.customer.id ?? null;
+      const name = input.customer.name.trim();
+      if (!customerId && name) {
+        const c: Customer = { id: `c${Date.now()}`, name, phone: input.customer.phone ?? null, avatar: avatarFor(name), source: "Walk-in", visits: 0, spentCentavos: 0, createdAt: now };
+        store.customers = [c, ...store.customers];
+        customerId = c.id;
+      }
+      const base = buildWalkInOrder(fx.catalog, { ...input, customer: { ...input.customer, id: customerId } }, {
+        shopId: fx.SAMPLE_SHOP_ID, ref, queueNo: store.nextNo - 400, ticketId: ref, now, sample: true,
+      });
+      const order: Order = { ...base, id: `local-${ref}` };
+      store.customers = store.customers.map((c) =>
+        c.id === customerId ? { ...c, visits: c.visits + 1, spentCentavos: c.spentCentavos + order.totalCentavos, lastVisitAt: now } : c,
+      );
+      store.orders = [order, ...store.orders];
+      emit();
+      return order;
+    },
+    async setOrderStatus(id, status) {
+      patch(id, (o) => {
+        const stageTimes = { ...o.stageTimes };
+        if (nextStatus(o) === status) stageTimes[status] = Date.now();
+        else delete stageTimes[o.status];
+        return { ...o, status, stageTimes, updatedAt: Date.now() };
+      });
+    },
+    async markOrderPaid(id, method) {
+      patch(id, (o) => ({ ...o, paymentStatus: "paid", paymentMethod: method, paidCentavos: o.totalCentavos, updatedAt: Date.now() }));
+    },
+    watchCustomers: (onData) => subscribe(() => onData([...store.customers])),
+    async createCustomer(input) {
+      const name = input.name.trim();
+      if (!name) throw new Error("Enter the customer’s name.");
+      const c: Customer = {
+        id: `c${Date.now()}`, name, phone: input.phone || null, avatar: avatarFor(name), source: input.source ?? "Walk-in",
+        visits: 0, spentCentavos: 0, createdAt: Date.now(), notes: input.notes || null,
+      };
+      store.customers = [c, ...store.customers];
+      emit();
+      return c;
+    },
+  };
+}
+
+export const fixtureTicketSource: PublicTicketSource = {
+  async getTicket(id) {
+    const o = store.orders.find((x) => x.ticketId.toLowerCase() === id.toLowerCase());
+    return o ? toPublicTicket(o, fx.shop) : null;
+  },
+  watchTicket(id, onData) {
+    return subscribe(() => {
+      const o = store.orders.find((x) => x.ticketId.toLowerCase() === id.toLowerCase());
+      onData(o ? (toPublicTicket(o, fx.shop) as PublicTicket) : null);
+    });
+  },
+};
+
+/** Ticket ids in the sample fixtures (pre-rendered for the static export). */
+export const SAMPLE_TICKET_IDS = store.orders.map((o) => o.ticketId);

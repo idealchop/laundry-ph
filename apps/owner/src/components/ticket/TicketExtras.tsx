@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChatIcon } from "@river-apps/icons";
 import { Button, Card, IconButton, IconTile, PhoneInput, StatusDot, cn } from "@river-apps/ui";
 
-/** Optional SMS opt-in ("With option to gather customer information" in the feature map). */
+/** Optional SMS opt-in ("With option to gather customer information" in the feature map). UI-only until SMS automations ship (Phase 2): the number is not stored. */
 export function SmsOptIn() {
   const [state, setState] = useState<"idle" | "editing" | "saved">("idle");
   return (
@@ -13,7 +13,7 @@ export function SmsOptIn() {
         <IconTile size={44}><ChatIcon size={30} /></IconTile>
         <span className="flex min-w-0 flex-1 flex-col leading-[1.25]">
           <b className="text-[14px]">Text me when ready</b>
-          {state === "saved" ? <StatusDot role="status">We’ll text you (sample)</StatusDot> : <small className="text-[12px] font-semibold text-muted">Optional · SMS updates</small>}
+          {state === "saved" ? <StatusDot role="status">SMS alerts are coming soon. Check this page for updates.</StatusDot> : <small className="text-[12px] font-semibold text-muted">Optional · SMS updates</small>}
         </span>
         {state === "idle" ? <Button variant="secondary" size="md" className="h-11 px-3.5 text-[13.5px]" onClick={() => setState("editing")}>Add number</Button> : null}
       </div>

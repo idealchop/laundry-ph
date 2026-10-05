@@ -11,6 +11,7 @@ const GROUPS: { title: string; items: { href: string; icon: IconName; title: str
     title: "Your shop",
     items: [
       { href: "/customers", icon: "chat", title: "Customers", subtitle: "Walk-ins, members and history" },
+      { href: "/scan/result", icon: "basket", title: "Find a ticket", subtitle: "Look up an order by ticket number or link" },
       { href: "/messages", icon: "check", title: "Message Automations", subtitle: "Confirmation and Thank you SMS" },
       { href: "/settings", icon: "shield", title: "Settings", subtitle: "Shop profile, staff and plan" },
     ],
@@ -19,7 +20,7 @@ const GROUPS: { title: string; items: { href: string; icon: IconName; title: str
     title: "Preview",
     items: [
       { href: "/partner", icon: "basket", title: "Partner app", subtitle: "What a Partner (free) shop sees" },
-      { href: "/t/LDY-0418", icon: "ewallet", title: "Customer ticket", subtitle: "What a walk-in sees after scanning the QR" },
+      { href: "/t/LDY-0418-SAMPLE08", icon: "ewallet", title: "Sample customer ticket", subtitle: "What a walk-in sees (demo shop ticket)" },
     ],
   },
 ];

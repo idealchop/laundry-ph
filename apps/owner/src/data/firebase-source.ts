@@ -1,186 +1,414 @@
 /**
- * Firestore-backed LaundryDataSource for project mylaundryph.
- * Uses the named database from NEXT_PUBLIC_FIRESTORE_DATABASE (laundrydb | laundrydb-dev).
+ * Firestore-backed LaundryDataSource for project mylaundryph, bound to one shop and used
+ * from the browser with the signed-in user's credentials (rules enforce membership).
+ * Named database from NEXT_PUBLIC_FIRESTORE_DATABASE (laundrydb | laundrydb-dev).
  *
- * Document layout (mirrors fixtures / planned multi-tenant model):
- *   shops/{shopId}                         Shop (+ sample: true for demo)
- *   shops/{shopId}/meta/today              DaySummary
- *   shops/{shopId}/meta/schedule           Schedule
- *   shops/{shopId}/meta/catalog            Catalog
- *   shops/{shopId}/meta/growth             { tip, stats, weekSales }
- *   shops/{shopId}/machines/{id}
- *   shops/{shopId}/orders/{ref}
- *   shops/{shopId}/customers/{id}
- *   shops/{shopId}/pickups/{id}
- *   public_tickets/{ticketId}
+ * Document layout (money in integer centavos, times as Firestore Timestamps):
+ *   users/{uid}                              { shopId }  → which shop this login opens
+ *   shops/{shopId}                           Shop (+ ownerUid, sample: true for demo shops)
+ *   shops/{shopId}/members/{uid}             { uid, shopId, role: owner|staff, status: active }
+ *   shops/{shopId}/meta/catalog              Catalog (services, detergents, add-ons, min kg, return slots)
+ *   shops/{shopId}/meta/counters             { nextTicketNo, queueDate, queueNo }  (ticket refs / daily queue)
+ *   shops/{shopId}/meta/schedule | growth | verifiedBooking   demo-only reads (Partner API / AI later)
+ *   shops/{shopId}/orders/{autoId}           Order (status received→washing→drying→folding→ready→claimed|delivered)
+ *   shops/{shopId}/customers/{autoId}        Customer (visits, spentCentavos)
+ *   shops/{shopId}/machines/{id}, pickups/{id}  read-only for now
+ *   public_tickets/{ticketId}                PublicTicket projection (no phone / address), get-only for the public
  */
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  type DocumentData,
+  Timestamp, collection, deleteField, doc, getDoc, getDocs, increment, limit, onSnapshot, orderBy, query, runTransaction,
+  serverTimestamp, setDoc, where, type DocumentData, type DocumentSnapshot, type Query,
 } from "firebase/firestore";
-import { connection } from "next/server";
-import { getDb } from "@/lib/firebase/client";
-import { shopId as defaultShopId } from "@/lib/firebase/config";
-import type { LaundryDataSource } from "./index";
-import type {
-  Catalog,
-  Customer,
-  DaySummary,
-  GrowthStat,
-  GrowthTip,
-  Machine,
-  PickupRequest,
-  PublicTicket,
-  QueuedOrder,
-  SalesPoint,
-  Schedule,
-  Shop,
-  VerifiedBooking,
+import { getDb, getFirebaseAuth } from "@/lib/firebase/client";
+import { dayKey } from "@/lib/format";
+import { avatarFor, buildWalkInOrder, formatRef, makeTicketId, nextStatus, previousStatus, ticketStage, toPublicTicket } from "@/lib/orders";
+import {
+  ACTIVE_STATUSES, ORDER_FLOW,
+  type Catalog, type CatalogOption, type CatalogService, type Customer, type GrowthTip, type Machine, type Order, type OrderStatus,
+  type PickupRequest, type PublicTicket, type Schedule, type Shop, type TicketStage, type VerifiedBooking,
 } from "./types";
+import { normalizeCode, refFromCode, type LaundryDataSource, type PublicTicketSource, type Unsubscribe } from "./index";
 
-function shopRef(shopId: string) {
-  return doc(getDb(), "shops", shopId);
+/* ---------- Conversion helpers ---------- */
+
+function ms(v: unknown): number | null {
+  if (v instanceof Timestamp) return v.toMillis();
+  if (typeof v === "number") return v;
+  if (v && typeof (v as { toMillis?: unknown }).toMillis === "function") return (v as { toMillis: () => number }).toMillis();
+  return null;
+}
+const num = (v: unknown, fb = 0) => (typeof v === "number" && Number.isFinite(v) ? v : fb);
+/** Centavos field, falling back to a legacy peso field. */
+const cents = (d: DocumentData, key: string, legacyPesoKey?: string) =>
+  typeof d[key] === "number" ? Math.round(d[key]) : legacyPesoKey && typeof d[legacyPesoKey] === "number" ? Math.round(d[legacyPesoKey] * 100) : 0;
+
+function stripUndefined<T extends Record<string, unknown>>(o: T): T {
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
 }
 
-async function requireShop(shopId: string): Promise<Shop & { sample?: boolean }> {
-  const snap = await getDoc(shopRef(shopId));
-  if (!snap.exists()) throw new Error(`Shop not found: ${shopId}`);
-  return snap.data() as Shop & { sample?: boolean };
+const LEGACY_STATUS: Record<string, OrderStatus> = { waiting: "received" };
+function normStatus(v: unknown): OrderStatus {
+  const s = String(v ?? "received").toLowerCase();
+  return (LEGACY_STATUS[s] ?? s) as OrderStatus;
 }
 
-async function meta<T>(shopId: string, id: string): Promise<T | null> {
-  const snap = await getDoc(doc(getDb(), "shops", shopId, "meta", id));
-  return snap.exists() ? (snap.data() as T) : null;
+function timesMap<K extends string>(v: unknown): Partial<Record<K, number>> {
+  const out: Partial<Record<K, number>> = {};
+  if (v && typeof v === "object") for (const [k, t] of Object.entries(v)) { const m = ms(t); if (m != null) out[k as K] = m; }
+  return out;
 }
 
-/** Opt the request into dynamic rendering so App Hosting does not SSG against Firestore at build. */
-async function dynamicRequest(): Promise<void> {
-  await connection();
+function toOrder(snap: DocumentSnapshot): Order {
+  const d = snap.data({ serverTimestamps: "estimate" }) ?? {};
+  const createdAt = ms(d.createdAt) ?? 0;
+  return {
+    id: snap.id,
+    shopId: String(d.shopId ?? ""),
+    ref: String(d.ref ?? snap.id),
+    queueNo: num(d.queueNo),
+    ticketId: String(d.ticketId ?? d.ref ?? snap.id),
+    source: d.source === "river-mobile" ? "river-mobile" : "walk-in",
+    status: normStatus(d.status),
+    customer: { name: String(d.customer?.name ?? "Walk-in customer"), avatar: d.customer?.avatar ?? "sky", ...(d.customer?.phone ? { phone: String(d.customer.phone) } : {}) },
+    customerId: d.customerId ?? null,
+    serviceId: String(d.serviceId ?? ""),
+    serviceName: String(d.serviceName ?? d.detail ?? ""),
+    unit: d.unit === "pc" ? "pc" : "kg",
+    quantity: num(d.quantity, num(d.kg)),
+    billedQuantity: num(d.billedQuantity, num(d.kg)),
+    kg: num(d.kg),
+    detergent: d.detergent ?? null,
+    addOns: Array.isArray(d.addOns) ? d.addOns : [],
+    lines: Array.isArray(d.lines) ? d.lines : [],
+    subtotalCentavos: cents(d, "subtotalCentavos"),
+    totalCentavos: cents(d, "totalCentavos"),
+    paymentStatus: d.paymentStatus === "paid" ? "paid" : "unpaid",
+    paymentMethod: d.paymentMethod ?? null,
+    paidCentavos: cents(d, "paidCentavos"),
+    readyBy: String(d.readyBy ?? ""),
+    detail: String(d.detail ?? ""),
+    stageTimes: timesMap<OrderStatus>(d.stageTimes),
+    createdAt,
+    updatedAt: ms(d.updatedAt) ?? createdAt,
+    createdBy: d.createdBy,
+    sample: d.sample === true,
+  };
 }
 
-export function createFirebaseDataSource(opts?: { shopId?: string }): LaundryDataSource {
-  const shopId = opts?.shopId ?? defaultShopId;
+function toTicket(snap: DocumentSnapshot): PublicTicket {
+  const d = snap.data({ serverTimestamps: "estimate" }) ?? {};
+  const stage = (ORDER_FLOW as string[]).includes(d.stage) ? (d.stage as TicketStage) : "received";
+  return {
+    id: snap.id,
+    shopId: String(d.shopId ?? ""),
+    shopName: String(d.shopName ?? ""),
+    ref: String(d.ref ?? snap.id),
+    queueNo: num(d.queueNo),
+    maskedName: String(d.maskedName ?? ""),
+    stage,
+    done: d.done === "claimed" || d.done === "delivered" ? d.done : null,
+    cancelled: d.cancelled === true,
+    stageTimes: timesMap<TicketStage>(d.stageTimes),
+    readyBy: String(d.readyBy ?? ""),
+    updatedAt: ms(d.updatedAt) ?? 0,
+    kg: num(d.kg),
+    quantityLabel: String(d.quantityLabel ?? (d.kg ? `${d.kg} kg` : "")),
+    serviceName: String(d.serviceName ?? ""),
+    totalCentavos: cents(d, "totalCentavos", "amountDue"),
+    amountDueCentavos: cents(d, "amountDueCentavos", "amountDue"),
+    paid: d.paid === true,
+    sample: d.sample === true,
+  };
+}
+
+function toCustomer(snap: DocumentSnapshot): Customer {
+  const d = snap.data({ serverTimestamps: "estimate" }) ?? {};
+  const name = String(d.name ?? "Customer");
+  return {
+    id: snap.id,
+    name,
+    nameLower: d.nameLower,
+    phone: d.phone ?? null,
+    avatar: d.avatar ?? avatarFor(name),
+    source: d.source === "River Mobile" ? "River Mobile" : "Walk-in",
+    visits: num(d.visits),
+    tag: d.tag ?? null,
+    spentCentavos: cents(d, "spentCentavos", "spent"),
+    lastVisitAt: ms(d.lastVisitAt),
+    createdAt: ms(d.createdAt),
+    notes: d.notes ?? null,
+  };
+}
+
+function normCatalog(d: DocumentData): Catalog {
+  const opt = (o: DocumentData): CatalogOption => ({ ...(o as CatalogOption), priceCentavos: cents(o, "priceCentavos", "price") });
+  return {
+    services: (d.services ?? []).map((s: DocumentData) => ({ ...(s as CatalogService), priceCentavos: cents(s, "priceCentavos", "price") })),
+    detergents: (d.detergents ?? []).map(opt),
+    addOns: (d.addOns ?? []).map(opt),
+    minKg: num(d.minKg, 0),
+    returnSlots: d.returnSlots ?? [],
+    defaults: d.defaults ?? { serviceId: d.services?.[0]?.id ?? "", kg: 5, pieces: 10, detergentId: d.detergents?.[0]?.id ?? "", addOnIds: [], returnSlotId: d.returnSlots?.[0]?.id ?? "" },
+  };
+}
+
+/** Firestore body for an order: server timestamps for every time field. */
+function orderDoc(o: Omit<Order, "id">): DocumentData {
+  return stripUndefined({
+    ...o,
+    stageTimes: { received: serverTimestamp() },
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    sample: o.sample ? true : undefined,
+  });
+}
+function ticketDoc(t: PublicTicket): DocumentData {
+  const { id: _id, ...rest } = t;
+  void _id;
+  const stageTimes: Record<string, Timestamp> = {};
+  for (const [k, v] of Object.entries(rest.stageTimes)) if (typeof v === "number") stageTimes[k] = Timestamp.fromMillis(v);
+  return stripUndefined({ ...rest, stageTimes, updatedAt: serverTimestamp(), sample: rest.sample ? true : undefined });
+}
+
+function requireUid(): string {
+  const uid = getFirebaseAuth().currentUser?.uid;
+  if (!uid) throw new Error("Please sign in again.");
+  return uid;
+}
+
+/** Friendlier messages for Firestore errors shown in the UI. */
+export function firestoreErrorMessage(err: unknown): string {
+  const code = (err as { code?: string })?.code ?? "";
+  if (code.includes("permission-denied")) return "You don’t have access to this shop’s data. Ask the owner to add you.";
+  if (code.includes("unavailable")) return "Can’t reach the server. Check your internet connection.";
+  if (code.includes("failed-precondition")) return "The database needs an index or setup step. Please contact support.";
+  return (err as Error)?.message || "Something went wrong. Please try again.";
+}
+
+const OPEN: OrderStatus[] = [...ACTIVE_STATUSES, "ready"];
+
+/* ---------- Shop-bound source ---------- */
+
+export function createFirebaseDataSource(shopId: string): LaundryDataSource {
+  const db = () => getDb();
+  const shopDocRef = () => doc(db(), "shops", shopId);
+  const metaRef = (id: string) => doc(db(), "shops", shopId, "meta", id);
+  const ordersCol = () => collection(db(), "shops", shopId, "orders");
+  const customersCol = () => collection(db(), "shops", shopId, "customers");
+  const meta = async <T,>(id: string): Promise<T | null> => {
+    const snap = await getDoc(metaRef(id));
+    return snap.exists() ? (snap.data() as T) : null;
+  };
+  let shopCache: Shop | null = null;
+  const getShop = async (): Promise<Shop> => {
+    const snap = await getDoc(shopDocRef());
+    if (!snap.exists()) throw new Error(`Shop not found: ${shopId}`);
+    const d = snap.data();
+    shopCache = {
+      id: snap.id, name: String(d.name ?? "My laundry"), area: String(d.area ?? ""), ownerName: String(d.ownerName ?? ""),
+      ownerAvatar: d.ownerAvatar ?? "rose", tier: d.tier === "partner" ? "partner" : "paid", sample: d.sample === true,
+      ownerUid: d.ownerUid, dailyTargetCentavos: typeof d.dailyTargetCentavos === "number" ? d.dailyTargetCentavos : undefined,
+    };
+    return shopCache;
+  };
+  let catalogCache: Catalog | null = null;
+  const getCatalog = async (): Promise<Catalog> => {
+    const m = await meta<DocumentData>("catalog");
+    if (!m) throw new Error("This shop has no price list yet (shops/…/meta/catalog).");
+    catalogCache = normCatalog(m);
+    return catalogCache;
+  };
+
+  const watch = <T,>(q: Query, map: (s: DocumentSnapshot) => T, onData: (rows: T[]) => void, onError: (e: Error) => void): Unsubscribe =>
+    onSnapshot(q, (snap) => onData(snap.docs.map(map)), (e) => onError(new Error(firestoreErrorMessage(e))));
 
   return {
-    // Seeded demo shops carry sample: true; real shops will flip isSample off later.
-    get isSample() {
-      return true;
-    },
-
-    async getShop() {
-      await dynamicRequest();
-      const data = await requireShop(shopId);
-      const shop = { ...data } as Shop & { sample?: boolean };
-      delete shop.sample;
-      return shop as Shop;
-    },
-
-    async getTodaySummary() {
-      await dynamicRequest();
-      const m = await meta<DaySummary>(shopId, "today");
-      if (!m) throw new Error(`Missing shops/${shopId}/meta/today`);
-      return m;
-    },
-
+    mode: "firebase",
+    shopId,
+    getShop,
     async getSchedule() {
-      await dynamicRequest();
-      const m = await meta<Schedule>(shopId, "schedule");
-      if (!m) throw new Error(`Missing shops/${shopId}/meta/schedule`);
-      return m;
+      const m = await meta<Schedule>("schedule");
+      return m ?? { monthLabel: "", todayKey: "", days: [] };
     },
-
     async getMachines() {
-      await dynamicRequest();
-      const snap = await getDocs(collection(getDb(), "shops", shopId, "machines"));
+      const snap = await getDocs(collection(db(), "shops", shopId, "machines"));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Machine);
     },
-
-    async getOrderQueue() {
-      await dynamicRequest();
-      const snap = await getDocs(collection(getDb(), "shops", shopId, "orders"));
-      const orders = snap.docs.map((d) => ({ ref: d.id, ...d.data() }) as QueuedOrder);
-      return orders.sort((a, b) => b.ref.localeCompare(a.ref));
-    },
-
     async getPickupRequests() {
-      await dynamicRequest();
-      const snap = await getDocs(collection(getDb(), "shops", shopId, "pickups"));
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PickupRequest);
+      const snap = await getDocs(collection(db(), "shops", shopId, "pickups"));
+      return snap.docs.map((d) => {
+        const x = d.data();
+        return { id: d.id, ...x, estimateCentavos: x.estimateCentavos ?? (typeof x.estimate === "number" ? x.estimate * 100 : undefined) } as PickupRequest;
+      });
     },
-
     async getVerifiedBooking(ref?: string) {
-      await dynamicRequest();
-      const m = await meta<VerifiedBooking>(shopId, "verifiedBooking");
-      if (!m) return null;
-      if (ref && m.ref !== ref) return null;
-      return m;
-    },
-
-    async getCatalog() {
-      await dynamicRequest();
-      const m = await meta<Catalog>(shopId, "catalog");
-      if (!m) throw new Error(`Missing shops/${shopId}/meta/catalog`);
-      return m;
-    },
-
-    async getTicket(ticketId: string) {
-      await dynamicRequest();
-      const snap = await getDoc(doc(getDb(), "public_tickets", ticketId));
-      if (!snap.exists()) return null;
-      return { id: snap.id, ...snap.data() } as PublicTicket;
-    },
-
-    async getWeekSales() {
-      await dynamicRequest();
-      const m = await meta<{ weekSales: SalesPoint[] }>(shopId, "growth");
-      return m?.weekSales ?? [];
-    },
-
-    async getGrowthStats() {
-      await dynamicRequest();
-      const m = await meta<{ stats: GrowthStat[] }>(shopId, "growth");
-      return m?.stats ?? [];
-    },
-
-    async getGrowthTip() {
-      await dynamicRequest();
-      const m = await meta<{ tip: GrowthTip }>(shopId, "growth");
-      if (!m?.tip) throw new Error(`Missing growth tip for ${shopId}`);
-      return m.tip;
-    },
-
-    async getCustomers() {
-      await dynamicRequest();
-      const snap = await getDocs(collection(getDb(), "shops", shopId, "customers"));
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Customer);
-    },
-
-    async createWalkInOrder(input: {
-      ref: string;
-      customer: QueuedOrder["customer"];
-      kg: number;
-      detail: string;
-      status?: QueuedOrder["status"];
-      ticket: PublicTicket;
-    }) {
-      await dynamicRequest();
-      const order: QueuedOrder & { shopId: string } = {
-        ref: input.ref,
-        customer: input.customer,
-        kg: input.kg,
-        detail: input.detail,
-        status: input.status ?? "Waiting",
-        shopId,
+      const m = await meta<DocumentData>("verifiedBooking");
+      if (!m || (ref && m.ref !== ref)) return null;
+      return {
+        ...(m as VerifiedBooking),
+        estimateCentavos: cents(m, "estimateCentavos", "estimate"),
+        addOns: (m.addOns ?? []).map((a: DocumentData) => ({ name: a.name, priceCentavos: cents(a, "priceCentavos", "price") })),
+        pickup: { ...m.pickup, feeCentavos: cents(m.pickup ?? {}, "feeCentavos", "fee") },
       };
-      await setDoc(doc(getDb(), "shops", shopId, "orders", input.ref), order);
-      const ticketBody: DocumentData = { ...input.ticket };
-      delete ticketBody.id;
-      await setDoc(doc(getDb(), "public_tickets", input.ticket.id), ticketBody);
-      return order;
+    },
+    getCatalog,
+    async getGrowthTip() {
+      const m = await meta<{ tip?: GrowthTip }>("growth");
+      return m?.tip ?? null;
+    },
+
+    watchOrders(opts, onData, onError) {
+      let q: Query;
+      if (opts.openOnly) q = query(ordersCol(), where("status", "in", OPEN));
+      else if (opts.sinceMs != null) q = query(ordersCol(), where("createdAt", ">=", Timestamp.fromMillis(opts.sinceMs)), orderBy("createdAt", "desc"));
+      else q = query(ordersCol(), orderBy("createdAt", "desc"), limit(200));
+      return watch(q, toOrder, (rows) => onData(rows.sort((a, b) => b.createdAt - a.createdAt)), onError);
+    },
+    watchOrder(orderId, onData, onError) {
+      return onSnapshot(doc(ordersCol(), orderId), (s) => onData(s.exists() ? toOrder(s) : null), (e) => onError(new Error(firestoreErrorMessage(e))));
+    },
+    async findOrder(raw) {
+      const code = normalizeCode(raw);
+      if (!code) return null;
+      const byTicket = await getDocs(query(ordersCol(), where("ticketId", "==", code), limit(1)));
+      if (!byTicket.empty) return toOrder(byTicket.docs[0]!);
+      const ref = refFromCode(code) ?? (code.startsWith("LDY-") ? code.split("-").slice(0, 2).join("-") : null);
+      if (ref) {
+        const byRef = await getDocs(query(ordersCol(), where("ref", "==", ref), limit(1)));
+        if (!byRef.empty) return toOrder(byRef.docs[0]!);
+      }
+      if (/^[A-Za-z0-9]{15,}$/.test(raw.trim())) {
+        const byId = await getDoc(doc(ordersCol(), raw.trim()));
+        if (byId.exists()) return toOrder(byId);
+      }
+      return null;
+    },
+
+    async createWalkInOrder(input) {
+      const uid = requireUid();
+      const [shop, catalog] = await Promise.all([shopCache ?? getShop(), catalogCache ?? getCatalog()]);
+      const database = db();
+      return runTransaction(database, async (tx) => {
+        const countersRef = metaRef("counters");
+        const counters = await tx.get(countersRef);
+        const requestedCustomerId = input.customer.id ?? null;
+        const customerSnap = requestedCustomerId ? await tx.get(doc(customersCol(), requestedCustomerId)) : null;
+
+        const now = Date.now();
+        const today = dayKey(now);
+        const c = counters.exists() ? counters.data() : {};
+        const no = typeof c.nextTicketNo === "number" ? c.nextTicketNo : 1;
+        const queueNo = c.queueDate === today && typeof c.queueNo === "number" ? c.queueNo + 1 : 1;
+        const ref = formatRef(no);
+        const ticketId = makeTicketId(ref);
+
+        const name = input.customer.name.trim();
+        let customerId = customerSnap?.exists() ? customerSnap.id : null;
+        const newCustomerRef = !customerId && name ? doc(customersCol()) : null;
+        if (newCustomerRef) customerId = newCustomerRef.id;
+
+        const base = buildWalkInOrder(catalog, { ...input, customer: { ...input.customer, id: customerId } }, {
+          shopId, ref, queueNo, ticketId, uid, now, sample: shop.sample,
+        });
+        const orderRef = doc(ordersCol());
+        const order: Order = { ...base, id: orderRef.id };
+
+        tx.set(countersRef, { nextTicketNo: no + 1, queueDate: today, queueNo, updatedAt: serverTimestamp() });
+        if (newCustomerRef) {
+          tx.set(newCustomerRef, {
+            name, nameLower: name.toLowerCase(), phone: input.customer.phone ?? null, avatar: avatarFor(name), source: "Walk-in",
+            visits: 1, spentCentavos: order.totalCentavos, tag: null, notes: null,
+            lastVisitAt: serverTimestamp(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(), createdBy: uid,
+          });
+        } else if (customerId) {
+          tx.update(doc(customersCol(), customerId), {
+            visits: increment(1), spentCentavos: increment(order.totalCentavos), lastVisitAt: serverTimestamp(), updatedAt: serverTimestamp(),
+          });
+        }
+        tx.set(orderRef, orderDoc(base));
+        tx.set(doc(database, "public_tickets", ticketId), { ...ticketDoc(toPublicTicket(order, shop)), stageTimes: { received: serverTimestamp() } });
+        return order;
+      });
+    },
+
+    async setOrderStatus(orderId, status) {
+      const uid = requireUid();
+      const database = db();
+      await runTransaction(database, async (tx) => {
+        const ref = doc(ordersCol(), orderId);
+        const snap = await tx.get(ref);
+        if (!snap.exists()) throw new Error("Order not found.");
+        const o = toOrder(snap);
+        const ticketRef = doc(database, "public_tickets", o.ticketId);
+        const ticketSnap = await tx.get(ticketRef);
+        const forward = nextStatus(o) === status;
+        const back = previousStatus(o) === status;
+        if (!forward && !back) throw new Error(`Can’t move ${o.ref} from ${o.status} to ${status}.`);
+        const stamped = forward ? status : o.status;
+        tx.update(ref, {
+          status, updatedAt: serverTimestamp(), updatedBy: uid,
+          [`stageTimes.${stamped}`]: forward ? serverTimestamp() : deleteField(),
+        });
+        const done = status === "claimed" || status === "delivered" ? status : null;
+        const ticketPatch: DocumentData = { stage: ticketStage(status), done, updatedAt: serverTimestamp() };
+        if ((ORDER_FLOW as string[]).includes(stamped)) ticketPatch[`stageTimes.${stamped}`] = forward ? serverTimestamp() : deleteField();
+        if (ticketSnap.exists()) tx.update(ticketRef, ticketPatch);
+        else {
+          const shop = shopCache ?? (await getShop());
+          tx.set(ticketRef, ticketDoc(toPublicTicket({ ...o, status, updatedAt: Date.now(), stageTimes: { ...o.stageTimes, ...(forward ? { [status]: Date.now() } : {}) } }, shop)));
+        }
+      });
+    },
+
+    async markOrderPaid(orderId, method) {
+      const uid = requireUid();
+      const database = db();
+      await runTransaction(database, async (tx) => {
+        const ref = doc(ordersCol(), orderId);
+        const snap = await tx.get(ref);
+        if (!snap.exists()) throw new Error("Order not found.");
+        const o = toOrder(snap);
+        const ticketRef = doc(database, "public_tickets", o.ticketId);
+        const ticketSnap = await tx.get(ticketRef);
+        tx.update(ref, {
+          paymentStatus: "paid", paymentMethod: method, paidCentavos: o.totalCentavos, paidAt: serverTimestamp(),
+          updatedAt: serverTimestamp(), updatedBy: uid,
+        });
+        if (ticketSnap.exists()) tx.update(ticketRef, { paid: true, amountDueCentavos: 0, updatedAt: serverTimestamp() });
+      });
+    },
+
+    watchCustomers(onData, onError) {
+      return watch(query(customersCol(), orderBy("name"), limit(1000)), toCustomer, onData, onError);
+    },
+    async createCustomer(input) {
+      const uid = requireUid();
+      const name = input.name.trim();
+      if (!name) throw new Error("Enter the customer’s name.");
+      const ref = doc(customersCol());
+      const body = {
+        name, nameLower: name.toLowerCase(), phone: input.phone || null, avatar: avatarFor(name), source: input.source ?? "Walk-in",
+        visits: 0, spentCentavos: 0, tag: null, notes: input.notes || null, lastVisitAt: null,
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp(), createdBy: uid,
+      };
+      await setDoc(ref, body);
+      return { ...body, id: ref.id, avatar: avatarFor(name), createdAt: Date.now(), lastVisitAt: null, tag: null } as Customer;
     },
   };
 }
+
+/* ---------- Public tickets (no login) ---------- */
+
+export const firebaseTicketSource: PublicTicketSource = {
+  async getTicket(ticketId) {
+    const snap = await getDoc(doc(getDb(), "public_tickets", ticketId));
+    return snap.exists() ? toTicket(snap) : null;
+  },
+  watchTicket(ticketId, onData, onError) {
+    return onSnapshot(
+      doc(getDb(), "public_tickets", ticketId),
+      (s) => onData(s.exists() ? toTicket(s) : null),
+      (e) => onError(new Error(firestoreErrorMessage(e))),
+    );
+  },
+};

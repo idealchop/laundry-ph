@@ -1,10 +1,16 @@
 import { RequireAuth } from "@/components/RequireAuth";
+import { ShopGate } from "@/components/ShopGate";
 import { OwnerShell } from "@/components/shell/OwnerShell";
+import { ShopProvider } from "@/lib/shop";
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   return (
     <RequireAuth>
-      <OwnerShell>{children}</OwnerShell>
+      <ShopProvider>
+        <ShopGate>
+          <OwnerShell>{children}</OwnerShell>
+        </ShopGate>
+      </ShopProvider>
     </RequireAuth>
   );
 }
