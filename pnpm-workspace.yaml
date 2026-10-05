@@ -1,0 +1,7 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+
+# unrs-resolver (via eslint-import-resolver-typescript) ships prebuilt binaries; its postinstall is not needed.
+ignoredBuiltDependencies:
+  - unrs-resolver

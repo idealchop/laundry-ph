@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@import "@river-apps/tokens/theme.css";
+
+/* Let Tailwind see the class names used inside the vendored kit components. */
+@source "../../../../packages/ui/src";
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    font-size: 16px;
+    line-height: 1.45;
+  }
+  b, strong { font-weight: 700; }
+}
