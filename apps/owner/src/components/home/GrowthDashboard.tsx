@@ -40,8 +40,9 @@ export function GrowthDashboard({ shop, today, stats, tip, week, queue, customer
   const weekTotal = week.reduce((s, d) => s + d.value, 0);
   const peak = week.reduce((best, d, i) => (d.value > (week[best]?.value ?? 0) ? i : best), 0);
   return (
-    <div className="px-[30px] pt-6">
+    <div className="mx-auto w-full max-w-[1120px] px-4 pb-6 pt-4 lg:px-[30px] lg:pt-6">
       <Topbar
+        className="px-1"
         title={`Hi ${shop.ownerName}, here’s today`}
         subtitle={<>{today.longDateLabel} · {shop.name}{shop.area ? `, ${shop.area.split(", ").pop()}` : ""} <SampleNote className="ml-1 align-middle" /></>}
         actions={<>
