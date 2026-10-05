@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/auth";
 import { useShop } from "@/lib/shop";
 import { planLabel } from "@/lib/plans";
 import { LaundryBrand, LaundryScene } from "../brand";
-import { GuestBrowseBanner } from "../auth/GuestBrowseBanner";
 import { PlanGate } from "../billing/PlanGate";
 import { WideSidebar } from "../kit-extensions";
 import { OwnerTabBar } from "./OwnerTabBar";
@@ -94,7 +93,7 @@ export function OwnerShell({ children }: { children: ReactNode }) {
       }
       mainClassName={focus ? "pb-0" : "pb-[6.75rem]"}
     >
-      <GuestBrowseBanner /><PlanGate>{children}</PlanGate>
+      <PlanGate>{children}</PlanGate>
     </AppShell>
   );
 }

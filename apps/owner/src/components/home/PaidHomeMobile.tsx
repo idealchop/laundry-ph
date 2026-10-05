@@ -1,9 +1,10 @@
 "use client";
-import { Plus } from "lucide-react";
-import { Avatar, Button, Card, EmptyState, QueueList, SectionHeader, StatCard } from "@river-apps/ui";
+import { Plus, ScanLine } from "lucide-react";
+import { Avatar, Button, Card, EmptyState, HeroBanner, QueueList, SectionHeader, StatCard } from "@river-apps/ui";
 import Link from "next/link";
 import type { DaySummary, Order, OrderStatus, Shop } from "@/data";
 import { money } from "@/lib/format";
+import { LaundryScene } from "../brand";
 import { Greeting } from "../Greeting";
 import { AdvanceButton } from "../ui";
 
@@ -21,13 +22,27 @@ export function PaidHomeMobile({ shop, today, queue, onAdvance, busyId }: PaidHo
   return (
     <div className="mx-auto w-full max-w-[560px] pb-4">
       <Greeting title={shop.name} name={shop.ownerName} avatar={shop.ownerAvatar} notifications={today.notifications} />
+      <HeroBanner
+        className="mx-4 mt-2"
+        size="md"
+        eyebrow={`Today · ${today.dateLabel}`}
+        title={`Today: ${money(today.salesCentavos)} · ${today.orders} orders`}
+        titleSize="md"
+        description={`${today.kgWashed} kg washed · ${today.inQueue} orders in progress · ${today.ready} ready for pickup`}
+        contentWidth={220}
+        actions={
+          <>
+            <Button href="/orders/new" variant="white" size="sm" className="h-11 px-3.5 text-[13.5px]" leadingIcon={<Plus size={18} strokeWidth={1.9} />}>New walk-in order</Button>
+            <Button href="/scan/result" variant="ghost-inverse" size="sm" className="h-11 px-3.5 text-[13.5px]" leadingIcon={<ScanLine size={18} strokeWidth={1.75} />}>Scan customer</Button>
+          </>
+        }
+        illustration={<LaundryScene size={168} />}
+        illustrationClassName="-right-[10px] bottom-3"
+      />
       <div className="mx-4 mt-2.5 grid grid-cols-3 gap-2.5">
         <StatCard className="pb-3" label="In queue" value={String(today.inQueue)} />
         <StatCard className="pb-3" label="Ready" value={String(today.ready)} />
         <StatCard className="pb-3" label="Unpaid" value={money(today.unpaidCentavos)} />
-      </div>
-      <div className="px-4 pt-3">
-        <Button href="/orders/new" fullWidth leadingIcon={<Plus size={20} strokeWidth={2} />}>New walk-in order</Button>
       </div>
       <SectionHeader className="px-5 pb-1 pt-4" title="Order queue" aside={<Link href="/orders" className="underline decoration-grey-300 underline-offset-[3px]">{`${today.inQueue} in progress · ${today.ready} ready`}</Link>} />
       <Card padding="none" className="mx-4 px-4 py-1.5">
