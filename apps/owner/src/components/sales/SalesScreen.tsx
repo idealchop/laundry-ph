@@ -29,7 +29,7 @@ function toCsv(orders: Order[]): string {
 }
 
 /** Sales Record: transactions and totals (integer centavos) from Firestore orders. */
-export function SalesScreen() {
+export function SalesScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const [range, setRange] = useState<Range>("today");
   const [now] = useState(() => Date.now());
   const days = RANGES.find((r) => r.value === range)!.days;
@@ -56,14 +56,23 @@ export function SalesScreen() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[980px] lg:px-[30px] lg:pt-6">
-      <Topbar
-        className="px-1"
-        title="Sales Record"
-        subtitle={<>Transactions and totals <SampleNote className="ml-1 align-middle" /></>}
-        actions={<Button size="md" variant="secondary" onClick={download} disabled={orders.length === 0} leadingIcon={<Download size={18} />}>CSV</Button>}
-      />
-      <SegmentedControl className="mt-4 w-fit" label="Range" value={range} onChange={setRange} options={RANGES.map(({ value, label }) => ({ value, label }))} />
+    <div className={embedded
+      ? "mx-auto w-full max-w-[560px] px-4 pb-2 pt-2 lg:max-w-[980px] lg:px-[30px]"
+      : "mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[980px] lg:px-[30px] lg:pt-6"}>
+      {embedded ? null : (
+        <Topbar
+          className="px-1"
+          title="Sales Record"
+          subtitle={<>Transactions and totals <SampleNote className="ml-1 align-middle" /></>}
+          actions={<Button size="md" variant="secondary" onClick={download} disabled={orders.length === 0} leadingIcon={<Download size={18} />}>CSV</Button>}
+        />
+      )}
+      <div className={embedded ? "mb-3 flex items-center justify-between gap-3" : undefined}>
+        <SegmentedControl className={embedded ? "w-fit" : "mt-4 w-fit"} label="Range" value={range} onChange={setRange} options={RANGES.map(({ value, label }) => ({ value, label }))} />
+        {embedded ? (
+          <Button size="md" variant="secondary" onClick={download} disabled={orders.length === 0} leadingIcon={<Download size={18} />}>CSV</Button>
+        ) : null}
+      </div>
       {error ? <ErrorNote className="mt-3">{error}</ErrorNote> : null}
       <div className="mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <StatCard className="pb-3" label="Sales" value={money(totals.salesCentavos)} caption={`${totals.orders} orders`} />

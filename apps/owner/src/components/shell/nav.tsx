@@ -1,27 +1,45 @@
 import {
-  Calendar, CalendarClock, ChartColumn, CircleHelp, Ellipsis, History, House, List, MessageSquareText, ReceiptText, Settings, Store, TrendingUp, Users,
+  Calendar, CalendarClock, CircleHelp, History, House, List, MessageSquareText, MessagesSquare, Settings, Store, Users,
 } from "lucide-react";
+import type { IconName } from "@river-apps/icons";
 import type { NavItem } from "@river-apps/ui";
 
 const side = { size: 20, strokeWidth: 1.75 } as const;
 const tab = { size: 22, strokeWidth: 1.75 } as const;
 
-/** Paid tier: the five modules from the Laundry.ph feature map, plus Settings. */
+/** Paid desktop sidebar — mirrors mobile IA; secondary tools live under Profile. */
 export const PAID_NAV: NavItem[] = [
-  { key: "growth", label: "Growth Dashboard", href: "/home", icon: <TrendingUp {...side} /> },
+  { key: "home", label: "Home", href: "/home", icon: <House {...side} /> },
   { key: "orders", label: "Orders", href: "/orders", icon: <List {...side} /> },
-  { key: "online", label: "Online / Schedule", href: "/online", icon: <CalendarClock {...side} /> },
-  { key: "sales", label: "Sales Record", href: "/sales", icon: <ReceiptText {...side} /> },
-  { key: "customers", label: "Customers", href: "/customers", icon: <Users {...side} /> },
-  { key: "messages", label: "Message Automations", href: "/messages", icon: <MessageSquareText {...side} /> },
-  { key: "settings", label: "Settings", href: "/settings", icon: <Settings {...side} /> },
+  { key: "history", label: "History", href: "/history", icon: <History {...side} /> },
+  { key: "community", label: "Community", href: "/community", icon: <MessagesSquare {...side} /> },
+  { key: "profile", label: "Profile", href: "/profile", icon: <Settings {...side} /> },
 ];
+
+/** Secondary desktop links (hub targets also on Profile). */
+export const PAID_SECONDARY_NAV: NavItem[] = [
+  { key: "online", label: "Online / Schedule", href: "/online", icon: <CalendarClock {...side} /> },
+  { key: "customers", label: "Customers", href: "/customers", icon: <Users {...side} /> },
+  { key: "messages", label: "Messages", href: "/messages", icon: <MessageSquareText {...side} /> },
+];
+
+/** Paid mobile tabs — icons rendered as Icon3D in OwnerTabBar. */
 export const PAID_TABS: NavItem[] = [
   { key: "home", label: "Home", href: "/home", icon: <House {...tab} /> },
   { key: "orders", label: "Orders", href: "/orders", icon: <List {...tab} /> },
-  { key: "sales", label: "Sales", href: "/sales", icon: <ChartColumn {...tab} /> },
-  { key: "more", label: "More", href: "/more", icon: <Ellipsis {...tab} /> },
+  { key: "history", label: "History", href: "/history", icon: <History {...tab} /> },
+  { key: "community", label: "Community", href: "/community", icon: <MessagesSquare {...tab} /> },
+  { key: "profile", label: "Profile", href: "/profile", icon: <Settings {...tab} /> },
 ];
+
+/** 3D icon names for the custom OwnerTabBar (must be real IconName values). */
+export const PAID_TAB_ICONS: Record<string, IconName> = {
+  home: "washer",
+  orders: "basket",
+  history: "folded",
+  community: "chat",
+  profile: "shield",
+};
 
 /** Partner tier: River Mobile bookings, scan-to-verify, history and shop listing. */
 export const PARTNER_NAV: NavItem[] = [

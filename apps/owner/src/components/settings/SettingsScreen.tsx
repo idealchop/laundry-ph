@@ -1,6 +1,7 @@
 "use client";
 
-import { CreditCard, LogOut, MapPin } from "lucide-react";
+import { CalendarClock, ChevronRight, CreditCard, LogOut, MapPin, MessageSquareText, Users } from "lucide-react";
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { Avatar, Badge, Button, Card, Input, ListItem, Topbar } from "@river-apps/ui";
 import type { Shop, ShopAddress, ShopLocation } from "@/data";
@@ -24,14 +25,21 @@ function profileKey(shop: Shop): string {
   ].join("|");
 }
 
-/** Shop profile (address + map pin), plan link, role and sign out. */
-export function SettingsScreen() {
+const HUB_LINKS = [
+  { href: "/customers", icon: Users, title: "Customers", subtitle: "Walk-ins, members and history" },
+  { href: "/online", icon: CalendarClock, title: "Online / Schedule", subtitle: "Booking windows and capacity" },
+  { href: "/messages", icon: MessageSquareText, title: "Message Automations", subtitle: "SMS templates — coming soon" },
+  { href: "/settings/billing", icon: CreditCard, title: "Plan & billing", subtitle: "Partner free · Paid ₱950/mo · Lifetime" },
+] as const;
+
+/** Shop profile (address + map pin), plan link, role and sign out. Also used as Profile. */
+export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) {
   const { shop, member, source, reload, isGuest } = useShop();
   const { user } = useAuth();
   const { openAuthCta, isAuthenticated } = useAuthGate();
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
-      <Topbar className="px-1" title="Settings" subtitle={<>Shop profile, photos, address and plan <SampleNote className="ml-1 align-middle" /></>} />
+      <Topbar className="px-1" title={title} subtitle={<>Set up your shop, photos, address and plan <SampleNote className="ml-1 align-middle" /></>} />
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card className="px-4 py-3.5">
           <b className="text-[16px]">Shop</b>
@@ -59,24 +67,51 @@ export function SettingsScreen() {
 
         <Card className="px-4 py-3.5">
           <b className="text-[16px]">You</b>
-          <p className="mt-2 text-[14px] font-semibold">{user?.phoneNumber ?? user?.email ?? user?.displayName ?? "Signed in"}</p>
+          <p className="mt-2 text-[14px] font-semibold">{user?.phoneNumber ?? user?.email ?? user?.displayName ?? (isGuest ? "Browsing as guest" : "Signed in")}</p>
           <p className="text-[13px] font-medium text-muted">Role: {member.role === "owner" ? "Owner" : "Staff"}</p>
-          <Button className="mt-3" variant="secondary" size="md" href="/settings/billing" leadingIcon={<CreditCard size={18} />}>
-            Plan & billing
-          </Button>
           {isGuest || !isAuthenticated ? (
-            <Button className="mt-2" size="md" onClick={() => openAuthCta("Sign in to sync your shop and save changes.")}>
+            <Button className="mt-3" size="md" fullWidth onClick={() => openAuthCta("Sign in to sync your shop and save changes.")}>
               Sign up or log in
             </Button>
           ) : (
-            <Button className="mt-2" variant="ghost" size="md" onClick={() => void signOut()} leadingIcon={<LogOut size={18} />}>
+            <Button className="mt-3" variant="secondary" size="md" fullWidth onClick={() => void signOut()} leadingIcon={<LogOut size={18} />}>
               Sign out
             </Button>
           )}
         </Card>
 
+        <Card padding="none" className="px-3.5 py-1.5 lg:col-span-2">
+          <b className="block px-1 pt-3 text-[16px]">Shortcuts</b>
+          <ul className="mt-1">
+            {HUB_LINKS.map((it) => {
+              const Icon = it.icon;
+              return (
+                <li key={it.href}>
+                  <Link href={it.href} className="block rounded-tile focus-visible:outline-2 focus-visible:outline-ink">
+                    <ListItem
+                      variant="row"
+                      className="py-2"
+                      leading={<span className="inline-flex size-10 items-center justify-center rounded-tile bg-grey-100"><Icon size={18} strokeWidth={1.75} /></span>}
+                      title={it.title}
+                      subtitle={it.subtitle}
+                      trailing={<ChevronRight size={20} strokeWidth={1.75} className="text-subtle" />}
+                    />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+
         <ProfileEditor key={profileKey(shop)} shop={shop} source={source} reload={reload} />
         <ShopPhotos shop={shop} />
+
+        <Card id="help" className="px-4 py-3.5 lg:col-span-2">
+          <b className="text-[16px]">Help</b>
+          <p className="mt-1.5 text-[13.5px] font-medium text-muted">
+            Partner free covers River Mobile bookings. Paid unlocks the counter POS, sales, customers and SMS from ₱950/month.
+          </p>
+        </Card>
       </div>
     </div>
   );

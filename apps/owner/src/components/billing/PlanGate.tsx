@@ -30,15 +30,19 @@ export function PlanGate({ children }: { children: ReactNode }) {
         ? "Orders & POS"
         : pathname.startsWith("/customers")
           ? "Customers"
-          : pathname.startsWith("/sales")
-            ? "Sales Record"
-            : pathname.startsWith("/messages")
-              ? "Message Automations"
-              : pathname.startsWith("/online")
-                ? "Online / Schedule"
-                : pathname.startsWith("/more")
-                  ? "More menu"
-                  : undefined;
+          : pathname.startsWith("/sales") || pathname.startsWith("/history")
+            ? "History & Sales"
+            : pathname.startsWith("/community")
+              ? "Community"
+              : pathname.startsWith("/profile")
+                ? "Profile"
+                : pathname.startsWith("/messages")
+                  ? "Message Automations"
+                  : pathname.startsWith("/online")
+                    ? "Online / Schedule"
+                    : pathname.startsWith("/more")
+                      ? "More menu"
+                      : undefined;
     return <UpgradeWall feature={feature} />;
   }
   return <>{children}</>;

@@ -25,7 +25,7 @@ export function AuthGateSheet(props: Props) {
   return <AuthGateSheetOpen key="open" {...props} />;
 }
 
-function AuthGateSheetOpen({ onClose, onAuthenticated, subtitle = "Sign in to save changes and run your shop." }: Props) {
+function AuthGateSheetOpen({ onClose, onAuthenticated, subtitle = "Sign in to sync your shop. You can dismiss and keep browsing." }: Props) {
   const { user } = useAuth();
   const btnId = `laundry-gate-${useId().replace(/:/g, "")}`;
   const [step, setStep] = useState<"methods" | "code">("methods");
@@ -128,7 +128,7 @@ function AuthGateSheetOpen({ onClose, onAuthenticated, subtitle = "Sign in to sa
           )}
 
           {step === "methods" && error ? <p role="alert" className="mt-3 text-center text-[13.5px] font-semibold">{error}</p> : null}
-          <p className="mt-4 text-center text-[12px] font-medium text-muted">You can keep browsing. Sign in when you’re ready to make changes.</p>
+          <p className="mt-4 text-center text-[12px] font-medium text-muted">You can dismiss and keep browsing. Sign in to sync your shop and save changes.</p>
         </div>
       </div>
     </div>
