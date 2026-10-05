@@ -1,6 +1,7 @@
 import { ScanLine } from "lucide-react";
 import { Icon3D } from "@river-apps/icons";
 import { Avatar, Badge, Button, DateStrip, HeroBanner, IconTile, ListItem, MonoText, SectionHeader, Topbar } from "@river-apps/ui";
+import Link from "next/link";
 import type { DaySummary, PickupRequest, Schedule, Shop } from "@/data";
 import { LaundryScene } from "../brand";
 import { Greeting } from "../Greeting";
@@ -14,13 +15,27 @@ export function PartnerHome({ shop, today, schedule, requests }: { shop: Shop; t
   return (
     <div className="mx-auto w-full max-w-[560px] pb-4 lg:max-w-[1120px] lg:px-[30px] lg:pt-6">
       <div className="lg:hidden">
-        <Greeting title={`Hi, ${shop.ownerName} 👋`} name={shop.ownerName} avatar={shop.ownerAvatar} notifications={today.notifications} />
+        <Greeting title={`Hi, ${shop.ownerName} 👋`} name={shop.ownerName} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} />
       </div>
       <Topbar
         className="mb-5 hidden lg:flex"
         title={`Hi, ${shop.ownerName} 👋`}
         subtitle={<>Partner · {shop.name} · {today.longDateLabel} <SampleNote className="ml-1 align-middle" /></>}
-        actions={<Avatar name={shop.ownerName} preset={shop.ownerAvatar} size={44} />}
+        actions={
+          <Link
+            href="/profile"
+            aria-label="Profile"
+            className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            <Avatar
+              name={shop.name}
+              preset={shop.photoUrls?.[0] ? undefined : shop.ownerAvatar}
+              src={shop.photoUrls?.[0]}
+              size={44}
+              decorative={false}
+            />
+          </Link>
+        }
       />
       <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
         <div>

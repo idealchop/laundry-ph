@@ -7,7 +7,7 @@ import type { NavItem } from "@river-apps/ui";
 const side = { size: 20, strokeWidth: 1.75 } as const;
 const tab = { size: 22, strokeWidth: 1.75 } as const;
 
-/** Paid desktop sidebar — mirrors mobile IA; History + tools live under Profile. */
+/** Paid desktop sidebar — Profile stays here; History + tools live under Profile hub. */
 export const PAID_NAV: NavItem[] = [
   { key: "home", label: "Home", href: "/home", icon: <House {...side} /> },
   { key: "orders", label: "Orders", href: "/orders", icon: <List {...side} /> },
@@ -22,12 +22,11 @@ export const PAID_SECONDARY_NAV: NavItem[] = [
   { key: "messages", label: "Messages", href: "/messages", icon: <MessageSquareText {...side} /> },
 ];
 
-/** Paid mobile tabs (4) — icons rendered as Icon3D in OwnerTabBar. */
+/** Paid mobile tabs (3) — Profile is reached via the home avatar, not the bottom bar. */
 export const PAID_TABS: NavItem[] = [
   { key: "home", label: "Home", href: "/home", icon: <House {...tab} /> },
   { key: "orders", label: "Orders", href: "/orders", icon: <List {...tab} /> },
   { key: "community", label: "Community", href: "/community", icon: <MessagesSquare {...tab} /> },
-  { key: "profile", label: "Profile", href: "/profile", icon: <Settings {...tab} /> },
 ];
 
 /** 3D icon names for the custom OwnerTabBar (must be real IconName values). */
@@ -35,7 +34,6 @@ export const PAID_TAB_ICONS: Record<string, IconName> = {
   home: "washer",
   orders: "basket",
   community: "chat",
-  profile: "shield",
 };
 
 /** Partner tier: River Mobile bookings, scan-to-verify, history and shop listing. */

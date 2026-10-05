@@ -1,8 +1,8 @@
 "use client";
-import { Bell, Plus, ScanLine } from "lucide-react";
+import { Plus, ScanLine } from "lucide-react";
 import { Icon3D, SparkleIcon } from "@river-apps/icons";
 import {
-  Avatar, Badge, BarChart, Button, Card, CardHeader, EmptyState, HeroBanner, IconButton, IconTile, ListItem, ProgressRing, QueueList, SearchInput,
+  Avatar, Badge, BarChart, Button, Card, CardHeader, EmptyState, HeroBanner, IconTile, ListItem, ProgressRing, QueueList, SearchInput,
   StatCard, Topbar,
 } from "@river-apps/ui";
 import Link from "next/link";
@@ -52,8 +52,19 @@ export function GrowthDashboard({ shop, today, stats, tip, week, queue, customer
           <Button href="/online" variant="secondary" size="xs" pill>
             Online Orders
           </Button>
-          <IconButton variant="surface" label="Notifications" count={today.notifications} icon={<Bell size={20} strokeWidth={1.75} />} />
-          <Avatar name={shop.ownerName} preset={shop.ownerAvatar} size={44} />
+          <Link
+            href="/profile"
+            aria-label="Profile"
+            className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            <Avatar
+              name={shop.name}
+              preset={shop.photoUrls?.[0] ? undefined : shop.ownerAvatar}
+              src={shop.photoUrls?.[0]}
+              size={44}
+              decorative={false}
+            />
+          </Link>
         </>}
       />
       <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_286px]">

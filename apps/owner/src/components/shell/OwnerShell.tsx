@@ -63,7 +63,7 @@ export function OwnerShell({ children }: { children: ReactNode }) {
   const items = usePartnerChrome ? PARTNER_NAV : PAID_NAV;
   const tabs = usePartnerChrome ? PARTNER_TABS : PAID_TABS;
   const pathForNav = usePartnerChrome ? pathname : paidPath;
-  const tabKey = activeKeyFor(tabs, pathForNav) ?? (usePartnerChrome ? "home" : "profile");
+  const tabKey = activeKeyFor(tabs, pathForNav) ?? (usePartnerChrome ? "home" : "");
   const homeHref = !isPaid ? "/partner" : "/home";
   const secondary = usePartnerChrome ? [HELP_ITEM] : [...PAID_SECONDARY_NAV, HELP_ITEM];
 

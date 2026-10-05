@@ -21,7 +21,7 @@ export interface PaidHomeMobileProps {
 export function PaidHomeMobile({ shop, today, queue, onAdvance, busyId }: PaidHomeMobileProps) {
   return (
     <div className="mx-auto w-full max-w-[560px] pb-4">
-      <Greeting title={shop.name} name={shop.ownerName} avatar={shop.ownerAvatar} notifications={today.notifications} />
+      <Greeting title={shop.name} name={shop.ownerName} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} />
       <HeroBanner
         className="mx-4 mt-2"
         size="md"

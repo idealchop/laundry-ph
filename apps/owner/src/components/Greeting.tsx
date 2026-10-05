@@ -1,10 +1,21 @@
-import { Bell } from "lucide-react";
 import type { AvatarPreset } from "@river-apps/icons";
-import { Avatar, Button, IconButton, Topbar } from "@river-apps/ui";
+import { Avatar, Button, Topbar } from "@river-apps/ui";
+import Link from "next/link";
 import { SampleNote } from "./SampleNote";
 
-/** Phone header: avatar, "Good morning", a bold title, Online + notifications. */
-export function Greeting({ title, avatar, name, notifications }: { title: string; avatar: AvatarPreset; name: string; notifications: number }) {
+/** Phone header: avatar, "Good morning", a bold title, Online Orders + profile. */
+export function Greeting({
+  title,
+  avatar,
+  name,
+  photoUrl,
+}: {
+  title: string;
+  avatar: AvatarPreset;
+  name: string;
+  /** Shop photo when set — same source as the Profile header. */
+  photoUrl?: string;
+}) {
   return (
     <Topbar
       variant="greeting"
@@ -17,7 +28,19 @@ export function Greeting({ title, avatar, name, notifications }: { title: string
           <Button href="/online" variant="secondary" size="xs" pill>
             Online Orders
           </Button>
-          <IconButton variant="surface" label="Notifications" count={notifications} icon={<Bell size={22} strokeWidth={1.75} />} />
+          <Link
+            href="/profile"
+            aria-label="Profile"
+            className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            <Avatar
+              name={name}
+              preset={photoUrl ? undefined : avatar}
+              src={photoUrl}
+              size={44}
+              decorative={false}
+            />
+          </Link>
         </span>
       }
     />
