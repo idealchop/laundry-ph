@@ -15,7 +15,7 @@ export function Greeting({ title, avatar, name, notifications }: { title: string
       actions={
         <span className="inline-flex items-center gap-1.5">
           <Button href="/online" variant="secondary" size="xs" pill>
-            Online
+            Online Orders
           </Button>
           <IconButton variant="surface" label="Notifications" count={notifications} icon={<Bell size={22} strokeWidth={1.75} />} />
         </span>

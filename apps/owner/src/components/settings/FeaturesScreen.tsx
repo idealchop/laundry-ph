@@ -4,7 +4,7 @@ import { Badge, Card, ListItem } from "@river-apps/ui";
 import { CalendarClock, MessageSquareText, ScanLine, Smartphone, Store } from "lucide-react";
 import { FocusHeader } from "@/components/FocusHeader";
 
-const FEATURES = [
+export const FEATURES = [
   {
     id: "pos",
     icon: Store,

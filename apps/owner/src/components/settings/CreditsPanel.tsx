@@ -60,9 +60,15 @@ export const DEMO_CREDITS: CreditLine[] = [
   },
 ];
 
-/** Static available balance from DEMO_CREDITS (for profile header before live merge). */
+/** Static balances from DEMO_CREDITS (for profile Credits card before live merge). */
 export const DEMO_AVAILABLE_CENTAVOS = DEMO_CREDITS
   .filter((l) => l.status === "available")
+  .reduce((s, l) => s + l.amountCentavos, 0);
+export const DEMO_PENDING_CENTAVOS = DEMO_CREDITS
+  .filter((l) => l.status === "pending")
+  .reduce((s, l) => s + l.amountCentavos, 0);
+export const DEMO_WITHDRAWN_CENTAVOS = DEMO_CREDITS
+  .filter((l) => l.status === "withdrawn")
   .reduce((s, l) => s + l.amountCentavos, 0);
 
 /**

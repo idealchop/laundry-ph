@@ -50,7 +50,7 @@ export function GrowthDashboard({ shop, today, stats, tip, week, queue, customer
             <SearchInput className="w-[300px]" placeholder="Find ticket, e.g. LDY-0423" label="Find order by ticket" value={search} onChange={(e) => setSearch(e.target.value)} />
           </form>
           <Button href="/online" variant="secondary" size="xs" pill>
-            Online
+            Online Orders
           </Button>
           <IconButton variant="surface" label="Notifications" count={today.notifications} icon={<Bell size={20} strokeWidth={1.75} />} />
           <Avatar name={shop.ownerName} preset={shop.ownerAvatar} size={44} />
@@ -64,10 +64,12 @@ export function GrowthDashboard({ shop, today, stats, tip, week, queue, customer
           titleSize="lg"
           description={`${today.kgWashed} kg washed · ${today.inQueue} orders in progress · ${today.ready} ready for pickup`}
           contentWidth={460}
-          actions={<>
-            <Button href="/orders/new" variant="white" size="md" leadingIcon={<Plus size={18} strokeWidth={1.9} />}>Walk-in</Button>
-            <Button href="/scan/result" variant="ghost-inverse" size="md" leadingIcon={<ScanLine size={18} strokeWidth={1.75} />}>Scan customer</Button>
-          </>}
+          actions={
+            <div className="flex flex-nowrap items-center gap-2.5">
+              <Button href="/orders/new" variant="white" size="md" leadingIcon={<Plus size={18} strokeWidth={1.9} />}>Walk-in</Button>
+              <Button href="/scan/result" variant="ghost-inverse" size="md" leadingIcon={<ScanLine size={18} strokeWidth={1.75} />}>Scan QR</Button>
+            </div>
+          }
           illustration={<LaundryScene size={268} />}
           illustrationClassName="right-[34px] bottom-3"
         />

@@ -29,12 +29,12 @@ export function PaidHomeMobile({ shop, today, queue, onAdvance, busyId }: PaidHo
         title={`Today: ${money(today.salesCentavos)} · ${today.orders} orders`}
         titleSize="md"
         description={`${today.kgWashed} kg washed · ${today.inQueue} orders in progress · ${today.ready} ready for pickup`}
-        contentWidth={220}
+        contentWidth={240}
         actions={
-          <>
-            <Button href="/orders/new" variant="white" size="sm" className="h-11 px-3.5 text-[13.5px]" leadingIcon={<Plus size={18} strokeWidth={1.9} />}>Walk-in</Button>
-            <Button href="/scan/result" variant="ghost-inverse" size="sm" className="h-11 px-3.5 text-[13.5px]" leadingIcon={<ScanLine size={18} strokeWidth={1.75} />}>Scan customer</Button>
-          </>
+          <div className="flex w-full min-w-0 flex-nowrap items-center gap-2">
+            <Button href="/orders/new" variant="white" size="sm" className="h-10 min-w-0 flex-1 px-2.5 text-[12.5px]" leadingIcon={<Plus size={16} strokeWidth={1.9} />}>Walk-in</Button>
+            <Button href="/scan/result" variant="ghost-inverse" size="sm" className="h-10 min-w-0 flex-1 px-2.5 text-[12.5px]" leadingIcon={<ScanLine size={16} strokeWidth={1.75} />}>Scan QR</Button>
+          </div>
         }
         illustration={<LaundryScene size={168} />}
         illustrationClassName="-right-[10px] bottom-3"

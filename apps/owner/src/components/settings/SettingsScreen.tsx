@@ -1,20 +1,25 @@
 "use client";
 
 import {
-  BadgeCheck, ChevronLeft, ChevronRight, CreditCard, History, LogOut, MapPin, Package, Pencil, Sparkles,
+  BadgeCheck, ChevronLeft, ChevronRight, CreditCard, History, LogOut, MapPin, Package, Pencil, Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { Avatar, Button, Card, ListItem, Topbar } from "@river-apps/ui";
+import { Avatar, Badge, Button, Card, ListItem, Topbar } from "@river-apps/ui";
 import type { Shop } from "@/data";
 import { firestoreDatabaseId } from "@/lib/firebase/config";
 import { useAuthGate } from "@/components/auth/AuthGateProvider";
 import { money } from "@/lib/format";
-import { planLabel } from "@/lib/plans";
 import { signOut, useAuth } from "@/lib/auth";
 import { useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
-import { CreditsPanel, DEMO_AVAILABLE_CENTAVOS } from "./CreditsPanel";
+import {
+  CreditsPanel,
+  DEMO_AVAILABLE_CENTAVOS,
+  DEMO_PENDING_CENTAVOS,
+  DEMO_WITHDRAWN_CENTAVOS,
+} from "./CreditsPanel";
+import { FEATURES } from "./FeaturesScreen";
 
 /** Soft @handle from shop name (Oceanus-style). */
 function shopHandle(name: string): string {
@@ -43,13 +48,12 @@ function shopBio(shop: Shop): string {
 }
 
 const HUB_LINKS = [
-  { href: "/profile/features", icon: Sparkles, title: "Features", subtitle: "Partner vs Paid product capabilities" },
   { href: "/profile/services", icon: Package, title: "Services", subtitle: "Products, prices and POS catalog" },
   { href: "/history", icon: History, title: "History", subtitle: "Sales totals and completed orders" },
   { href: "/settings/billing", icon: CreditCard, title: "Plan & billing", subtitle: "Partner free · Paid ₱950/mo · Lifetime" },
 ] as const;
 
-/** Shop profile hub: Oceanus header, Edit shop, setup links, logout. Shop form lives on /profile/edit. */
+/** Shop profile hub: Oceanus header, Credits, Features, Edit shop, setup links, logout. */
 export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) {
   const { shop, member, source, isGuest } = useShop();
   const { user } = useAuth();
@@ -93,54 +97,63 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
         subtitle={<>Your shop on Laundry.ph <SampleNote className="ml-1 align-middle" /></>}
       />
 
-      {/* Oceanus-style profile header — side by side: avatar left, content right */}
-      <section className="mt-5 flex items-start gap-4 sm:gap-5">
+      {/* Minimal profile header — photo, name, handle, short bio */}
+      <section className="mt-4 flex items-start gap-3.5 sm:gap-4">
         <Avatar
           name={shop.name}
           preset={photo ? undefined : shop.ownerAvatar}
           src={photo}
-          size={104}
+          size={72}
           decorative={false}
           className="shadow-tile ring-1 ring-line"
         />
         <div className="min-w-0 flex-1 pt-0.5">
-          <h2 className="text-[22px] font-extrabold leading-[1.15] tracking-[-0.025em] text-ink sm:text-[26px]">
+          <h2 className="text-[18px] font-extrabold leading-[1.2] tracking-[-0.02em] text-ink sm:text-[20px]">
             {shop.name}
           </h2>
-          <p className="mt-0.5 text-[14.5px] font-semibold text-muted">{handle}</p>
-          <p className="mt-2 inline-flex items-center gap-1.5 text-[13.5px] font-bold text-ink">
-            <BadgeCheck size={16} strokeWidth={2.25} className="text-ink" aria-hidden />
-            River partner
-          </p>
-          <p className="mt-2 text-[14.5px] font-medium leading-snug text-ink/80">{bio}</p>
+          <p className="mt-0.5 text-[13.5px] font-semibold text-muted">{handle}</p>
+          <p className="mt-1.5 text-[13.5px] font-medium leading-snug text-ink/80">{bio}</p>
           {place ? (
-            <p className="mt-2 inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-muted">
-              <MapPin size={15} strokeWidth={1.75} aria-hidden />
+            <p className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-semibold text-muted">
+              <MapPin size={14} strokeWidth={1.75} aria-hidden />
               {place}
             </p>
           ) : null}
-          <p className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[14px]">
-            <span>
-              <b className="font-extrabold text-ink">{planLabel(shop.tier, shop.planSource)}</b>
-              <span className="font-medium text-muted"> plan</span>
-            </span>
-            <span>
-              <b className="font-extrabold text-ink">{member.role === "owner" ? "Owner" : "Staff"}</b>
-              <span className="font-medium text-muted"> · {accountLabel}</span>
-            </span>
+          <p className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-bold text-ink">
+            <BadgeCheck size={14} strokeWidth={2.25} className="text-ink" aria-hidden />
+            River partner
+            <span className="font-medium text-muted"> · {member.role === "owner" ? "Owner" : "Staff"}</span>
           </p>
-          <button
-            type="button"
-            onClick={() => setView("credits")}
-            className="mt-2 text-left text-[14.5px] font-bold text-ink underline decoration-grey-300 underline-offset-[3px] transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            Credits · {money(DEMO_AVAILABLE_CENTAVOS)}
-          </button>
         </div>
       </section>
 
+      {/* Credits — dedicated card (not in header) */}
+      <button
+        type="button"
+        onClick={() => setView("credits")}
+        className="mt-4 w-full rounded-card bg-surface px-4 py-4 text-left shadow-card transition-colors hover:bg-grey-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
+        <div className="flex items-start gap-3">
+          <span className="inline-flex size-11 items-center justify-center rounded-tile bg-grey-100">
+            <Wallet size={20} strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[13px] font-semibold text-muted">Credits</p>
+              <ChevronRight size={18} strokeWidth={1.75} className="text-subtle" aria-hidden />
+            </div>
+            <p className="mt-0.5 text-[26px] font-extrabold tracking-[-0.03em] text-ink">
+              {money(DEMO_AVAILABLE_CENTAVOS)}
+            </p>
+            <p className="mt-1 text-[12.5px] font-medium text-muted">
+              Pending {money(DEMO_PENDING_CENTAVOS)} · Withdrawn {money(DEMO_WITHDRAWN_CENTAVOS)}
+            </p>
+          </div>
+        </div>
+      </button>
+
       {/* Owner actions */}
-      <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
+      <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
         <Button href="/profile/edit" size="md" fullWidth className="sm:flex-1" leadingIcon={<Pencil size={18} strokeWidth={1.75} />}>
           Edit shop
         </Button>
@@ -156,6 +169,44 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        {/* Features — dedicated card with list visible */}
+        <Card padding="none" className="px-2 py-1.5 lg:col-span-2">
+          <div className="flex items-center justify-between px-2.5 pt-3">
+            <b className="text-[16px]">Features</b>
+            <Link
+              href="/profile/features"
+              className="text-[13.5px] font-bold underline decoration-grey-300 underline-offset-[3px]"
+            >
+              See all
+            </Link>
+          </div>
+          <ul className="mt-1">
+            {FEATURES.map((f) => {
+              const Icon = f.icon;
+              return (
+                <li key={f.id}>
+                  <ListItem
+                    variant="row"
+                    className="py-2"
+                    leading={
+                      <span className="inline-flex size-10 items-center justify-center rounded-tile bg-grey-100">
+                        <Icon size={18} strokeWidth={1.75} />
+                      </span>
+                    }
+                    title={f.title}
+                    subtitle={f.subtitle}
+                    trailing={
+                      <Badge variant="soft" size="sm">
+                        {f.status}
+                      </Badge>
+                    }
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+
         <Card padding="none" className="px-3.5 py-1.5 lg:col-span-2">
           <b className="block px-1 pt-3 text-[16px]">Setup</b>
           <ul className="mt-1">
@@ -183,6 +234,8 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
           <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
             <dt className="font-semibold text-muted">Shop ID</dt>
             <dd className="font-mono">{shop.id}</dd>
+            <dt className="font-semibold text-muted">Account</dt>
+            <dd className="truncate">{accountLabel}</dd>
             <dt className="font-semibold text-muted">Data</dt>
             <dd className="font-mono">{source.mode === "firebase" ? `Firestore · ${firestoreDatabaseId}` : "In-memory sample"}</dd>
             {shop.location ? (
