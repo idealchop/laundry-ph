@@ -1,15 +1,22 @@
 rules_version = '2';
 
-// Laundry.ph Firestore rules (project mylaundryph).
+// Laundry.ph Firestore rules (project mylaundryph). Same file for laundrydb (prod) and laundrydb-dev.
+// Standalone: do NOT use riverdb / aquaflow.
 //
-// Databases: laundrydb (prod), laundrydb-dev (dev). Same rules file for both.
-// Model: every shop-scoped document lives under shops/{shopId}/…
-// - Clients never write by default (Admin SDK / future Cloud Functions bypass rules).
-// - Authenticated active members may READ their shop tree.
-// - Seeded demo shops (sample == true) are readable without auth so the UI scaffold
-//   can point at laundrydb-dev before Auth is wired. Remove that branch before launch.
-// - public_tickets/{ticketId} is the customer-facing projection for /t/[ticketId].
-// Default deny everything else. Do NOT use riverdb / aquaflow.
+// Model (money = integer centavos, times = server timestamps):
+//   users/{uid}                         { shopId }  which shop a login opens (self only)
+//   shops/{shopId}                      shop profile (+ ownerUid; sample == true for seeded demo shops)
+//   shops/{shopId}/members/{uid}        { uid, shopId, role: owner|staff, status: active|disabled }
+//   shops/{shopId}/orders/{orderId}     walk-in orders; status received→washing→drying→folding→ready→claimed|delivered
+//   shops/{shopId}/customers/{id}       customers (visits, spentCentavos)
+//   shops/{shopId}/meta/catalog         price list (owner writes)
+//   shops/{shopId}/meta/counters        ticket number + daily queue (members bump by exactly one)
+//   shops/{shopId}/meta/*, machines, pickups   read-only to members (seed / future Cloud Functions)
+//   public_tickets/{ticketId}           public-safe projection: anyone may GET one by its unguessable id, nobody may LIST
+//
+// Least privilege: shop data is readable/writable only by active members; field lists are
+// allow-listed; nothing is deletable from the client; seeded demo shops can be JOINED as staff
+// (sample == true) but their profile cannot be changed. Admin SDK (seed script) bypasses rules.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -17,74 +24,209 @@ service cloud.firestore {
     function signedIn() {
       return request.auth != null;
     }
-
-    function memberDoc(shopId) {
-      return /databases/$(database)/documents/shops/$(shopId)/members/$(request.auth.uid);
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
     }
-
-    function isMember(shopId) {
-      return signedIn()
-        && exists(memberDoc(shopId))
-        && get(memberDoc(shopId)).data.status == 'active'
-        && get(memberDoc(shopId)).data.shopId == shopId;
-    }
-
-    function shopDoc(shopId) {
+    function shopPath(shopId) {
       return /databases/$(database)/documents/shops/$(shopId);
     }
-
-    function isSampleShop(shopId) {
-      return exists(shopDoc(shopId)) && get(shopDoc(shopId)).data.sample == true;
+    function memberPath(shopId) {
+      return /databases/$(database)/documents/shops/$(shopId)/members/$(request.auth.uid);
+    }
+    function isMember(shopId) {
+      return signedIn()
+        && exists(memberPath(shopId))
+        && get(memberPath(shopId)).data.status == 'active'
+        && get(memberPath(shopId)).data.shopId == shopId;
+    }
+    function isOwner(shopId) {
+      return isMember(shopId) && get(memberPath(shopId)).data.role == 'owner';
+    }
+    function changedOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+    function isCentavos(v) {
+      return v is int && v >= 0 && v <= 100000000; // ≤ ₱1,000,000
+    }
+    function isStatus(s) {
+      return s in ['received', 'washing', 'drying', 'folding', 'ready', 'claimed', 'delivered', 'cancelled'];
+    }
+    function isTicketStage(s) {
+      return s in ['received', 'washing', 'drying', 'folding', 'ready'];
+    }
+    function shortString(v, max) {
+      return v is string && v.size() <= max;
     }
 
+    // ---------- users ----------
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+      allow create, update: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['shopId', 'updatedAt'])
+        && request.resource.data.shopId is string
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    // ---------- shops ----------
     match /shops/{shopId} {
-      allow read: if isMember(shopId) || resource.data.sample == true;
-      allow write: if false;
+      // Members read their shop; any signed-in user may read a seeded demo shop's profile (to join it).
+      allow get: if isMember(shopId) || (signedIn() && resource.data.sample == true);
+      allow list: if false;
+
+      // Create your own shop: you are the owner; it can never be a sample shop.
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.id == shopId
+        && request.resource.data.sample == false
+        && request.resource.data.tier in ['paid', 'partner']
+        && shortString(request.resource.data.name, 80)
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.keys().hasOnly(['id', 'name', 'area', 'ownerName', 'ownerAvatar', 'tier', 'ownerUid', 'sample', 'dailyTargetCentavos', 'createdAt'])
+        && request.resource.data.createdAt == request.time;
+
+      // Owner edits the profile (not ownership, tier or the sample flag).
+      allow update: if isOwner(shopId)
+        && resource.data.sample != true
+        && changedOnly(['name', 'area', 'ownerName', 'ownerAvatar', 'dailyTargetCentavos']);
+      allow delete: if false;
 
       match /members/{uid} {
-        allow read: if isMember(shopId) || (signedIn() && request.auth.uid == uid);
-        allow write: if false;
+        allow read: if isMember(shopId) || isSelf(uid);
+        // Self-join only: as owner of a shop you are creating in the same batch, or as staff of a demo shop.
+        allow create: if isSelf(uid)
+          && request.resource.data.uid == uid
+          && request.resource.data.shopId == shopId
+          && request.resource.data.status == 'active'
+          && request.resource.data.keys().hasOnly(['uid', 'shopId', 'role', 'status', 'joinedVia', 'displayName', 'phone', 'email', 'createdAt'])
+          && request.resource.data.createdAt == request.time
+          && (
+            (request.resource.data.role == 'owner'
+              && getAfter(shopPath(shopId)).data.ownerUid == request.auth.uid)
+            || (request.resource.data.role == 'staff'
+              && get(shopPath(shopId)).data.sample == true)
+          );
+        // Owners manage other members' role / status; nobody edits their own membership.
+        allow update: if isOwner(shopId) && !isSelf(uid)
+          && changedOnly(['role', 'status'])
+          && request.resource.data.role in ['owner', 'staff']
+          && request.resource.data.status in ['active', 'disabled'];
+        allow delete: if false;
       }
 
       match /orders/{orderId} {
-        allow read: if isMember(shopId) || isSampleShop(shopId);
-        // Walk-in create once Auth is live; until then seed/Admin only.
+        allow read: if isMember(shopId);
         allow create: if isMember(shopId)
-          && request.resource.data.keys().hasAll(['ref', 'status', 'kg', 'customer'])
-          && request.resource.data.shopId == shopId;
-        allow update, delete: if false;
+          && request.resource.data.shopId == shopId
+          && request.resource.data.keys().hasAll(['ref', 'queueNo', 'ticketId', 'status', 'customer', 'serviceId', 'quantity', 'kg', 'lines', 'totalCentavos', 'createdAt'])
+          && request.resource.data.keys().hasOnly([
+            'shopId', 'ref', 'queueNo', 'ticketId', 'source', 'status', 'customer', 'customerId', 'serviceId', 'serviceName', 'unit',
+            'quantity', 'billedQuantity', 'kg', 'detergent', 'addOns', 'lines', 'subtotalCentavos', 'totalCentavos',
+            'paymentStatus', 'paymentMethod', 'paidCentavos', 'readyBy', 'detail', 'stageTimes', 'createdAt', 'updatedAt', 'createdBy', 'sample'
+          ])
+          && request.resource.data.status == 'received'
+          && request.resource.data.source == 'walk-in'
+          && request.resource.data.ref is string && request.resource.data.ref.matches('LDY-[0-9]{4,6}')
+          && request.resource.data.ticketId is string && request.resource.data.ticketId.matches('LDY-[0-9]{4,6}-[A-Z0-9]{8}')
+          && request.resource.data.kg is number && request.resource.data.kg >= 0 && request.resource.data.kg <= 200
+          && request.resource.data.quantity is number && request.resource.data.quantity > 0
+          && isCentavos(request.resource.data.totalCentavos)
+          && isCentavos(request.resource.data.subtotalCentavos)
+          && request.resource.data.paymentStatus == 'unpaid'
+          && request.resource.data.paidCentavos == 0
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt == request.time
+          && (!('sample' in request.resource.data) || request.resource.data.sample == true);
+        // Status moves, payments. Identity, lines and totals are immutable.
+        allow update: if isMember(shopId)
+          && changedOnly(['status', 'stageTimes', 'paymentStatus', 'paymentMethod', 'paidCentavos', 'paidAt', 'updatedAt', 'updatedBy'])
+          && isStatus(request.resource.data.status)
+          && request.resource.data.get('paymentStatus', 'unpaid') in ['unpaid', 'paid']
+          && request.resource.data.get('paymentMethod', null) in [null, 'cash', 'gcash']
+          && isCentavos(request.resource.data.get('paidCentavos', 0))
+          && request.resource.data.get('paidCentavos', 0) <= resource.data.get('totalCentavos', 0)
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if false;
       }
 
       match /customers/{customerId} {
-        allow read: if isMember(shopId) || isSampleShop(shopId);
-        allow write: if false;
-      }
-
-      match /machines/{machineId} {
-        allow read: if isMember(shopId) || isSampleShop(shopId);
-        allow write: if false;
-      }
-
-      match /pickups/{pickupId} {
-        allow read: if isMember(shopId) || isSampleShop(shopId);
-        allow write: if false;
+        allow read: if isMember(shopId);
+        allow create: if isMember(shopId)
+          && request.resource.data.keys().hasOnly(['name', 'nameLower', 'phone', 'avatar', 'source', 'visits', 'spentCentavos', 'tag', 'notes', 'lastVisitAt', 'createdAt', 'updatedAt', 'createdBy'])
+          && shortString(request.resource.data.name, 80) && request.resource.data.name.size() > 0
+          && (request.resource.data.phone == null || shortString(request.resource.data.phone, 20))
+          && (request.resource.data.notes == null || shortString(request.resource.data.notes, 500))
+          && request.resource.data.source in ['Walk-in', 'River Mobile']
+          && request.resource.data.visits is int && request.resource.data.visits >= 0 && request.resource.data.visits <= 1
+          && isCentavos(request.resource.data.spentCentavos)
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt == request.time;
+        allow update: if isMember(shopId)
+          && changedOnly(['name', 'nameLower', 'phone', 'avatar', 'tag', 'notes', 'visits', 'spentCentavos', 'lastVisitAt', 'updatedAt'])
+          && shortString(request.resource.data.name, 80)
+          && request.resource.data.get('visits', 0) is int && request.resource.data.get('visits', 0) >= resource.data.get('visits', 0)
+          && isCentavos(request.resource.data.get('spentCentavos', 0))
+          && request.resource.data.get('tag', null) in [null, 'Member', 'Regular', 'New']
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if false;
       }
 
       match /meta/{docId} {
-        allow read: if isMember(shopId) || isSampleShop(shopId);
+        allow read: if isMember(shopId);
         allow write: if false;
       }
+      match /meta/counters {
+        allow read: if isMember(shopId);
+        allow create: if isMember(shopId)
+          && request.resource.data.keys().hasOnly(['nextTicketNo', 'queueDate', 'queueNo', 'updatedAt'])
+          && request.resource.data.nextTicketNo is int && request.resource.data.nextTicketNo >= 1
+          && request.resource.data.queueNo is int
+          && request.resource.data.queueDate is string;
+        allow update: if isMember(shopId)
+          && request.resource.data.keys().hasOnly(['nextTicketNo', 'queueDate', 'queueNo', 'updatedAt'])
+          && request.resource.data.nextTicketNo == resource.data.nextTicketNo + 1
+          && request.resource.data.queueNo is int && request.resource.data.queueNo >= 1
+          && request.resource.data.queueDate is string;
+        allow delete: if false;
+      }
+      match /meta/catalog {
+        allow read: if isMember(shopId);
+        allow create, update: if isOwner(shopId);
+        allow delete: if false;
+      }
 
-      match /{document=**} {
-        allow read: if isMember(shopId) || isSampleShop(shopId);
+      match /machines/{machineId} {
+        allow read: if isMember(shopId);
+        allow write: if false;
+      }
+      match /pickups/{pickupId} {
+        allow read: if isMember(shopId);
         allow write: if false;
       }
     }
 
-    // Customer ticket page — public-safe projection only (no phone, no address).
+    // ---------- public tickets (customer page /t/[ticketId], no login) ----------
     match /public_tickets/{ticketId} {
-      allow read: if true;
-      allow write: if false;
+      // Get by exact id only (ids carry an 8-char random suffix); listing / enumerating is denied.
+      allow get: if true;
+      allow list: if false;
+      allow create: if isMember(request.resource.data.shopId)
+        && request.resource.data.keys().hasOnly([
+          'shopId', 'shopName', 'ref', 'queueNo', 'maskedName', 'stage', 'done', 'cancelled', 'stageTimes', 'readyBy',
+          'updatedAt', 'kg', 'quantityLabel', 'serviceName', 'totalCentavos', 'amountDueCentavos', 'paid', 'sample'
+        ])
+        && ticketId.matches('LDY-[0-9]{4,6}-[A-Z0-9]{8}')
+        && isTicketStage(request.resource.data.stage)
+        && shortString(request.resource.data.maskedName, 40)
+        && isCentavos(request.resource.data.totalCentavos)
+        && isCentavos(request.resource.data.amountDueCentavos);
+      allow update: if isMember(resource.data.shopId)
+        && request.resource.data.shopId == resource.data.shopId
+        && changedOnly(['stage', 'done', 'cancelled', 'stageTimes', 'updatedAt', 'paid', 'amountDueCentavos'])
+        && isTicketStage(request.resource.data.stage)
+        && isCentavos(request.resource.data.get('amountDueCentavos', 0));
+      allow delete: if false;
     }
 
     match /{document=**} {

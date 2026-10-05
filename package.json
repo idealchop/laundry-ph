@@ -18,7 +18,9 @@
     "clean": "pnpm -r exec rm -rf dist .next",
     "seed:dev": "node scripts/seed-laundrydb-dev.mjs",
     "build:static": "pnpm build:packages && STATIC_EXPORT=1 pnpm --filter @laundry-ph/owner build",
-    "firebase:deploy:rules": "firebase deploy --only firestore"
+    "firebase:deploy:rules": "firebase deploy --only firestore",
+    "test:emulator": "sh scripts/test-emulator.sh",
+    "firebase:deploy:rules:dev": "firebase deploy --only firestore:laundrydb-dev --project mylaundryph"
   },
   "devDependencies": {
     "typescript": "5.9.3",
