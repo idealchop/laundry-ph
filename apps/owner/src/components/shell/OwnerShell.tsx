@@ -26,7 +26,7 @@ function PartnerTierCard() {
     <div className="rounded-[22px] bg-grey-100 p-4">
       <b className="block text-[14.5px]">You’re on Partner</b>
       <small className="mb-3 mt-0.5 block text-[12.5px] font-semibold text-ink/55">Paid adds the counter POS, Sales Record, Customers and SMS.</small>
-      <Button size="sm" variant="secondary" fullWidth href="/">See the Paid app</Button>
+      <Button size="sm" variant="secondary" fullWidth href="/home">See the Paid app</Button>
     </div>
   );
 }

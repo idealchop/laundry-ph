@@ -8,7 +8,7 @@ const tab = { size: 22, strokeWidth: 1.75 } as const;
 
 /** Paid tier: the five modules from the Laundry.ph feature map, plus Settings. */
 export const PAID_NAV: NavItem[] = [
-  { key: "growth", label: "Growth Dashboard", href: "/", icon: <TrendingUp {...side} /> },
+  { key: "growth", label: "Growth Dashboard", href: "/home", icon: <TrendingUp {...side} /> },
   { key: "online", label: "Online / Schedule", href: "/online", icon: <CalendarClock {...side} />, badge: 3 },
   { key: "sales", label: "Sales Record", href: "/sales", icon: <ReceiptText {...side} /> },
   { key: "customers", label: "Customers", href: "/customers", icon: <Users {...side} /> },
@@ -16,7 +16,7 @@ export const PAID_NAV: NavItem[] = [
   { key: "settings", label: "Settings", href: "/settings", icon: <Settings {...side} /> },
 ];
 export const PAID_TABS: NavItem[] = [
-  { key: "home", label: "Home", href: "/", icon: <House {...tab} /> },
+  { key: "home", label: "Home", href: "/home", icon: <House {...tab} /> },
   { key: "orders", label: "Orders", href: "/online", icon: <List {...tab} /> },
   { key: "sales", label: "Sales", href: "/sales", icon: <ChartColumn {...tab} /> },
   { key: "more", label: "More", href: "/more", icon: <Ellipsis {...tab} /> },
@@ -43,7 +43,10 @@ export function activeKeyFor(items: NavItem[], pathname: string): string | undef
   let best: NavItem | undefined;
   for (const it of items) {
     const href = it.href ?? "";
-    const hit = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+    const hit =
+      href === "/" || href === "/home"
+        ? pathname === href || (href === "/home" && pathname === "/")
+        : pathname === href || pathname.startsWith(`${href}/`);
     if (hit && (!best || href.length > (best.href ?? "").length)) best = it;
   }
   return best?.key;

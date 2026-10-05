@@ -29,5 +29,9 @@ export function getFirebaseAuth(): Auth {
   if (auth) return auth;
   auth = getAuth(getFirebaseApp());
   auth.languageCode = "en";
+  // Dev / test phone numbers: skip reCAPTCHA hang in headless and App Hosting preview.
+  if (process.env.NEXT_PUBLIC_APP_ENV === "dev" || process.env.NEXT_PUBLIC_APP_ENV === "local") {
+    auth.settings.appVerificationDisabledForTesting = true;
+  }
   return auth;
 }

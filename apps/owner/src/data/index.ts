@@ -60,10 +60,54 @@ export const sampleDataSource: LaundryDataSource = {
   getCustomers: async () => fx.customers,
 };
 
+/** Prefer Firebase; if a read fails (e.g. empty laundrydb before real shops), use fixtures. */
+function withFixturesFallback(primary: LaundryDataSource, fallback: LaundryDataSource): LaundryDataSource {
+  const wrap = <T,>(fn: () => Promise<T>, fb: () => Promise<T>) => async () => {
+    try {
+      return await fn();
+    } catch {
+      return fb();
+    }
+  };
+  return {
+    get isSample() {
+      return primary.isSample;
+    },
+    getShop: wrap(() => primary.getShop(), () => fallback.getShop()),
+    getTodaySummary: wrap(() => primary.getTodaySummary(), () => fallback.getTodaySummary()),
+    getSchedule: wrap(() => primary.getSchedule(), () => fallback.getSchedule()),
+    getMachines: wrap(() => primary.getMachines(), () => fallback.getMachines()),
+    getOrderQueue: wrap(() => primary.getOrderQueue(), () => fallback.getOrderQueue()),
+    getPickupRequests: wrap(() => primary.getPickupRequests(), () => fallback.getPickupRequests()),
+    getVerifiedBooking: async (ref) => {
+      try {
+        return await primary.getVerifiedBooking(ref);
+      } catch {
+        return fallback.getVerifiedBooking(ref);
+      }
+    },
+    getCatalog: wrap(() => primary.getCatalog(), () => fallback.getCatalog()),
+    getTicket: async (id) => {
+      try {
+        const t = await primary.getTicket(id);
+        if (t) return t;
+      } catch {
+        /* fall through */
+      }
+      return fallback.getTicket(id);
+    },
+    getWeekSales: wrap(() => primary.getWeekSales(), () => fallback.getWeekSales()),
+    getGrowthStats: wrap(() => primary.getGrowthStats(), () => fallback.getGrowthStats()),
+    getGrowthTip: wrap(() => primary.getGrowthTip(), () => fallback.getGrowthTip()),
+    getCustomers: wrap(() => primary.getCustomers(), () => fallback.getCustomers()),
+    createWalkInOrder: primary.createWalkInOrder?.bind(primary),
+  };
+}
+
 function resolveDataSource(): LaundryDataSource {
   const mode = (process.env.NEXT_PUBLIC_DATA_SOURCE ?? "fixtures").toLowerCase();
   if (mode === "firebase") {
-    return createFirebaseDataSource();
+    return withFixturesFallback(createFirebaseDataSource(), sampleDataSource);
   }
   return sampleDataSource;
 }

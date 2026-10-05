@@ -14,7 +14,7 @@ export interface PlaceholderProps {
 }
 
 /** Stand-in page for modules that are not built yet, so navigation works end to end. */
-export function Placeholder({ title, description, icon, planned, phase, backHref = "/" }: PlaceholderProps) {
+export function Placeholder({ title, description, icon, planned, phase, backHref = "/home" }: PlaceholderProps) {
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
       <Topbar className="px-1" title={title} subtitle={<>{description} <SampleNote className="ml-1 align-middle" /></>} />

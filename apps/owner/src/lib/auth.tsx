@@ -1,0 +1,83 @@
+"use client";
+
+import {
+  GoogleAuthProvider,
+  RecaptchaVerifier,
+  onAuthStateChanged,
+  signInWithPhoneNumber,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut as fbSignOut,
+  type ConfirmationResult,
+  type User,
+} from "firebase/auth";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { getFirebaseAuth } from "@/lib/firebase/client";
+
+interface AuthState {
+  user: User | null;
+  loading: boolean;
+}
+
+const AuthContext = createContext<AuthState>({ user: null, loading: true });
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<AuthState>({ user: null, loading: true });
+  useEffect(() => onAuthStateChanged(getFirebaseAuth(), (user) => setState({ user, loading: false })), []);
+  return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
+}
+
+export const useAuth = () => useContext(AuthContext);
+
+/* ---------- Phone (SMS code) sign-in ---------- */
+
+let pending: { phoneE164: string; confirmation: ConfirmationResult; sentAt: number } | null = null;
+let verifier: RecaptchaVerifier | null = null;
+
+/** Sends the SMS code using an invisible reCAPTCHA attached to the Send button. */
+export async function sendPhoneCode(phoneE164: string, buttonId: string) {
+  const auth = getFirebaseAuth();
+  verifier?.clear();
+  verifier = new RecaptchaVerifier(auth, buttonId, { size: "invisible" });
+  const confirmation = await signInWithPhoneNumber(auth, phoneE164, verifier);
+  pending = { phoneE164, confirmation, sentAt: Date.now() };
+}
+
+export const pendingPhone = () => pending;
+
+export async function confirmPhoneCode(code: string) {
+  if (!pending) throw new Error("Your code expired. Please request a new one.");
+  await pending.confirmation.confirm(code);
+  pending = null;
+}
+
+/* ---------- Google sign-in ---------- */
+
+export async function signInWithGoogle() {
+  const auth = getFirebaseAuth();
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (err) {
+    if ((err as { code?: string })?.code === "auth/popup-blocked") await signInWithRedirect(auth, provider);
+    else throw err;
+  }
+}
+
+export const signOut = () => fbSignOut(getFirebaseAuth());
+
+/** Friendly messages for common Firebase Auth errors. */
+export function authErrorMessage(err: unknown): string {
+  const code = (err as { code?: string })?.code ?? "";
+  if (code.includes("invalid-verification-code")) return "That code is not right. Please check and try again.";
+  if (code.includes("code-expired")) return "That code expired. Please request a new one.";
+  if (code.includes("invalid-phone-number")) return "Please enter a valid PH mobile number.";
+  if (code.includes("too-many-requests")) return "Too many tries. Please wait a few minutes.";
+  if (code.includes("popup-closed") || code.includes("cancelled-popup-request")) return "Google sign-in was closed before finishing.";
+  if (code.includes("unauthorized-domain")) return "This site is not allowed to sign in yet. Please contact support.";
+  if (code.includes("captcha")) return "We couldn’t verify you’re not a robot. Please try again.";
+  if (code.includes("network-request-failed")) return "No connection. Check your internet and try again.";
+  if (code.includes("operation-not-allowed")) return "That sign-in method is not enabled yet.";
+  return "Something went wrong. Please try again.";
+}

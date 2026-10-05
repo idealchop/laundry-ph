@@ -64,6 +64,18 @@ packages/                        vendored River Apps UI Kit (see packages/VENDOR
 
 Screens never import fixtures directly. They call `data` from `src/data/index.ts` (`LaundryDataSource`). Default backend is `fixtures.ts`. Set `NEXT_PUBLIC_DATA_SOURCE=firebase` to use `firebase-source.ts` against the named database in `NEXT_PUBLIC_FIRESTORE_DATABASE` (`laundrydb-dev` or `laundrydb`). `data.isSample` controls the Sample data tags.
 
+
+## Sign in (demo)
+
+Mycarwash-style welcome at `/`, then phone OTP or Google. Owner routes (`/home`, `/partner`, …) require Auth. Public tickets stay at `/t/[ticketId]`.
+
+**Demo phone (Firebase test number, no SMS):**
+- Number: `917 123 4567` (E.164 `+639171234567`)
+- Code: `123456`
+- Also: `918 123 4567` / `123456`
+
+After sign-in you land on `/home`, which reads **laundrydb-dev** on the DEV App Hosting backend (seeded sample shop).
+
 ## Firebase (project `mylaundryph`)
 
 **Standalone.** Own Auth, own Firestore. Do **not** use `aquaflow-management-suite` / `riverdb`.

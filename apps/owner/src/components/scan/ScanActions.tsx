@@ -15,7 +15,7 @@ export function ScanActions({ total, bookingRef }: { total: string; bookingRef: 
       {accepted ? (
         <div className="flex gap-2.5">
           <Button variant="secondary" className="flex-1" onClick={() => setAccepted(false)}>Undo</Button>
-          <Button href="/" className="flex-[2]">Done</Button>
+          <Button href="/home" className="flex-[2]">Done</Button>
         </div>
       ) : (
         <div className="flex gap-2.5">

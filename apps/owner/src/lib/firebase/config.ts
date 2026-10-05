@@ -17,9 +17,10 @@ export const firebaseWebConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "500578192242",
 };
 
-/** Named Firestore database id. Default: laundrydb-dev for local/dev. */
+/** Named Firestore database id. Explicit env wins; else prod → laundrydb, otherwise laundrydb-dev. */
 export const firestoreDatabaseId =
-  process.env.NEXT_PUBLIC_FIRESTORE_DATABASE ?? "laundrydb-dev";
+  process.env.NEXT_PUBLIC_FIRESTORE_DATABASE ??
+  (process.env.NEXT_PUBLIC_APP_ENV === "prod" ? "laundrydb" : "laundrydb-dev");
 
 /** Active shop document id under shops/{shopId}. */
 export const shopId = process.env.NEXT_PUBLIC_SHOP_ID ?? "sample-laundry";
