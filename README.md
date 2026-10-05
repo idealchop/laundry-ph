@@ -2,7 +2,7 @@
 
 **Laundry.ph** is the River Apps owner app for neighbourhood wash-dry-fold shops in the Philippines: counter POS, machines and order queue, River Mobile pickups, customer tickets, and a Growth Dashboard.
 
-This repo is a **UI scaffold** that defaults to in-memory sample fixtures. Firebase foundation lives in project **`mylaundryph`** (standalone — not Smart Refill / `riverdb`). Set `NEXT_PUBLIC_DATA_SOURCE=firebase` to read from a named Firestore database. Every sample screen still carries a "Sample data" tag.
+**Phase 1 Paid MVP:** the owner app reads and writes to **Firestore** (project **`mylaundryph`**, named DB `laundrydb-dev` / `laundrydb`). It is standalone, with no Smart Refill / `riverdb`. Walk-in POS orders, the live order board with status changes, customers, sales totals, public tickets and ticket scan lookup all work against real data. If Firebase isn't configured, or `NEXT_PUBLIC_DEMO_FIXTURES=1` is set, the app runs on an in-memory sample store that saves nothing. Screens and tickets from the seeded `sample-laundry` shop carry a "Sample data" tag.
 
 ## Setup
 
@@ -25,8 +25,10 @@ pnpm dev          # builds the kit packages, then runs the owner app on http://l
 | `pnpm icons:generate` | Regenerate `packages/icons` SVGs and `src/raw.ts` from `scripts/art.py` (needs python3) |
 | `pnpm clean` | Remove `dist/` and `.next/` |
 | `pnpm build:static` | Static export of `apps/owner` for classic Firebase Hosting |
-| `pnpm seed:dev` | Seed SAMPLE demo data into `laundrydb-dev` only (needs Blaze + DB) |
-| `pnpm firebase:deploy:rules` | Deploy Firestore rules/indexes to both named databases |
+| `pnpm seed:dev` | Seed the SAMPLE shop `sample-laundry` into `laundrydb-dev` only (idempotent; `SEED_OWNER_UID=<uid>` also links that user) |
+| `pnpm test:emulator` | Run the real data layer + `firestore.rules` against the Auth/Firestore emulators (45 checks; needs Java + firebase-tools) |
+| `pnpm firebase:deploy:rules:dev` | Deploy Firestore rules/indexes to **`laundrydb-dev` only** |
+| `pnpm firebase:deploy:rules` | Deploy Firestore rules/indexes to both named databases (prod included) |
 
 CI (`.github/workflows/ci.yml`) runs install, typecheck, lint and build on every pull request and on pushes to `main`.
 
@@ -34,12 +36,18 @@ CI (`.github/workflows/ci.yml`) runs install, typecheck, lint and build on every
 
 | Route | Screen |
 | --- | --- |
-| `/` | Paid home on phones; **Growth Dashboard** from the `lg` breakpoint (≥1024px) |
+| `/` | Welcome / sign in (phone OTP or Google) |
+| `/home` | Paid home on phones (live queue with one-tap status advance); **Growth Dashboard** from the `lg` breakpoint (≥1024px). Data comes from Firestore |
+| `/orders` | Order board: Active / Ready / Done / All, search, advance or undo a status, mark paid |
+| `/orders/view?id=<orderId>` | Order detail: status timeline, payment, ticket link |
 | `/partner` | Partner home: scan River Mobile customers, schedule, pickups to accept |
-| `/scan/result` | River Mobile customer verified: booking details, Decline / Accept |
-| `/orders/new` | Walk-in counter POS: kg stepper, service, detergent, add-ons, return date, live total, Create ticket |
-| `/t/[ticketId]` | Public customer ticket (no login, no app shell): status steps, pay with GCash or cash, SMS opt-in, feedback. Samples: `LDY-0418`, `LDY-0422`, `LDY-0416` |
-| `/online`, `/sales`, `/customers`, `/messages`, `/settings` | Placeholders for the Paid modules (nav works) |
+| `/scan/result?code=<ticket URL or LDY-####>` | Look up a real ticket by scanned or typed code and open the order. The River Mobile booking card is demo only (Partner API comes in Phase 2) |
+| `/orders/new` | Walk-in counter POS: kg stepper, service, detergent, add-ons, optional customer (search or new), return date, live total. **Create ticket** writes the order + public ticket, then shows the ticket link |
+| `/t/[ticketId]` | Public customer ticket (no login, no app shell). Live status from `public_tickets` with a masked name. GCash / SMS / feedback are UI only for now. Seeded sample: `/t/LDY-0418-SAMPLE08` |
+| `/customers` | Customer list (search, visits, spend) and add customer, from Firestore |
+| `/sales` | Sales from orders: today / 7 / 30 days, gross, collected, unpaid, kg, daily chart, CSV export |
+| `/settings` | Shop info, your role, sign out |
+| `/online`, `/messages` | Placeholders (Phase 2) |
 | `/partner/bookings`, `/partner/history`, `/partner/shop`, `/more` | Partner tab placeholders and the phone "More" menu |
 
 ## Structure
@@ -62,7 +70,37 @@ packages/                        vendored River Apps UI Kit (see packages/VENDOR
 
 ### Data access
 
-Screens never import fixtures directly. They call `data` from `src/data/index.ts` (`LaundryDataSource`). Default backend is `fixtures.ts`. Set `NEXT_PUBLIC_DATA_SOURCE=firebase` to use `firebase-source.ts` against the named database in `NEXT_PUBLIC_FIRESTORE_DATABASE` (`laundrydb-dev` or `laundrydb`). `data.isSample` controls the Sample data tags.
+Screens never import fixtures or Firestore directly. They use the hooks in `src/lib/shop.tsx` (`useShop`, `useOrders`, `useBoardOrders`, `useOrder`, `useCustomers`, `useAction`). Those hooks call a shop-bound `LaundryDataSource` from `src/data/index.ts`. Owner pages are client components: Firestore calls run in the browser as the signed-in user, so `firestore.rules` checks every read and write. If a call fails, the screen shows the error; it never falls back to fixtures without telling you.
+
+| Mode | When | Backend |
+| --- | --- | --- |
+| `firebase` | `NEXT_PUBLIC_DATA_SOURCE=firebase` + web config present + `NEXT_PUBLIC_DEMO_FIXTURES` ≠ `1` | `firebase-source.ts` on `NEXT_PUBLIC_FIRESTORE_DATABASE` |
+| `fixtures` | anything else (e.g. `pnpm build:static`) | `fixture-source.ts`: an interactive in-memory store; nothing is saved |
+
+Business logic (pricing, status flow, ticket projection, sales math) lives in `src/lib/pricing.ts` and `src/lib/orders.ts`. Money is always **integer centavos** (`₱248.00` = `24800`). Dates and times use Asia/Manila (`src/lib/format.ts`).
+
+### Firestore data model (named DB `laundrydb-dev` / `laundrydb`)
+
+| Path | Contents |
+| --- | --- |
+| `users/{uid}` | `{ shopId }`: the user's active shop (self read/write only) |
+| `shops/{shopId}` | `name, area, ownerUid, sample, createdAt` |
+| `shops/{shopId}/members/{uid}` | `role: owner \| staff, displayName, phone, joinedAt` |
+| `shops/{shopId}/meta/catalog` | `services[] / detergents[] / addOns[]` with `priceCentavos`, `minKg`, `turnaroundHours` (owner edits only) |
+| `shops/{shopId}/meta/counters` | `nextTicketNo` (→ `LDY-####`), `queueDate` + `queueNo` (daily queue #). Moves +1 per order, inside the create transaction |
+| `shops/{shopId}/orders/{autoId}` | `shopId, ref, ticketId, queueNo, source: walk_in, status, stageTimes{}, customer{name, phone?}, customerId?, serviceId, serviceName, unit, quantity, billedQuantity, kg, detergent, addOns[], lines[], subtotalCentavos, totalCentavos, paidCentavos, paymentStatus, paymentMethod, readyBy, detail, createdBy, createdAt, updatedAt` |
+| `shops/{shopId}/customers/{autoId}` | `name, nameLower, phone, visits, spentCentavos, lastVisitAt, notes, createdAt` |
+| `public_tickets/{ticketId}` | Public-safe projection: `shopId, shopName, ref, queueNo, stage, done, cancelled, stageTimes, maskedName, quantityLabel, serviceName, totalCentavos, amountDueCentavos, paid, readyBy, sample, updatedAt`. `ticketId` = `LDY-####-XXXXXXXX` (8 random chars, unguessable) |
+
+Status flow (UI labels): **Received → Washing → Drying → Folding → Ready → Claimed** (walk-in pickup) or **Delivered**. Each change is one transaction that updates the order and its public ticket together. One step back (undo) is allowed. "Mark paid" works the same way.
+
+### Security rules (`firestore.rules`)
+
+- Only members can read or write a shop's tree. Every write has a field allow-list. Clients can't delete anything.
+- Create order: status must be `received`, `paymentStatus: unpaid`, `createdBy == auth.uid`, `createdAt == request.time`. Updates may change only status / stageTimes / payment fields.
+- Counters move by exactly +1. Only owners can edit the catalog or the shop profile. A sample shop's profile can't be edited at all.
+- Joining: you can create a shop only as its owner (`sample: false`). You can join a `sample: true` shop as staff (demo only).
+- `public_tickets`: anyone can **get** one ticket by ID. **list** is denied. Only members of that shop can create or update its tickets.
 
 
 ## Sign in (demo)
@@ -74,7 +112,20 @@ Mycarwash-style welcome at `/`, then phone OTP or Google. Owner routes (`/home`,
 - Code: `123456`
 - Also: `918 123 4567` / `123456`
 
-After sign-in you land on `/home`, which reads **laundrydb-dev** on the DEV App Hosting backend (seeded sample shop).
+After sign-in, the app finds your shop in this order: `users/{uid}.shopId`, then membership in `NEXT_PUBLIC_SHOP_ID`, then **onboarding**. Onboarding has **Create my shop** (you become owner and get a default catalog; tickets start at `LDY-0001`) and **Open demo shop** (joins `sample-laundry` as staff). The `917 123 4567` test user is already linked to `sample-laundry`, so it goes straight to `/home`.
+
+### How to test Phase 1 on laundry-dev
+
+1. Open https://laundry-dev--mylaundryph.asia-southeast1.hosted.app, or run locally with `apps/owner/.env.development.example` copied to `.env.local` and then `pnpm dev`.
+2. Sign in with `917 123 4567` / `123456`. `/home` shows the seeded queue (`LDY-0415…0418`) with the Sample data tag.
+3. **New order** (`/orders/new`): set kg, service, add-ons and optionally a customer, then tap **Create ticket**. The success screen shows `LDY-####` and the ticket link.
+4. Open the ticket link in a private window (no login). It shows *Received*, a masked name and the amount due.
+5. Back on `/home` or `/orders`, tap the advance button: Washing → Drying → Folding → Ready → Claimed. The public ticket updates live. Try **Undo** and **Mark paid**.
+6. `/customers`: the walk-in customer shows with visits and spend. Add one manually.
+7. `/sales`: today's gross, collected and unpaid totals match the orders.
+8. `/scan/result?code=<paste ticket URL or LDY-####>` opens the matching order.
+
+Automated check: `pnpm test:emulator` (rules + data layer, 45 checks). After editing rules: `pnpm firebase:deploy:rules:dev`. Re-seed the sample shop: `pnpm seed:dev` (optionally `SEED_OWNER_UID=<uid> pnpm seed:dev` to link a user as staff).
 
 ## Firebase (project `mylaundryph`)
 
@@ -128,6 +179,7 @@ Once `Chip`, `ChoiceTile`, `StepTracker` and a `Sidebar` size option land in the
 
 ## Future phases (short)
 
-- **Standalone Firebase:** Laundry.ph gets its own Firebase project (Firestore under `workspaces/{shopId}`, Auth with owner/admin/counter roles, Cloud Functions in `asia-southeast1`). The UI swaps `sampleDataSource` for a Firestore `LaundryDataSource`. Public tickets read a public-safe `public_tickets/{token}` projection.
+- **Done in Phase 1:** standalone Firebase project, Firestore `shops/{shopId}` model, owner/staff roles, walk-in POS, order board, customers, sales, public tickets, scan lookup.
+- **Phase 2 gaps:** Partner API + River Mobile accept/decline (the scan booking card is demo only); SMS automations and "text me" opt-in; AI growth tip (still static); vouchers; billing / GCash checkout; QR code printing and camera scanning; catalog editor; staff invites; machine tracking; saving ticket feedback; Cloud Functions to write the ticket projection server-side; deploying prod `laundrydb` rules + `laundry-prod`; composite indexes as data grows.
 - **`/partner/v1` API for River Mobile:** a versioned Partner API so River Mobile can create pickup and drop-off bookings, verify customers by QR scan, and receive status webhooks (accepted, weighed, ready). It uses scoped API clients, idempotency keys and a consented customer link instead of a shared user table.
 - **Partner vs Paid tiers:** Partner (free) covers the River Mobile listing, incoming bookings with accept/decline, scan-to-verify and history (`/partner`). Paid adds the counter POS, Sales Record, Customers, Message Automations, Growth Dashboard with AI, and customer ticket QR (`/`). Exactly which modules go in which tier is still open.
