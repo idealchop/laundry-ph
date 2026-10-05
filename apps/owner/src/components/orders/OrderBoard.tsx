@@ -132,9 +132,17 @@ export function OrderBoard() {
         ]}
       />
 
-      <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-3 flex flex-col gap-2.5">
+        <SearchInput
+          className="w-full"
+          placeholder={channel === "walk-ins" ? "Ticket or customer" : "Customer or service"}
+          label="Search orders"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         {channel === "walk-ins" ? (
           <SegmentedControl
+            className="w-full sm:w-fit"
             label="Filter orders"
             value={tab}
             onChange={setTab}
@@ -143,13 +151,6 @@ export function OrderBoard() {
         ) : (
           <p className="text-[13px] font-semibold text-muted">River Mobile bookings & pickups</p>
         )}
-        <SearchInput
-          className="sm:w-[260px]"
-          placeholder={channel === "walk-ins" ? "Ticket or customer" : "Customer or service"}
-          label="Search orders"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
       </div>
 
       {error || action.error || pickups.error ? (
