@@ -21,7 +21,7 @@ const TABS: { value: Tab; label: string }[] = [
 
 /** Order board: every open order plus the last 30 days, with one-tap status moves. */
 export function OrderBoard() {
-  const { source } = useShop();
+  const { } = useShop();
   const [now] = useState(() => Date.now());
   const since = useMemo(() => startOfShopDay(now, -29), [now]);
   const { orders, error, loading } = useBoardOrders(since);
@@ -49,7 +49,7 @@ export function OrderBoard() {
 
   const advance = async (o: Order, to: OrderStatus) => {
     setBusyId(o.id);
-    await action.run(() => source.setOrderStatus(o.id, to));
+    await action.run((s) => s.setOrderStatus(o.id, to), "Sign in to update this order.");
     setBusyId(null);
   };
 

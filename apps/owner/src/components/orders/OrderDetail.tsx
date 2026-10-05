@@ -32,7 +32,7 @@ export function OrderDetailScreen() {
 }
 
 export function OrderDetail({ order }: { order: Order }) {
-  const { source } = useShop();
+  const { } = useShop();
   const action = useAction();
   const [copied, setCopied] = useState(false);
   const next = nextStatus(order);
@@ -40,8 +40,8 @@ export function OrderDetail({ order }: { order: Order }) {
   const flowIndex = ORDER_FLOW.indexOf(order.status);
   const current = order.status === "cancelled" ? 0 : flowIndex >= 0 ? flowIndex : ORDER_FLOW.length;
   const ticketPath = `/t/${order.ticketId}`;
-  const move = (to: OrderStatus) => action.run(() => source.setOrderStatus(order.id, to));
-  const pay = (m: "cash" | "gcash") => action.run(() => source.markOrderPaid(order.id, m));
+  const move = (to: OrderStatus) => action.run((s) => s.setOrderStatus(order.id, to), "Sign in to update this order.");
+  const pay = (m: "cash" | "gcash") => action.run((s) => s.markOrderPaid(order.id, m), "Sign in to mark this order paid.");
   const due = Math.max(0, order.totalCentavos - order.paidCentavos);
 
   return (

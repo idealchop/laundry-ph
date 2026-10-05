@@ -74,7 +74,6 @@ function LookupForm({ initial }: { initial: string }) {
 }
 
 function ResolvedOrder({ orderId }: { orderId: string }) {
-  const { source } = useShop();
   const { order } = useOrder(orderId);
   const action = useAction();
   if (!order) return <Spinner label="Loading order" />;
@@ -97,14 +96,14 @@ function ResolvedOrder({ orderId }: { orderId: string }) {
       {action.error ? <div className="mx-5 mt-2.5"><ErrorNote>{action.error}</ErrorNote></div> : null}
       <div className="mt-auto flex flex-col gap-2 px-6 pb-10 pt-6">
         {order.paymentStatus !== "paid" ? (
-          <Button variant="secondary" fullWidth disabled={action.busy} onClick={() => void action.run(() => source.markOrderPaid(order.id, "cash"))}>
+          <Button variant="secondary" fullWidth disabled={action.busy} onClick={() => void action.run((s) => s.markOrderPaid(order.id, "cash"), "Sign in to mark this order paid.")}>
             Record cash payment · {money(order.totalCentavos - order.paidCentavos)}
           </Button>
         ) : null}
         <div className="flex gap-2.5">
           <Button href={`/orders/view?id=${order.id}`} variant="secondary" className="flex-1">Details</Button>
           {next ? (
-            <Button className="flex-[2]" disabled={action.busy} onClick={() => void action.run(() => source.setOrderStatus(order.id, next))}>{actionLabel(next)}</Button>
+            <Button className="flex-[2]" disabled={action.busy} onClick={() => void action.run((s) => s.setOrderStatus(order.id, next), "Sign in to update this order.")}>{actionLabel(next)}</Button>
           ) : (
             <Button href="/home" className="flex-[2]">Done</Button>
           )}

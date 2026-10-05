@@ -3,17 +3,25 @@
 import { Button, EmptyState } from "@river-apps/ui";
 import { Icon3D } from "@river-apps/icons";
 import type { ReactNode } from "react";
-import { signOut } from "@/lib/auth";
+import { signOut, useAuth } from "@/lib/auth";
 import { useShopState } from "@/lib/shop";
 import { AuthScreen } from "./AuthScreen";
 import { Onboarding } from "./Onboarding";
 import { Spinner } from "./ui";
 
-/** Renders the owner app only once the signed-in user has an active shop membership. */
+/**
+ * Renders the owner shell once a shop is ready.
+ * Guests get the sample shop immediately. Signed-in users without a shop see onboarding.
+ */
 export function ShopGate({ children }: { children: ReactNode }) {
   const s = useShopState();
+  const { isAuthenticated } = useAuth();
   if (!s || s.status === "loading") return <Spinner label="Opening your shop" fullScreen />;
-  if (s.status === "onboarding") return <Onboarding demoShop={s.demoShop} onDone={s.reload} />;
+  if (s.status === "onboarding") {
+    // Only after a real sign-in — guests never land here.
+    if (!isAuthenticated) return <Spinner label="Opening your shop" fullScreen />;
+    return <Onboarding demoShop={s.demoShop} onDone={s.reload} />;
+  }
   if (s.status === "error") {
     return (
       <AuthScreen>

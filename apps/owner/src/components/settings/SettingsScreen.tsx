@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { Avatar, Badge, Button, Card, Input, ListItem, Topbar } from "@river-apps/ui";
 import type { Shop, ShopAddress, ShopLocation } from "@/data";
 import { firestoreDatabaseId } from "@/lib/firebase/config";
+import { useAuthGate } from "@/components/auth/AuthGateProvider";
 import { planLabel } from "@/lib/plans";
 import { signOut, useAuth } from "@/lib/auth";
 import { useAction, useShop } from "@/lib/shop";
@@ -24,8 +25,9 @@ function profileKey(shop: Shop): string {
 
 /** Shop profile (address + map pin), plan link, role and sign out. */
 export function SettingsScreen() {
-  const { shop, member, source, reload } = useShop();
+  const { shop, member, source, reload, isGuest } = useShop();
   const { user } = useAuth();
+  const { openAuthCta, isAuthenticated } = useAuthGate();
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
       <Topbar className="px-1" title="Settings" subtitle={<>Shop profile, address and plan <SampleNote className="ml-1 align-middle" /></>} />
@@ -61,9 +63,15 @@ export function SettingsScreen() {
           <Button className="mt-3" variant="secondary" size="md" href="/settings/billing" leadingIcon={<CreditCard size={18} />}>
             Plan & billing
           </Button>
-          <Button className="mt-2" variant="ghost" size="md" onClick={() => void signOut()} leadingIcon={<LogOut size={18} />}>
-            Sign out
-          </Button>
+          {isGuest || !isAuthenticated ? (
+            <Button className="mt-2" size="md" onClick={() => openAuthCta("Sign in to sync your shop and save changes.")}>
+              Sign up or log in
+            </Button>
+          ) : (
+            <Button className="mt-2" variant="ghost" size="md" onClick={() => void signOut()} leadingIcon={<LogOut size={18} />}>
+              Sign out
+            </Button>
+          )}
         </Card>
 
         <ProfileEditor key={profileKey(shop)} shop={shop} source={source} reload={reload} />
@@ -110,10 +118,10 @@ function ProfileEditor({
             ...(postalCode.trim() ? { postalCode: postalCode.trim() } : {}),
           }
         : null;
-    const ok = await run(async () => {
-      await source.updateShopProfile({ name, area, ownerName, address, location });
+    const ok = await run(async (s) => {
+      await s.updateShopProfile({ name, area, ownerName, address, location });
       return true;
-    });
+    }, "Sign in to save your shop address and map pin.");
     if (ok) {
       setSaved(true);
       reload();

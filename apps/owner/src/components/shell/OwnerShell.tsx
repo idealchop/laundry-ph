@@ -6,6 +6,7 @@ import { AppShell, Button, MobileTabBar } from "@river-apps/ui";
 import { useShop } from "@/lib/shop";
 import { planLabel } from "@/lib/plans";
 import { LaundryBrand, LaundryScene } from "../brand";
+import { GuestBrowseBanner } from "../auth/GuestBrowseBanner";
 import { PlanGate } from "../billing/PlanGate";
 import { WideSidebar } from "../kit-extensions";
 import { activeKeyFor, HELP_ITEM, PAID_NAV, PAID_TABS, PARTNER_NAV, PARTNER_TABS } from "./nav";
@@ -64,7 +65,7 @@ export function OwnerShell({ children }: { children: ReactNode }) {
       mobileTabBar={focus ? undefined : <MobileTabBar items={tabs} activeKey={tabKey} />}
       mainClassName={focus ? "pb-0" : undefined}
     >
-      <PlanGate>{children}</PlanGate>
+      <GuestBrowseBanner /><PlanGate>{children}</PlanGate>
     </AppShell>
   );
 }

@@ -10,11 +10,13 @@ import { useState } from "react";
 import { Badge, Button, Card, Topbar } from "@river-apps/ui";
 import { money } from "@/lib/format";
 import { PLAN_OPTIONS, monthlyExpiryFrom, planLabel, type PlanOptionId } from "@/lib/plans";
+import { useAuthGatePrompt } from "@/components/auth/AuthGateProvider";
 import { useAction, useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
 import { ErrorNote } from "../ui";
 
 export function BillingScreen() {
+  useAuthGatePrompt({ promptOnMount: true, subtitle: "Sign in to choose a plan and unlock Paid features." });
   const { shop, member, source, reload } = useShop();
   const { busy, error, run, setError } = useAction();
   const [note, setNote] = useState<string | null>(null);
@@ -28,10 +30,10 @@ export function BillingScreen() {
     if (!opt) return;
 
     if (id === "partner") {
-      const ok = await run(async () => {
-        await source.setShopPlan({ tier: "partner", planSource: null, planExpiresAt: null });
+      const ok = await run(async (s) => {
+        await s.setShopPlan({ tier: "partner", planSource: null, planExpiresAt: null });
         return true;
-      });
+      }, "Sign in to change your plan.");
       if (ok) {
         setNote("Switched to Partner (free). Paid screens are locked until you upgrade again.");
         reload();
@@ -40,8 +42,7 @@ export function BillingScreen() {
     }
 
     // No PayMongo secret in this build → demo path upgrades the shop immediately.
-    const ok = await run(async () => {
-      // Record a checkout intent for the future webhook (best-effort; ignore failures in fixtures).
+    const ok = await run(async (s) => {
       try {
         await fetch("/api/billing/checkout", {
           method: "POST",
@@ -56,13 +57,13 @@ export function BillingScreen() {
       } catch {
         /* offline / static export */
       }
-      await source.setShopPlan({
+      await s.setShopPlan({
         tier: "paid",
         planSource: id === "lifetime" ? "lifetime" : "demo",
         planExpiresAt: id === "lifetime" ? null : monthlyExpiryFrom(),
       });
       return true;
-    });
+    }, "Sign in to upgrade your plan.");
     if (ok) {
       setNote(
         id === "lifetime"

@@ -11,7 +11,7 @@ import { PaidHomeMobile } from "./PaidHomeMobile";
 
 /** Live home: today's numbers and the order queue straight from the shop's orders. */
 export function HomeScreen() {
-  const { shop, source } = useShop();
+  const { shop } = useShop();
   const [now] = useState(() => Date.now());
   const since = useMemo(() => startOfShopDay(now, -13), [now]);
   const { orders, error, loading } = useBoardOrders(since);
@@ -32,7 +32,7 @@ export function HomeScreen() {
 
   const onAdvance = async (order: Order, to: OrderStatus) => {
     setBusyId(order.id);
-    await action.run(() => source.setOrderStatus(order.id, to));
+    await action.run((s) => s.setOrderStatus(order.id, to), "Sign in to update this order.");
     setBusyId(null);
   };
 

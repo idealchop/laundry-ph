@@ -106,9 +106,18 @@ Status flow (UI labels): **Received → Washing → Drying → Folding → Ready
 - `public_tickets`: anyone can **get** one ticket by ID. **list** is denied. Only members of that shop can create or update its tickets.
 
 
-## Sign in (demo)
+## Sign in (demo) — browse first, login on action
 
-Mycarwash-style welcome at `/`, then phone OTP or Google. Owner routes (`/home`, `/partner`, …) require Auth. Public tickets stay at `/t/[ticketId]`.
+Mycarwash-style welcome at `/` with **Continue as guest**, phone OTP, or Google. Guest session is stored in `localStorage` (`laundry-ph-guest-v1`) so relaunch returns to the dashboard.
+
+**River Mobile deferred-auth:** owner routes are **not** behind `RequireAuth`. Guests browse the sample shop freely. Mutations open `AuthGateSheet` (phone + Google); after success the pending action resumes on the same screen via `requestAnimationFrame`.
+
+| Browse without login | Actions that open the login sheet |
+| --- | --- |
+| `/home`, `/orders`, `/customers`, `/sales`, `/online`, `/messages`, `/partner/*`, `/settings` (view), `/more`, `/scan` | Create order, status change, mark paid, add customer, save settings/address/map, plan upgrade, “Sign up or log in” CTA |
+| `/t/[ticketId]` public tickets | — |
+
+`/settings/billing` may prompt guests on mount (commit screen). Settings profile does **not** (`promptOnMount: false`) — sheet only from the CTA or Save.
 
 **Demo phone (Firebase test number, no SMS):**
 - Number: `917 123 4567` (E.164 `+639171234567`)

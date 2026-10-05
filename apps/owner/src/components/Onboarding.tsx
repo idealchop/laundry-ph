@@ -21,18 +21,20 @@ export function Onboarding({ demoShop, onDone }: { demoShop: Pick<Shop, "id" | "
   async function create(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
-    const ok = await run(async () => {
-      await createShop(user, { name, area, ownerName });
+    const ok = await run(async (source) => {
+      void source;
+      await createShop(user!, { name, area, ownerName });
       return true;
-    });
+    }, "Sign in to create your shop.");
     if (ok) onDone();
   }
   async function joinDemo() {
     if (!user || !demoShop) return;
-    const ok = await run(async () => {
-      await joinDemoShop(user, demoShop.id);
+    const ok = await run(async (source) => {
+      void source;
+      await joinDemoShop(user!, demoShop.id);
       return true;
-    });
+    }, "Sign in to open the demo shop.");
     if (ok) onDone();
   }
 

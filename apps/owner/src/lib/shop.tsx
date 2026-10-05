@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * ShopProvider: resolves the signed-in user's shop and exposes a shop-bound LaundryDataSource.
- * In fixtures mode it serves the in-memory sample shop immediately.
+ * ShopProvider: signed-in shop from Firestore, or in-memory sample for guests
+ * (River Mobile browse-first). Mutations go through useAction → AuthGate.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -12,20 +12,62 @@ import { createFirebaseDataSource, firestoreErrorMessage } from "@/data/firebase
 import { createFixtureDataSource } from "@/data/fixture-source";
 import * as fx from "@/data/fixtures";
 import { getJoinableDemoShop, resolveMembership } from "@/data/membership";
+import { useAuthGateOptional } from "@/components/auth/AuthGateProvider";
 import { useAuth } from "./auth";
 
 export type ShopState =
   | { status: "loading" }
-  | { status: "ready"; shop: Shop; member: Membership; source: LaundryDataSource; isSample: boolean; reload: () => void }
+  | { status: "ready"; shop: Shop; member: Membership; source: LaundryDataSource; isSample: boolean; isGuest: boolean; reload: () => void }
   | { status: "onboarding"; demoShop: Pick<Shop, "id" | "name" | "area"> | null; reload: () => void }
   | { status: "error"; message: string; reload: () => void };
 
 const ShopContext = createContext<ShopState | null>(null);
 
 let fixtureSource: LaundryDataSource | null = null;
+/** Latest ready data source — resume mutations after AuthGate against this. */
+let activeSource: LaundryDataSource | null = null;
+
+export function getActiveSource(): LaundryDataSource | null {
+  return activeSource;
+}
+
+function waitForReadySource(timeoutMs = 15_000): Promise<LaundryDataSource> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const tick = () => {
+      const s = activeSource;
+      // Prefer a non-guest firebase/fixtures source after login (member uid !== guest).
+      if (s) {
+        resolve(s);
+        return;
+      }
+      if (Date.now() - start > timeoutMs) {
+        reject(new Error("Signed in, but your shop is still opening. Try the action again."));
+        return;
+      }
+      setTimeout(tick, 50);
+    };
+    tick();
+  });
+}
+
+
+function guestReady(reload: () => void): ShopState {
+  fixtureSource ??= createFixtureDataSource();
+  activeSource = fixtureSource;
+  return {
+    status: "ready",
+    shop: { ...fx.shop },
+    member: { uid: "guest", shopId: fx.shop.id, role: "owner", status: "active" },
+    source: fixtureSource,
+    isSample: true,
+    isGuest: true,
+    reload,
+  };
+}
 
 export function ShopProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading, isGuest, enterAsGuest } = useAuth();
   const [state, setState] = useState<ShopState>({ status: "loading" });
   const [nonce, setNonce] = useState(0);
   const reload = useCallback(() => setNonce((n) => n + 1), []);
@@ -33,13 +75,37 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     async function run() {
-      if (dataMode() === "fixtures") {
-        fixtureSource ??= createFixtureDataSource();
-        setState({ status: "ready", shop: fx.shop, member: { uid: user?.uid ?? "demo", shopId: fx.shop.id, role: "owner", status: "active" }, source: fixtureSource, isSample: true, reload });
+      if (authLoading) {
+        setState({ status: "loading" });
         return;
       }
-      if (!user) return;
+
+      // No Firebase user → browse sample shop as guest (auto-enter + persist).
+      if (!user) {
+        if (!isGuest) enterAsGuest();
+        if (!cancelled) setState(guestReady(reload));
+        return;
+      }
+
+      if (dataMode() === "fixtures") {
+        fixtureSource ??= createFixtureDataSource();
+        activeSource = fixtureSource;
+        if (!cancelled) {
+          setState({
+            status: "ready",
+            shop: await fixtureSource.getShop(),
+            member: { uid: user.uid, shopId: fx.shop.id, role: "owner", status: "active" },
+            source: fixtureSource,
+            isSample: true,
+            isGuest: false,
+            reload,
+          });
+        }
+        return;
+      }
+
       setState({ status: "loading" });
+      activeSource = null;
       try {
         const member = await resolveMembership(user.uid);
         if (cancelled) return;
@@ -50,7 +116,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         }
         const source = createFirebaseDataSource(member.shopId);
         const shop = await source.getShop();
-        if (!cancelled) setState({ status: "ready", shop, member, source, isSample: shop.sample === true, reload });
+        if (!cancelled) {
+          activeSource = source;
+          setState({ status: "ready", shop, member, source, isSample: shop.sample === true, isGuest: false, reload });
+        }
       } catch (err) {
         if (!cancelled) setState({ status: "error", message: firestoreErrorMessage(err), reload });
       }
@@ -59,7 +128,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user, nonce, reload]);
+  }, [user, authLoading, isGuest, enterAsGuest, nonce, reload]);
 
   return <ShopContext.Provider value={state}>{children}</ShopContext.Provider>;
 }
@@ -160,21 +229,52 @@ export function useCustomers() {
   return { customers: fresh ? state.customers : [], error: fresh ? state.error : null, loading: !fresh };
 }
 
-/** Wrap a mutation with busy / error state. */
-export function useAction() {
+/**
+ * Mutation helper. Guests hit AuthGate first; after sign-in the callback runs via rAF
+ * against getActiveSource() when the fn uses the live source from the closure — callers
+ * should prefer `run((source) => …)` so resume uses the post-login shop.
+ */
+export function useAction(defaultReason = "Sign in to save this change.") {
+  const gate = useAuthGateOptional();
+  const { user } = useAuth();
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const run = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
-    setBusy(true);
-    setError(null);
-    try {
-      return await fn();
-    } catch (err) {
-      setError(firestoreErrorMessage(err));
-      return undefined;
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+
+  const run = useCallback(
+    async <T,>(fn: (source: LaundryDataSource) => Promise<T>, reason = defaultReason): Promise<T | undefined> => {
+      const execute = async () => {
+        setBusy(true);
+        setError(null);
+        try {
+          const src = await waitForReadySource();
+          return await fn(src);
+        } catch (err) {
+          setError(firestoreErrorMessage(err));
+          return undefined;
+        } finally {
+          setBusy(false);
+        }
+      };
+
+      if (!user) {
+        if (!gate) {
+          setError("Sign in to continue.");
+          return undefined;
+        }
+        return new Promise<T | undefined>((resolve) => {
+          const g = globalThis as unknown as { __laundryAuthCancel?: (fn: (() => void) | null) => void };
+          g.__laundryAuthCancel?.(() => resolve(undefined));
+          gate.requireAuth(() => {
+            g.__laundryAuthCancel?.(null);
+            void execute().then(resolve);
+          }, reason);
+        });
+      }
+      return execute();
+    },
+    [user, gate, defaultReason],
+  );
+
   return { busy, error, run, setError };
 }

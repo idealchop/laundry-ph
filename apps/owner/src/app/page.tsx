@@ -9,16 +9,16 @@ import { GoogleG, LaundryBrand, LaundryScene } from "@/components/brand";
 import { AuthScreen } from "@/components/AuthScreen";
 import { authErrorMessage, signInWithGoogle, useAuth } from "@/lib/auth";
 
-/** Welcome / sign in — Mycarwash-style entry. */
+/** Welcome / sign in — Mycarwash-style entry + Continue as guest (River Mobile). */
 export default function WelcomePage() {
-  const { user, loading } = useAuth();
+  const { user, loading, isGuest, enterAsGuest } = useAuth();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) router.replace("/home");
-  }, [loading, user, router]);
+    if (!loading && (user || isGuest)) router.replace("/home");
+  }, [loading, user, isGuest, router]);
 
   async function google() {
     setError(null);
@@ -30,6 +30,11 @@ export default function WelcomePage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function browseAsGuest() {
+    enterAsGuest();
+    router.replace("/home");
   }
 
   return (
@@ -50,11 +55,12 @@ export default function WelcomePage() {
       <div className="mt-auto flex flex-col gap-2.5 px-6 pb-10 pt-6">
         <Button href="/sign-in/phone" fullWidth leadingIcon={<Smartphone size={20} strokeWidth={1.75} />}>Continue with phone number</Button>
         <Button fullWidth variant="secondary" leadingIcon={<GoogleG />} onClick={google} disabled={busy}>Continue with Google</Button>
+        <Button fullWidth variant="ghost" onClick={browseAsGuest}>Continue as guest</Button>
         {error ? <p role="alert" className="text-center text-[13.5px] font-semibold">{error}</p> : null}
         <p className="mt-1.5 text-center text-[12.5px] font-medium text-muted">
-          Demo: +63 917 123 4567 · code 123456
+          Guest browse is free — we’ll ask you to sign in only when you save or change something.
         </p>
-        <p className="text-center text-[12.5px] font-medium text-muted">By continuing you agree to our Terms and Privacy Policy.</p>
+        <p className="text-center text-[12.5px] font-medium text-muted">Demo: +63 917 123 4567 · code 123456</p>
       </div>
     </AuthScreen>
   );

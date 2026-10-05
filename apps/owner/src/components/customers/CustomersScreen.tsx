@@ -13,7 +13,7 @@ import { ErrorNote, PaymentBadge, Spinner, StatusBadge } from "../ui";
 
 /** Customers from Firestore: search, add, and each customer's recent orders. */
 export function CustomersScreen() {
-  const { source } = useShop();
+  const { } = useShop();
   const { customers, error, loading } = useCustomers();
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
@@ -36,7 +36,7 @@ export function CustomersScreen() {
         subtitle={<>{customers.length} customers · walk-in and River Mobile <SampleNote className="ml-1 align-middle" /></>}
         actions={<Button size="md" onClick={() => setAdding((v) => !v)} leadingIcon={adding ? <X size={18} /> : <Plus size={18} strokeWidth={2} />}>{adding ? "Close" : "Add customer"}</Button>}
       />
-      {adding ? <AddCustomerForm existing={customers} onSaved={() => setAdding(false)} create={(c) => source.createCustomer(c)} /> : null}
+      {adding ? <AddCustomerForm existing={customers} onSaved={() => setAdding(false)} /> : null}
       <SearchInput className="mt-4" placeholder="Search name or mobile" label="Search customers" value={search} onChange={(e) => setSearch(e.target.value)} />
       {error ? <ErrorNote className="mt-3">{error}</ErrorNote> : null}
       {loading && customers.length === 0 ? <Spinner label="Loading customers" /> : null}
@@ -101,7 +101,7 @@ function CustomerOrders({ customer }: { customer: Customer }) {
   );
 }
 
-function AddCustomerForm({ existing, onSaved, create }: { existing: Customer[]; onSaved: () => void; create: (c: { name: string; phone?: string; notes?: string }) => Promise<Customer> }) {
+function AddCustomerForm({ existing, onSaved }: { existing: Customer[]; onSaved: () => void }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
@@ -112,7 +112,7 @@ function AddCustomerForm({ existing, onSaved, create }: { existing: Customer[]; 
     const p = phone.trim() ? normalizePhone(phone) : "";
     if (p && !/^09\d{9}$/.test(p)) return setError("Enter a PH mobile like 0917 123 4567, or leave it blank.");
     if (p && existing.some((c) => c.phone === p)) return setError("A customer with this mobile already exists.");
-    const saved = await run(() => create({ name, ...(p ? { phone: p } : {}), ...(notes.trim() ? { notes: notes.trim() } : {}) }));
+    const saved = await run(async (s) => s.createCustomer({ name, ...(p ? { phone: p } : {}), ...(notes.trim() ? { notes: notes.trim() } : {}) }), "Sign in to add a customer.");
     if (saved) onSaved();
   }
 
