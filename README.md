@@ -46,9 +46,12 @@ CI (`.github/workflows/ci.yml`) runs install, typecheck, lint and build on every
 | `/t/[ticketId]` | Public customer ticket (no login, no app shell). Live status from `public_tickets` with a masked name. GCash / SMS / feedback are UI only for now. Seeded sample: `/t/LDY-0418-SAMPLE08` |
 | `/customers` | Customer list (search, visits, spend) and add customer, from Firestore |
 | `/sales` | Sales from orders: today / 7 / 30 days, gross, collected, unpaid, kg, daily chart, CSV export |
-| `/settings` | Shop info, your role, sign out |
-| `/online`, `/messages` | Placeholders (Phase 2) |
-| `/partner/bookings`, `/partner/history`, `/partner/shop`, `/more` | Partner tab placeholders and the phone "More" menu |
+| `/settings` | Shop profile (name, area, address, Google Maps / OSM map pin), role, sign out |
+| `/settings/billing` | Plan selection: Partner FREE · Paid ₱950/mo · Lifetime ₱10,000 one-time |
+| `/online`, `/messages` | Honest “coming soon” (Paid). SMS/AI are not faked as working |
+| `/partner/bookings`, `/partner/history` | Empty states until Partner API (Phase 2) |
+| `/partner/shop` | Listing preview from saved address + map pin |
+| `/more` | Phone overflow menu (customers, scan, messages, settings, billing) |
 
 ## Structure
 
@@ -84,7 +87,7 @@ Business logic (pricing, status flow, ticket projection, sales math) lives in `s
 | Path | Contents |
 | --- | --- |
 | `users/{uid}` | `{ shopId }`: the user's active shop (self read/write only) |
-| `shops/{shopId}` | `name, area, ownerUid, sample, createdAt` |
+| `shops/{shopId}` | `name, area, ownerUid, tier (partner\|paid), planSource, planExpiresAt, address{}, location{lat,lng,formattedAddress}, sample, createdAt` |
 | `shops/{shopId}/members/{uid}` | `role: owner \| staff, displayName, phone, joinedAt` |
 | `shops/{shopId}/meta/catalog` | `services[] / detergents[] / addOns[]` with `priceCentavos`, `minKg`, `turnaroundHours` (owner edits only) |
 | `shops/{shopId}/meta/counters` | `nextTicketNo` (→ `LDY-####`), `queueDate` + `queueNo` (daily queue #). Moves +1 per order, inside the create transaction |
@@ -126,6 +129,15 @@ After sign-in, the app finds your shop in this order: `users/{uid}.shopId`, then
 8. `/scan/result?code=<paste ticket URL or LDY-####>` opens the matching order.
 
 Automated check: `pnpm test:emulator` (rules + data layer, 45 checks). After editing rules: `pnpm firebase:deploy:rules:dev`. Re-seed the sample shop: `pnpm seed:dev` (optionally `SEED_OWNER_UID=<uid> pnpm seed:dev` to link a user as staff).
+
+### How to test maps + plans
+
+1. Sign in and **Create my shop** (not the demo shop). New shops start on **Partner**.
+2. `/settings`: enter street / barangay / city, tap **Use my location** or set lat/lng, then **Save shop profile**. Reload — pin and address should stick.
+3. `/partner/shop`: listing preview shows the saved address and OSM map.
+4. Open `/home` or `/orders` as Partner → upgrade wall. `/settings/billing`: choose **Paid ₱950** or **Lifetime ₱10,000** (demo unlock). Paid nav unlocks.
+5. Demo shop (`sample-laundry`) stays Paid sample data and refuses profile/plan edits on Firestore.
+
 
 ## Firebase (project `mylaundryph`)
 
@@ -180,6 +192,16 @@ Once `Chip`, `ChoiceTile`, `StepTracker` and a `Sidebar` size option land in the
 ## Future phases (short)
 
 - **Done in Phase 1:** standalone Firebase project, Firestore `shops/{shopId}` model, owner/staff roles, walk-in POS, order board, customers, sales, public tickets, scan lookup.
-- **Phase 2 gaps:** Partner API + River Mobile accept/decline (the scan booking card is demo only); SMS automations and "text me" opt-in; AI growth tip (still static); vouchers; billing / GCash checkout; QR code printing and camera scanning; catalog editor; staff invites; machine tracking; saving ticket feedback; Cloud Functions to write the ticket projection server-side; deploying prod `laundrydb` rules + `laundry-prod`; composite indexes as data grows.
+- **Phase 2 gaps:** Partner API + River Mobile accept/decline (the scan booking card is demo only); SMS automations and "text me" opt-in; live AI growth tip (UI slot only); vouchers; live PayMongo Checkout (UI + webhook stub shipped; needs secrets); QR code printing and camera scanning; catalog editor; staff invites; machine tracking; saving ticket feedback; Cloud Functions to write the ticket projection server-side; deploying prod `laundrydb` rules + `laundry-prod`; composite indexes as data grows.
 - **`/partner/v1` API for River Mobile:** a versioned Partner API so River Mobile can create pickup and drop-off bookings, verify customers by QR scan, and receive status webhooks (accepted, weighed, ready). It uses scoped API clients, idempotency keys and a consented customer link instead of a shared user table.
-- **Partner vs Paid tiers:** Partner (free) covers the River Mobile listing, incoming bookings with accept/decline, scan-to-verify and history (`/partner`). Paid adds the counter POS, Sales Record, Customers, Message Automations, Growth Dashboard with AI, and customer ticket QR (`/`). Exactly which modules go in which tier is still open.
+- **Partner vs Paid tiers (enforced in UI):** Partner (FREE) covers River Mobile listing, bookings, scan and history (`/partner`). Paid (₱950/month or ₱10,000 lifetime unlock) adds counter POS, Sales Record, Customers, Message Automations, Growth Dashboard and tickets. New shops start on Partner. `/settings/billing` can demo-upgrade a non-sample shop when PayMongo keys are absent.
+
+### Billing assumptions (Oct 5, 2026)
+
+| Option | Price (centavos) | Effect |
+| --- | --- | --- |
+| Partner | `0` | Free tier — Partner nav only |
+| Paid monthly | `95000` (₱950) | `tier: paid`, `planSource: subscription` (demo uses `demo` + ~30 day `planExpiresAt`) |
+| Lifetime unlock | `1000000` (₱10,000) | **Assumption:** one-time unlock of the **same Paid feature set forever** (`planSource: lifetime`, `planExpiresAt: null`). Not a separate product. |
+
+PayMongo: prefer the River ecosystem pattern. Until `PAYMONGO_SECRET_KEY` / `PAYMONGO_WEBHOOK_SECRET` are set, checkout uses the **demo/test path** (client writes plan fields; `POST /api/billing/checkout` returns `mode: "demo"`; `POST /api/billing/webhook` is a stub). Map pin: OpenStreetMap + geolocation work without keys; set `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` for Places autocomplete.

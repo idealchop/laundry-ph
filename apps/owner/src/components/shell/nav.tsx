@@ -26,15 +26,16 @@ export const PAID_TABS: NavItem[] = [
 /** Partner tier: River Mobile bookings, scan-to-verify, history and shop listing. */
 export const PARTNER_NAV: NavItem[] = [
   { key: "home", label: "Home", href: "/partner", icon: <House {...side} /> },
-  { key: "bookings", label: "Bookings", href: "/partner/bookings", icon: <Calendar {...side} />, badge: 2 },
+  { key: "bookings", label: "Bookings", href: "/partner/bookings", icon: <Calendar {...side} /> },
   { key: "history", label: "History", href: "/partner/history", icon: <History {...side} /> },
   { key: "shop", label: "Shop listing", href: "/partner/shop", icon: <Store {...side} /> },
+  { key: "settings", label: "Settings", href: "/settings", icon: <Settings {...side} /> },
 ];
 export const PARTNER_TABS: NavItem[] = [
   { key: "home", label: "Home", href: "/partner", icon: <House {...tab} /> },
   { key: "bookings", label: "Bookings", href: "/partner/bookings", icon: <Calendar {...tab} /> },
-  { key: "history", label: "History", href: "/partner/history", icon: <History {...tab} /> },
   { key: "shop", label: "Shop", href: "/partner/shop", icon: <Store {...tab} /> },
+  { key: "settings", label: "Settings", href: "/settings", icon: <Settings {...tab} /> },
 ];
 
 export const HELP_ITEM: NavItem = { key: "help", label: "Help", href: "/settings#help", icon: <CircleHelp {...side} /> };

@@ -42,7 +42,7 @@ async function adminSet(path: string, data: Record<string, unknown>) {
 }
 
 async function main() {
-  await adminSet("shops/sample-laundry", { id: "sample-laundry", name: "Sample Laundry", area: "Kapitolyo, Pasig", ownerName: "Liza", ownerAvatar: "rose", tier: "paid", sample: true, dailyTargetCentavos: 1000000 });
+  await adminSet("shops/sample-laundry", { id: "sample-laundry", name: "Sample Laundry", area: "Kapitolyo, Pasig", ownerName: "Liza", ownerAvatar: "rose", tier: "paid", sample: true, dailyTargetCentavos: 1000000, planSource: "demo", address: { line1: "12 Mabini St.", city: "Pasig" }, location: { lat: 14.5704, lng: 121.0573, formattedAddress: "12 Mabini St., Kapitolyo, Pasig" } });
   await adminSet("shops/sample-laundry/meta/catalog", catalog as unknown as Record<string, unknown>);
   await adminSet("shops/sample-laundry/meta/counters", { nextTicketNo: 423, queueDate: "", queueNo: 0 });
 

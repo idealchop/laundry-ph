@@ -17,7 +17,7 @@
  */
 import {
   Timestamp, collection, deleteField, doc, getDoc, getDocs, increment, limit, onSnapshot, orderBy, query, runTransaction,
-  serverTimestamp, setDoc, where, type DocumentData, type DocumentSnapshot, type Query,
+  serverTimestamp, setDoc, updateDoc, where, type DocumentData, type DocumentSnapshot, type Query,
 } from "firebase/firestore";
 import { getDb, getFirebaseAuth } from "@/lib/firebase/client";
 import { dayKey } from "@/lib/format";
@@ -25,7 +25,8 @@ import { avatarFor, buildWalkInOrder, formatRef, makeTicketId, nextStatus, previ
 import {
   ACTIVE_STATUSES, ORDER_FLOW,
   type Catalog, type CatalogOption, type CatalogService, type Customer, type GrowthTip, type Machine, type Order, type OrderStatus,
-  type PickupRequest, type PublicTicket, type Schedule, type Shop, type TicketStage, type VerifiedBooking,
+  type PickupRequest, type PlanSource, type PublicTicket, type Schedule, type Shop, type ShopAddress, type ShopLocation,
+  type TicketStage, type VerifiedBooking,
 } from "./types";
 import { normalizeCode, refFromCode, type LaundryDataSource, type PublicTicketSource, type Unsubscribe } from "./index";
 
@@ -187,6 +188,58 @@ export function firestoreErrorMessage(err: unknown): string {
 
 const OPEN: OrderStatus[] = [...ACTIVE_STATUSES, "ready"];
 
+
+function toAddress(v: unknown): ShopAddress | null {
+  if (!v || typeof v !== "object") return null;
+  const a = v as Record<string, unknown>;
+  const line1 = String(a.line1 ?? "").trim();
+  const city = String(a.city ?? "").trim();
+  if (!line1 && !city) return null;
+  return {
+    line1,
+    ...(a.line2 ? { line2: String(a.line2) } : {}),
+    ...(a.barangay ? { barangay: String(a.barangay) } : {}),
+    city,
+    ...(a.province ? { province: String(a.province) } : {}),
+    ...(a.postalCode ? { postalCode: String(a.postalCode) } : {}),
+  };
+}
+function toLocation(v: unknown): ShopLocation | null {
+  if (!v || typeof v !== "object") return null;
+  const L = v as Record<string, unknown>;
+  const lat = num(L.lat, NaN);
+  const lng = num(L.lng, NaN);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return {
+    lat, lng,
+    formattedAddress: String(L.formattedAddress ?? ""),
+    ...(L.placeId ? { placeId: String(L.placeId) } : {}),
+  };
+}
+function toPlanSource(v: unknown): PlanSource {
+  if (v === "subscription" || v === "lifetime" || v === "demo") return v;
+  return null;
+}
+function shopFromSnap(snap: DocumentSnapshot): Shop {
+  const d = snap.data() ?? {};
+  return {
+    id: snap.id,
+    name: String(d.name ?? "My laundry"),
+    area: String(d.area ?? ""),
+    ownerName: String(d.ownerName ?? ""),
+    ownerAvatar: d.ownerAvatar ?? "rose",
+    tier: d.tier === "partner" ? "partner" : "paid",
+    sample: d.sample === true,
+    ownerUid: d.ownerUid,
+    dailyTargetCentavos: typeof d.dailyTargetCentavos === "number" ? d.dailyTargetCentavos : undefined,
+    address: toAddress(d.address),
+    location: toLocation(d.location),
+    planSource: toPlanSource(d.planSource),
+    planExpiresAt: typeof d.planExpiresAt === "number" ? d.planExpiresAt : ms(d.planExpiresAt),
+  };
+}
+
 /* ---------- Shop-bound source ---------- */
 
 export function createFirebaseDataSource(shopId: string): LaundryDataSource {
@@ -203,12 +256,7 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
   const getShop = async (): Promise<Shop> => {
     const snap = await getDoc(shopDocRef());
     if (!snap.exists()) throw new Error(`Shop not found: ${shopId}`);
-    const d = snap.data();
-    shopCache = {
-      id: snap.id, name: String(d.name ?? "My laundry"), area: String(d.area ?? ""), ownerName: String(d.ownerName ?? ""),
-      ownerAvatar: d.ownerAvatar ?? "rose", tier: d.tier === "partner" ? "partner" : "paid", sample: d.sample === true,
-      ownerUid: d.ownerUid, dailyTargetCentavos: typeof d.dailyTargetCentavos === "number" ? d.dailyTargetCentavos : undefined,
-    };
+    shopCache = shopFromSnap(snap);
     return shopCache;
   };
   let catalogCache: Catalog | null = null;
@@ -393,6 +441,59 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
       };
       await setDoc(ref, body);
       return { ...body, id: ref.id, avatar: avatarFor(name), createdAt: Date.now(), lastVisitAt: null, tag: null } as Customer;
+    },
+
+    async updateShopProfile(patch) {
+      requireUid();
+      const shop = shopCache ?? (await getShop());
+      if (shop.sample) throw new Error("Demo shops can’t be edited. Create your own shop to save an address and map pin.");
+      const name = patch.name.trim();
+      if (name.length < 2) throw new Error("Enter your shop name.");
+      const area = patch.area.trim();
+      const ownerName = patch.ownerName.trim() || shop.ownerName;
+      const address = patch.address && (patch.address.line1.trim() || patch.address.city.trim())
+        ? {
+            line1: patch.address.line1.trim(),
+            ...(patch.address.line2?.trim() ? { line2: patch.address.line2.trim() } : {}),
+            ...(patch.address.barangay?.trim() ? { barangay: patch.address.barangay.trim() } : {}),
+            city: patch.address.city.trim(),
+            ...(patch.address.province?.trim() ? { province: patch.address.province.trim() } : {}),
+            ...(patch.address.postalCode?.trim() ? { postalCode: patch.address.postalCode.trim() } : {}),
+          }
+        : null;
+      const location = patch.location
+        ? {
+            lat: patch.location.lat,
+            lng: patch.location.lng,
+            formattedAddress: patch.location.formattedAddress.trim(),
+            ...(patch.location.placeId ? { placeId: patch.location.placeId } : {}),
+          }
+        : null;
+      if (location && (location.lat < -90 || location.lat > 90 || location.lng < -180 || location.lng > 180)) {
+        throw new Error("Map pin looks invalid. Check the latitude and longitude.");
+      }
+      const body: DocumentData = {
+        name, area, ownerName, address, location,
+      };
+      if (typeof patch.dailyTargetCentavos === "number") body.dailyTargetCentavos = Math.max(0, Math.round(patch.dailyTargetCentavos));
+      await updateDoc(shopDocRef(), body);
+      shopCache = { ...shop, name, area, ownerName, address, location, dailyTargetCentavos: body.dailyTargetCentavos ?? shop.dailyTargetCentavos };
+      return shopCache;
+    },
+
+    async setShopPlan(patch) {
+      requireUid();
+      const shop = shopCache ?? (await getShop());
+      if (shop.sample) throw new Error("Demo shops keep the Paid sample plan. Create your own shop to change billing.");
+      const body: DocumentData = {
+        tier: patch.tier,
+        planSource: patch.planSource,
+        planExpiresAt: patch.planExpiresAt,
+        planUpdatedAt: serverTimestamp(),
+      };
+      await updateDoc(shopDocRef(), body);
+      shopCache = { ...shop, tier: patch.tier, planSource: patch.planSource, planExpiresAt: patch.planExpiresAt };
+      return shopCache;
     },
   };
 }

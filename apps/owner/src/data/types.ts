@@ -13,6 +13,27 @@ export type Peso = number;
 export type Centavos = number;
 
 export type Tier = "partner" | "paid";
+/** How the shop unlocked Paid (null = Partner / never paid). */
+export type PlanSource = "subscription" | "lifetime" | "demo" | null;
+
+/** Street address for River Mobile discovery and shop listing. */
+export interface ShopAddress {
+  line1: string;
+  line2?: string;
+  barangay?: string;
+  city: string;
+  province?: string;
+  postalCode?: string;
+}
+
+/** Map pin so River Mobile can find the shop (lat/lng + human label). */
+export interface ShopLocation {
+  lat: number;
+  lng: number;
+  /** Reverse-geocoded or owner-entered label shown to customers. */
+  formattedAddress: string;
+  placeId?: string;
+}
 
 export interface Shop {
   id: string;
@@ -26,6 +47,31 @@ export interface Shop {
   ownerUid?: string;
   /** Daily sales goal shown on the dashboard. */
   dailyTargetCentavos?: Centavos;
+  /** Structured address (settings). */
+  address?: ShopAddress | null;
+  /** Map pin for River Mobile (lat/lng + formatted address). */
+  location?: ShopLocation | null;
+  /** How Paid was unlocked; null on Partner. */
+  planSource?: PlanSource;
+  /** Epoch ms when a monthly Paid plan ends; null for lifetime / Partner. */
+  planExpiresAt?: number | null;
+}
+
+/** Editable shop profile fields (owner settings). */
+export interface ShopProfileUpdate {
+  name: string;
+  area: string;
+  ownerName: string;
+  address: ShopAddress | null;
+  location: ShopLocation | null;
+  dailyTargetCentavos?: Centavos;
+}
+
+/** Plan change written by billing / demo upgrade. */
+export interface ShopPlanUpdate {
+  tier: Tier;
+  planSource: PlanSource;
+  planExpiresAt: number | null;
 }
 
 export type MemberRole = "owner" | "staff";

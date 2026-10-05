@@ -13,6 +13,7 @@ type Listener = () => void;
 const store = {
   orders: fx.sampleOrders(),
   customers: fx.customers.map((c) => ({ ...c })),
+  shop: { ...fx.shop, address: fx.shop.address ? { ...fx.shop.address } : null, location: fx.shop.location ? { ...fx.shop.location } : null },
   nextNo: 423,
   listeners: new Set<Listener>(),
 };
@@ -34,7 +35,7 @@ export function createFixtureDataSource(): LaundryDataSource {
   return {
     mode: "fixtures",
     shopId: fx.SAMPLE_SHOP_ID,
-    getShop: async () => fx.shop,
+    getShop: async () => ({ ...store.shop }),
     getSchedule: async () => fx.schedule,
     getMachines: async () => fx.machines,
     getPickupRequests: async () => fx.pickupRequests,
@@ -98,6 +99,33 @@ export function createFixtureDataSource(): LaundryDataSource {
       store.customers = [c, ...store.customers];
       emit();
       return c;
+    },
+    async updateShopProfile(patch) {
+      const name = patch.name.trim();
+      if (name.length < 2) throw new Error("Enter your shop name.");
+      store.shop = {
+        ...store.shop,
+        name,
+        area: patch.area.trim(),
+        ownerName: patch.ownerName.trim() || store.shop.ownerName,
+        address: patch.address,
+        location: patch.location,
+        dailyTargetCentavos: patch.dailyTargetCentavos ?? store.shop.dailyTargetCentavos,
+        // Fixture demo shop is editable in-memory so settings can be exercised offline.
+        sample: store.shop.sample,
+      };
+      emit();
+      return { ...store.shop };
+    },
+    async setShopPlan(patch) {
+      store.shop = {
+        ...store.shop,
+        tier: patch.tier,
+        planSource: patch.planSource,
+        planExpiresAt: patch.planExpiresAt,
+      };
+      emit();
+      return { ...store.shop };
     },
   };
 }

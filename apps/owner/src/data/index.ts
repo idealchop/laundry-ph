@@ -14,7 +14,7 @@
 import { hasFirebaseWebConfig } from "@/lib/firebase/config";
 import type {
   Catalog, Customer, GrowthTip, Machine, NewCustomer, NewWalkInOrder, Order, OrderStatus, PaymentMethod, PickupRequest,
-  PublicTicket, Schedule, Shop, VerifiedBooking,
+  PublicTicket, Schedule, Shop, ShopPlanUpdate, ShopProfileUpdate, VerifiedBooking,
 } from "./types";
 
 export * from "./types";
@@ -54,6 +54,11 @@ export interface LaundryDataSource {
 
   watchCustomers(onData: (customers: Customer[]) => void, onError: (e: Error) => void): Unsubscribe;
   createCustomer(input: NewCustomer): Promise<Customer>;
+
+  /** Owner: save shop name, area, address and map pin. Demo shops refuse writes. */
+  updateShopProfile(patch: ShopProfileUpdate): Promise<Shop>;
+  /** Owner / demo billing: set Partner vs Paid (+ source + expiry). */
+  setShopPlan(patch: ShopPlanUpdate): Promise<Shop>;
 }
 
 /** Public, no-login reads for /t/[ticketId]. */

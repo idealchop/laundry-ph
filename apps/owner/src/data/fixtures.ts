@@ -12,7 +12,19 @@ export const SAMPLE_SHOP_ID = "sample-laundry";
 
 export const shop: Shop = {
   id: SAMPLE_SHOP_ID, name: "Sample Laundry", area: "Kapitolyo, Pasig", ownerName: "Liza", ownerAvatar: "rose", tier: "paid",
-  sample: true, dailyTargetCentavos: 1_000_000,
+  sample: true, dailyTargetCentavos: 1_000_000, planSource: "demo", planExpiresAt: null,
+  address: {
+    line1: "12 Mabini St.",
+    barangay: "Kapitolyo",
+    city: "Pasig",
+    province: "Metro Manila",
+    postalCode: "1603",
+  },
+  location: {
+    lat: 14.5704,
+    lng: 121.0573,
+    formattedAddress: "12 Mabini St., Kapitolyo, Pasig, Metro Manila",
+  },
 };
 
 export const schedule: Schedule = {
@@ -82,7 +94,7 @@ export const catalog: Catalog = {
   defaults: { serviceId: "wdf", kg: 6.5, pieces: 10, detergentId: "shop", addOnIds: ["softener"], returnSlotId: "tomorrow" },
 };
 
-export const growthTip: GrowthTip = { tag: "AI", title: "Growth tip", text: "Tuesdays are slow. Try a ₱20-off voucher for returning customers." };
+export const growthTip: GrowthTip = { tag: "AI", title: "Coming soon", text: "AI growth tips are not live yet. This sample card shows where they will appear on Paid." };
 
 export const customers: Customer[] = [
   { id: "c1", name: "Maria Santos", avatar: "rose", source: "River Mobile", visits: 14, tag: "Member", spentCentavos: 492_000, phone: "09175550101" },

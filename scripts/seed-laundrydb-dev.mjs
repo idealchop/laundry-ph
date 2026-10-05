@@ -94,6 +94,9 @@ const H = 3600_000;
 const shop = {
   id: SHOP_ID, name: "Sample Laundry", area: "Kapitolyo, Pasig", ownerName: "Liza", ownerAvatar: "rose",
   tier: "paid", sample: true, dailyTargetCentavos: 1_000_000,
+  planSource: "demo", planExpiresAt: null,
+  address: { line1: "12 Mabini St.", barangay: "Kapitolyo", city: "Pasig", province: "Metro Manila", postalCode: "1603" },
+  location: { lat: 14.5704, lng: 121.0573, formattedAddress: "12 Mabini St., Kapitolyo, Pasig, Metro Manila" },
   sampleNote: "DEMO SEED for laundrydb-dev only. Not real customers.",
 };
 

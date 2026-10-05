@@ -38,8 +38,13 @@ export function PartnerHome({ shop, today, schedule, requests }: { shop: Shop; t
           <DateStrip className="px-5 lg:px-0" items={schedule.days} selectedKey={schedule.todayKey} />
         </div>
         <div>
-          <SectionHeader className="px-5 pb-3 pt-[18px] lg:px-1 lg:pt-0" title="Pickups to accept" aside={`${open.length} new`} />
+          <SectionHeader className="px-5 pb-3 pt-[18px] lg:px-1 lg:pt-0" title="Pickups to accept" aside={requests.length ? `${open.length} new · sample` : "Phase 2"} />
           <div className="flex flex-col gap-2.5 px-4 lg:px-0">
+            {requests.length === 0 ? (
+              <p className="rounded-[22px] bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-muted">
+                Live River Mobile pickups arrive with the Partner API. Accept / decline is not wired yet — this list stays empty on real shops.
+              </p>
+            ) : null}
             {first ? <PickupRequestCard request={first} /> : null}
             {rest.map((r) => (
               <ListItem
@@ -50,6 +55,7 @@ export function PartnerHome({ shop, today, schedule, requests }: { shop: Shop; t
                 trailing={r.isNew ? <Badge variant="soft">New</Badge> : <Avatar name={r.customer.name} preset={r.customer.avatar} size={34} />}
               />
             ))}
+            <Button className="mt-1" href="/settings/billing" variant="secondary" size="sm">Plans · Partner free · Paid ₱950/mo</Button>
           </div>
         </div>
       </div>
