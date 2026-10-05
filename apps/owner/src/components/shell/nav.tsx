@@ -1,5 +1,5 @@
 import {
-  Calendar, CalendarClock, CircleHelp, History, House, List, MessageSquareText, MessagesSquare, Settings, Store, Users,
+  Calendar, CircleHelp, History, House, List, MessageSquareText, MessagesSquare, Settings, Store, Users,
 } from "lucide-react";
 import type { IconName } from "@river-apps/icons";
 import type { NavItem } from "@river-apps/ui";
@@ -18,7 +18,6 @@ export const PAID_NAV: NavItem[] = [
 /** Secondary desktop links (also on Profile hub). */
 export const PAID_SECONDARY_NAV: NavItem[] = [
   { key: "history", label: "History", href: "/history", icon: <History {...side} /> },
-  { key: "online", label: "Online / Schedule", href: "/online", icon: <CalendarClock {...side} /> },
   { key: "customers", label: "Customers", href: "/customers", icon: <Users {...side} /> },
   { key: "messages", label: "Messages", href: "/messages", icon: <MessageSquareText {...side} /> },
 ];

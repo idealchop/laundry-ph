@@ -16,7 +16,7 @@ import {
 } from "./nav";
 
 /** Routes that take over the phone screen (own back button and bottom action, no tab bar). */
-const FOCUS_ROUTES = ["/scan", "/orders/new", "/profile/edit", "/profile/services", "/profile/accounts"];
+const FOCUS_ROUTES = ["/scan", "/orders/new", "/profile/edit", "/profile/services", "/profile/features"];
 
 function PickupsPromo() {
   return (

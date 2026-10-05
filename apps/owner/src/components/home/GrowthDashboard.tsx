@@ -49,6 +49,9 @@ export function GrowthDashboard({ shop, today, stats, tip, week, queue, customer
           <form className="hidden xl:flex" onSubmit={(e) => { e.preventDefault(); if (search.trim()) router.push(`/scan/result?code=${encodeURIComponent(search.trim())}`); }}>
             <SearchInput className="w-[300px]" placeholder="Find ticket, e.g. LDY-0423" label="Find order by ticket" value={search} onChange={(e) => setSearch(e.target.value)} />
           </form>
+          <Button href="/online" variant="secondary" size="xs" pill>
+            Online
+          </Button>
           <IconButton variant="surface" label="Notifications" count={today.notifications} icon={<Bell size={20} strokeWidth={1.75} />} />
           <Avatar name={shop.ownerName} preset={shop.ownerAvatar} size={44} />
         </>}

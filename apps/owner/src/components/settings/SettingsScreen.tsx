@@ -1,17 +1,20 @@
 "use client";
 
 import {
-  BadgeCheck, CalendarClock, ChevronRight, CreditCard, History, LogOut, MapPin, MessageSquareText, Package, Pencil, Users, Wallet,
+  BadgeCheck, ChevronLeft, ChevronRight, CreditCard, History, LogOut, MapPin, Package, Pencil, Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { Avatar, Button, Card, ListItem, Topbar } from "@river-apps/ui";
 import type { Shop } from "@/data";
 import { firestoreDatabaseId } from "@/lib/firebase/config";
 import { useAuthGate } from "@/components/auth/AuthGateProvider";
+import { money } from "@/lib/format";
 import { planLabel } from "@/lib/plans";
 import { signOut, useAuth } from "@/lib/auth";
 import { useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
+import { CreditsPanel, DEMO_AVAILABLE_CENTAVOS } from "./CreditsPanel";
 
 /** Soft @handle from shop name (Oceanus-style). */
 function shopHandle(name: string): string {
@@ -40,12 +43,9 @@ function shopBio(shop: Shop): string {
 }
 
 const HUB_LINKS = [
-  { href: "/history", icon: History, title: "History", subtitle: "Sales totals and completed orders" },
+  { href: "/profile/features", icon: Sparkles, title: "Features", subtitle: "Partner vs Paid product capabilities" },
   { href: "/profile/services", icon: Package, title: "Services", subtitle: "Products, prices and POS catalog" },
-  { href: "/profile/accounts", icon: Wallet, title: "Accounts", subtitle: "River Apps scan credits and withdraw" },
-  { href: "/customers", icon: Users, title: "Customers", subtitle: "Walk-ins, members and history" },
-  { href: "/online", icon: CalendarClock, title: "Online / Schedule", subtitle: "Booking windows and capacity" },
-  { href: "/messages", icon: MessageSquareText, title: "Message Automations", subtitle: "SMS templates — coming soon" },
+  { href: "/history", icon: History, title: "History", subtitle: "Sales totals and completed orders" },
   { href: "/settings/billing", icon: CreditCard, title: "Plan & billing", subtitle: "Partner free · Paid ₱950/mo · Lifetime" },
 ] as const;
 
@@ -54,12 +54,36 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
   const { shop, member, source, isGuest } = useShop();
   const { user } = useAuth();
   const { openAuthCta, isAuthenticated } = useAuthGate();
+  const [view, setView] = useState<"hub" | "credits">("hub");
   const photo = shop.photoUrls?.[0];
   const handle = shopHandle(shop.name);
   const place = locationLine(shop);
   const bio = shopBio(shop);
   const accountLabel =
     user?.phoneNumber ?? user?.email ?? user?.displayName ?? (isGuest ? "Guest browse" : "Signed in");
+
+  if (view === "credits") {
+    return (
+      <div className="mx-auto flex w-full max-w-[560px] flex-col lg:max-w-[880px]">
+        <div className="flex h-14 flex-none items-center justify-between gap-2 px-5 pt-1 lg:px-[30px]">
+          <button
+            type="button"
+            aria-label="Back"
+            onClick={() => setView("hub")}
+            className="inline-flex size-11 flex-none items-center justify-center rounded-full bg-grey-100 text-ink transition-colors hover:bg-grey-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            <ChevronLeft size={22} strokeWidth={1.75} />
+          </button>
+          <span className="flex min-w-0 flex-col items-center leading-tight">
+            <span className="truncate text-[15px] font-bold">Credits</span>
+            <SampleNote className="mt-0.5" />
+          </span>
+          <span className="w-11" />
+        </div>
+        <CreditsPanel />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
@@ -105,6 +129,13 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
               <span className="font-medium text-muted"> · {accountLabel}</span>
             </span>
           </p>
+          <button
+            type="button"
+            onClick={() => setView("credits")}
+            className="mt-2 text-left text-[14.5px] font-bold text-ink underline decoration-grey-300 underline-offset-[3px] transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            Credits · {money(DEMO_AVAILABLE_CENTAVOS)}
+          </button>
         </div>
       </section>
 
