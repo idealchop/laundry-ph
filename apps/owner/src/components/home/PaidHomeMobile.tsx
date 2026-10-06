@@ -28,7 +28,7 @@ export function PaidHomeMobile({ shop, today, queue, onAdvance, busyId }: PaidHo
         eyebrow={`Today · ${today.dateLabel}`}
         title={`Today: ${money(today.salesCentavos)} · ${today.orders} orders`}
         titleSize="md"
-        description={`${today.kgWashed} kg washed · ${today.inQueue} orders in progress · ${today.ready} ready for pickup`}
+        description={`${today.kgWashed} kg washed`}
         contentWidth={240}
         actions={
           <div className="flex w-full min-w-0 flex-nowrap items-center gap-2">

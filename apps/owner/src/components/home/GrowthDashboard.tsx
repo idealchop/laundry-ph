@@ -73,7 +73,7 @@ export function GrowthDashboard({ shop, today, stats, tip, week, queue, customer
           eyebrow={`Today · ${today.dateLabel}`}
           title={`Today: ${money(today.salesCentavos)} · ${today.orders} orders`}
           titleSize="lg"
-          description={`${today.kgWashed} kg washed · ${today.inQueue} orders in progress · ${today.ready} ready for pickup`}
+          description={`${today.kgWashed} kg washed`}
           contentWidth={460}
           actions={
             <div className="flex flex-nowrap items-center gap-2.5">
