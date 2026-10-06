@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowLeft, Copy, ExternalLink } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, User } from "lucide-react";
 import { CoinIcon, EWalletIcon } from "@river-apps/icons";
-import { Avatar, Button, Card, CardHeader, EmptyState, MonoText, StatusDot, Topbar } from "@river-apps/ui";
+import { Avatar, Button, Card, CardHeader, EmptyState, MonoText, StatusDot } from "@river-apps/ui";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -41,15 +41,42 @@ export function OrderDetail({ order }: { order: Order }) {
   const move = (to: OrderStatus) => action.run((s) => s.setOrderStatus(order.id, to), "Sign in to update this order.");
   const pay = (m: "cash" | "gcash") => action.run((s) => s.markOrderPaid(order.id, m), "Sign in to mark this order paid.");
   const due = Math.max(0, order.totalCentavos - order.paidCentavos);
+  /** Anonymous POS sale: no name typed at the counter (stored as "Walk-in customer"). */
+  const anonymous = !order.customer.name.trim() || order.customer.name.trim().toLowerCase() === "walk-in customer";
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-8 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
       <Link href="/orders" className="mb-2 inline-flex h-11 items-center gap-1.5 px-1 text-[14px] font-bold"><ArrowLeft size={18} /> Orders</Link>
-      <Topbar
-        className="px-1"
-        title={<span className="flex items-center gap-2">{order.ref} <StatusBadge status={order.status} /></span>}
-        subtitle={<>Queue #{order.queueNo} · {whenLabel(order.createdAt)} · {order.source === "walk-in" ? "Walk-in" : "River Mobile"} <SampleNote className="ml-1 align-middle" /></>}
-      />
+      <header className="flex items-center gap-3 px-1">
+        {anonymous ? (
+          <span aria-hidden className="flex size-14 flex-none items-center justify-center rounded-full bg-grey-200 text-muted">
+            <User size={26} strokeWidth={1.75} />
+          </span>
+        ) : (
+          <Avatar name={order.customer.name} preset={order.customer.avatar} size={56} />
+        )}
+        <div className="flex min-w-0 flex-1 flex-col leading-[1.25]">
+          <h1 className="flex min-w-0 items-center gap-2 text-[26px] font-extrabold leading-[1.15] tracking-[-0.03em]">
+            <span className="truncate">{order.ref}</span>
+            <StatusBadge status={order.status} className="flex-none" />
+          </h1>
+          <p className="mt-0.5 truncate text-[13.5px] font-semibold text-ink-2">
+            {anonymous ? "Walk-in customer" : order.customer.name}
+            {order.customer.phone ? (
+              <>
+                {" · "}
+                <a href={`tel:${order.customer.phone.replace(/[^\d+]/g, "")}`} className="underline decoration-grey-300 underline-offset-[3px] hover:text-ink">
+                  {order.customer.phone}
+                </a>
+              </>
+            ) : null}
+          </p>
+          <p className="mt-0.5 text-[12.5px] font-semibold text-muted">
+            Queue #{order.queueNo} · {whenLabel(order.createdAt)} · {order.source === "walk-in" ? "Walk-in" : "River Mobile"}
+            <SampleNote className="ml-1 align-middle" />
+          </p>
+        </div>
+      </header>
       {action.error ? <ErrorNote className="mt-3">{action.error}</ErrorNote> : null}
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <div className="flex flex-col gap-4">
@@ -94,13 +121,6 @@ export function OrderDetail({ order }: { order: Order }) {
           </Card>
         </div>
         <div className="flex flex-col gap-4">
-          <Card className="flex items-center gap-3 px-4 py-3.5">
-            <Avatar name={order.customer.name} preset={order.customer.avatar} size={48} />
-            <span className="flex min-w-0 flex-1 flex-col">
-              <b className="truncate text-[16px]">{order.customer.name}</b>
-              <small className="text-[13px] font-semibold text-muted">{order.customer.phone ?? "No mobile on file"}</small>
-            </span>
-          </Card>
           <Card className="px-4 py-3.5">
             <div className="flex items-center justify-between">
               <b className="text-[16px]">Payment</b>
