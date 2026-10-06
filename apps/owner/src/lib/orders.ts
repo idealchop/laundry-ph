@@ -102,6 +102,7 @@ export function buildWalkInOrder(catalog: Catalog, input: NewWalkInOrder, ctx: O
     paymentMethod: null,
     paidCentavos: 0,
     readyBy,
+    fulfillment: input.fulfillment === "delivery" ? "delivery" : "pickup",
     detail: `${qty(input.quantity, q.service.unit)} · ${q.service.name}`,
     stageTimes: { received: ctx.now },
     createdAt: ctx.now,

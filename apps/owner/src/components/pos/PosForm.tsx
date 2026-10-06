@@ -1,9 +1,10 @@
 "use client";
-import { CalendarDays, ChevronDown, Copy, Minus, Plus, ReceiptText, User, X } from "lucide-react";
+import { Bike, CalendarDays, ChevronDown, Copy, Minus, Plus, ReceiptText, Store, User, X } from "lucide-react";
+import type { ReactNode } from "react";
 import { useId, useMemo, useRef, useState } from "react";
 import { Icon3D } from "@river-apps/icons";
 import { Avatar, Badge, Button, Input, IconButton, MonoText, SuccessState } from "@river-apps/ui";
-import type { Catalog, Customer, NewWalkInOrder, Order } from "@/data";
+import type { Catalog, Customer, Fulfillment, NewWalkInOrder, Order } from "@/data";
 import { money } from "@/lib/format";
 import { parseCustomerText } from "@/lib/orders";
 import { quote } from "@/lib/pricing";
@@ -21,6 +22,58 @@ const PC_FULL = 30;
 const STEP_BTN = "[-webkit-tap-highlight-color:transparent] touch-manipulation select-none transition-[transform,background-color] duration-100 ease-out active:scale-90 active:bg-grey-300 disabled:opacity-40 disabled:active:scale-100 motion-reduce:transition-colors motion-reduce:active:scale-100";
 /** Shared horizontal snap row: same left edge (px-5) and snap padding as the page, no scrollbar. */
 const ROW = "-mx-5 grid grid-flow-col overflow-x-auto px-5 scroll-px-5 py-2 snap-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+const FULFILLMENT: { id: Fulfillment; label: string; hint: string; icon: ReactNode }[] = [
+  { id: "pickup", label: "Pickup", hint: "At the shop", icon: <Store size={18} strokeWidth={1.9} /> },
+  { id: "delivery", label: "Delivery", hint: "To the customer", icon: <Bike size={19} strokeWidth={1.9} /> },
+];
+
+/** Width of the weight input in `ch`: tabular digits are 1ch each, the decimal point about half. */
+function qtyWidthCh(text: string): number {
+  const dots = (text.match(/\./g) ?? []).length;
+  return Math.max(1, text.length - dots) + dots * 0.45 + 0.15;
+}
+
+/** Detergent shown first: the catalog default when it's included (free), else the first free one. */
+function defaultDetergentId(catalog: Catalog): string {
+  const d = catalog.detergents.find((o) => o.id === catalog.defaults.detergentId);
+  if (d && d.priceCentavos === 0) return d.id;
+  return catalog.detergents.find((o) => o.priceCentavos === 0)?.id ?? d?.id ?? catalog.detergents[0]?.id ?? "";
+}
+
+/** Compact one-line row ("Detergent · Shop ⌄") that expands its options with a grid-rows transition. */
+function OptionDisclosure({ id, label, summary, aside, open, onToggle, children }: {
+  id: string; label: string; summary: string; aside?: string; open: boolean; onToggle: () => void; children: ReactNode;
+}) {
+  return (
+    <div className="rounded-tile border border-line bg-surface">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={onToggle}
+        className="flex min-h-[52px] w-full items-center gap-2 rounded-tile px-3.5 text-left [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
+        <span className="min-w-0 flex-1 truncate text-[14px]">
+          <b className="font-bold text-ink">{label}</b>
+          <span className="font-semibold text-muted"> · </span>
+          <span className="font-semibold text-ink-2">{summary}</span>
+        </span>
+        {aside ? <span className="flex-none text-[12.5px] font-semibold tabular-nums text-muted">{aside}</span> : null}
+        <ChevronDown size={18} strokeWidth={2.2} aria-hidden
+          className={`flex-none text-muted transition-transform duration-300 motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
+      </button>
+      <div
+        id={id}
+        className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+        inert={!open}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="flex flex-wrap gap-2 px-3.5 pb-3.5 pt-1">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export interface PosFormProps {
   catalog: Catalog;
@@ -39,9 +92,12 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
   const [kg, setKg] = useState(d.kg);
   const [pieces, setPieces] = useState(d.pieces);
   const [qtyText, setQtyText] = useState<string | null>(null);
-  const [detergentId, setDetergentId] = useState(d.detergentId);
-  const [addOnIds, setAddOnIds] = useState<string[]>(d.addOnIds);
+  const [detergentId, setDetergentId] = useState(() => defaultDetergentId(catalog));
+  /** POS starts with no add-ons; the counter picks them per order. */
+  const [addOnIds, setAddOnIds] = useState<string[]>([]);
   const [returnSlotId, setReturnSlotId] = useState(d.returnSlotId);
+  const [fulfillment, setFulfillment] = useState<Fulfillment>("pickup");
+  const [openOptions, setOpenOptions] = useState<"detergent" | "addons" | null>(null);
   const [pickingReturn, setPickingReturn] = useState(false);
   const [created, setCreated] = useState<Order | null>(null);
   const [saving, setSaving] = useState(false);
@@ -54,6 +110,8 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
   const svcRow = useRef<HTMLDivElement>(null);
   const qtyField = useRef<HTMLDivElement>(null);
   const breakdownId = useId();
+  const detId = useId();
+  const addId = useId();
 
   const service = catalog.services.find((s) => s.id === serviceId) ?? catalog.services[0]!;
   const perKg = service.unit === "kg";
@@ -66,6 +124,10 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
   const basketFill = quantity / fullAt;
   const roundingCentavos = q.totalCentavos > 0 ? q.totalCentavos - q.subtotalCentavos : 0;
   const returnLabel = catalog.returnSlots.find((r) => r.id === returnSlotId)?.label ?? "";
+  const detergent = catalog.detergents.find((o) => o.id === detergentId);
+  const pickedAddOns = catalog.addOns.filter((o) => addOnIds.includes(o.id));
+  const addOnsCentavos = pickedAddOns.reduce((sum, o) => sum + o.priceCentavos, 0);
+  const toggleOptions = (which: "detergent" | "addons") => setOpenOptions((v) => (v === which ? null : which));
   const matches = useMemo(() => {
     const t = customer.trim().toLowerCase();
     if (picked || t.length < 2) return [];
@@ -83,7 +145,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
       const parsed = picked ? { name: picked.name, phone: picked.phone ?? undefined } : parseCustomerText(customer);
       const order = await onCreate({
         customer: { id: picked?.id ?? null, name: parsed.name, ...(parsed.phone ? { phone: parsed.phone } : {}) },
-        serviceId, quantity, detergentId, addOnIds, returnSlotId,
+        serviceId, quantity, detergentId, addOnIds, returnSlotId, fulfillment,
       });
       setCreated(order);
     } catch (err) {
@@ -126,8 +188,8 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
     setCustomer("");
   };
   const reset = () => {
-    setCustomer(""); setPicked(null); setAddingCustomer(false); setServiceId(d.serviceId); setKg(d.kg); setPieces(d.pieces); setDetergentId(d.detergentId);
-    setAddOnIds(d.addOnIds); setReturnSlotId(d.returnSlotId); setCreated(null); setQtyText(null); setError(null); setCopied(false); setShowBreakdown(false);
+    setCustomer(""); setPicked(null); setAddingCustomer(false); setServiceId(d.serviceId); setKg(d.kg); setPieces(d.pieces); setDetergentId(defaultDetergentId(catalog));
+    setAddOnIds([]); setReturnSlotId(d.returnSlotId); setFulfillment("pickup"); setOpenOptions(null); setPickingReturn(false); setCreated(null); setQtyText(null); setError(null); setCopied(false); setShowBreakdown(false);
   };
 
   if (created) {
@@ -229,31 +291,37 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
                 </div>
                 <span className="mt-1 max-w-[116px] text-center text-[12px] font-semibold leading-tight text-muted">{basketLabel(basketFill, q.minimumApplied)}</span>
               </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <div ref={qtyField}>
-                  <Input hideLabel label={perKg ? "Weight in kilos" : "Number of pieces"} size="md" inputMode="decimal" containerClassName="w-full"
-                    className="origin-center text-center text-[20px] font-extrabold"
-                    value={qtyText ?? String(quantity)}
-                    onChange={(e) => {
-                      const t = e.target.value.replace(",", ".");
-                      if (!/^\d*\.?\d*$/.test(t)) return;
-                      setQtyText(t);
-                      const v = Number.parseFloat(t);
-                      if (!Number.isNaN(v)) { if (perKg) setKg(Math.min(max, v)); else setPieces(Math.min(max, Math.round(v))); }
-                      else if (t === "") { if (perKg) setKg(0); else setPieces(0); }
-                    }}
-                    onBlur={() => { setQtyText(null); setQuantity(quantity); }}
-                    trailing={<span className="text-[13px] font-bold text-muted">{perKg ? "kg" : "pcs"}</span>} />
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <IconButton type="button" label={perKg ? "Less 0.5 kg" : "One piece less"} size="md" icon={<Minus size={18} strokeWidth={2} />}
-                    className={STEP_BTN} disabled={quantity <= 0} onClick={() => stepBy(-1)} />
-                  <span className="min-w-0 truncate text-center text-[12px] font-semibold tabular-nums text-muted" aria-hidden>
-                    ± {perKg ? `${KG_STEP} kg` : "1 pc"}
+              {/* One rounded card: − · big value + unit · +, with the step hint under the value. */}
+              <div ref={qtyField}
+                className="flex min-h-[112px] min-w-0 flex-1 items-center gap-0.5 rounded-tile bg-grey-100 px-1.5 min-[380px]:gap-1 min-[380px]:px-2 transition-shadow has-[input:focus]:ring-2 has-[input:focus]:ring-ink">
+                <IconButton type="button" label={perKg ? "Less 0.5 kg" : "One piece less"} size="md" variant="surface" icon={<Minus size={20} strokeWidth={2.2} />}
+                  className={`${STEP_BTN} flex-none`} disabled={quantity <= 0} onClick={() => stepBy(-1)} />
+                <label className="flex min-w-0 flex-1 cursor-text flex-col items-center">
+                  <span className="flex max-w-full items-baseline justify-center gap-1">
+                    <input
+                      aria-label={perKg ? "Weight in kilos" : "Number of pieces"}
+                      inputMode="decimal"
+                      autoComplete="off"
+                      className="min-w-0 origin-center bg-transparent p-0 text-center text-[26px] font-extrabold leading-none min-[380px]:text-[34px] tracking-[-0.03em] text-ink tabular-nums outline-none"
+                      style={{ width: `${qtyWidthCh(qtyText ?? String(quantity))}ch` }}
+                      value={qtyText ?? String(quantity)}
+                      onFocus={(e) => e.currentTarget.select()}
+                      onChange={(e) => {
+                        const t = e.target.value.replace(",", ".");
+                        if (!/^\d*\.?\d*$/.test(t)) return;
+                        setQtyText(t);
+                        const v = Number.parseFloat(t);
+                        if (!Number.isNaN(v)) { if (perKg) setKg(Math.min(max, v)); else setPieces(Math.min(max, Math.round(v))); }
+                        else if (t === "") { if (perKg) setKg(0); else setPieces(0); }
+                      }}
+                      onBlur={() => { setQtyText(null); setQuantity(quantity); }}
+                    />
+                    <span className="flex-none text-[13px] font-bold text-muted min-[380px]:text-[15px]">{perKg ? "kg" : "pcs"}</span>
                   </span>
-                  <IconButton type="button" label={perKg ? "More 0.5 kg" : "One piece more"} size="md" icon={<Plus size={18} strokeWidth={2} />}
-                    className={STEP_BTN} disabled={quantity >= max} onClick={() => stepBy(1)} />
-                </div>
+                  <span className="mt-1.5 text-[12px] font-semibold tabular-nums text-muted" aria-hidden>± {perKg ? `${KG_STEP} kg` : "1 pc"}</span>
+                </label>
+                <IconButton type="button" label={perKg ? "More 0.5 kg" : "One piece more"} size="md" variant="surface" icon={<Plus size={20} strokeWidth={2.2} />}
+                  className={`${STEP_BTN} flex-none`} disabled={quantity >= max} onClick={() => stepBy(1)} />
               </div>
             </div>
             {q.minimumApplied ? <p className="mt-1.5 text-[12.5px] font-semibold text-muted" role="status">Minimum charge of {catalog.minKg} kg applies.</p> : null}
@@ -297,50 +365,79 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
             ) : null}
           </div>
 
-          <div role="group" aria-labelledby="det-label">
-            <FieldLabel id="det-label" aside={catalog.detergents.filter((o) => o.priceCentavos > 0).map((o) => `${o.short ?? o.name} +${money(o.priceCentavos)}`).join(" · ") || undefined}>Detergent</FieldLabel>
-            <div className={`${ROW} auto-cols-max gap-2 snap-proximity`}>
-              {catalog.detergents.map((o) => (
-                <Chip
-                  key={o.id}
-                  selected={o.id === detergentId}
-                  onClick={() => setDetergentId(o.id)}
-                  className="snap-start"
-                  icon={o.icon ? <Icon3D name={o.icon} size={24} /> : undefined}
-                >
-                  <span className="whitespace-nowrap">{o.short ?? o.name}</span>
-                </Chip>
-              ))}
-            </div>
-          </div>
+          <OptionDisclosure
+            id={detId}
+            label="Detergent"
+            summary={detergent ? (detergent.short ?? detergent.name) : "None"}
+            aside={detergent ? (detergent.priceCentavos > 0 ? `+${money(detergent.priceCentavos)}` : "Included") : undefined}
+            open={openOptions === "detergent"}
+            onToggle={() => toggleOptions("detergent")}
+          >
+            {catalog.detergents.map((o) => (
+              <Chip
+                key={o.id}
+                selected={o.id === detergentId}
+                onClick={() => setDetergentId(o.id)}
+                icon={o.icon ? <Icon3D name={o.icon} size={24} /> : undefined}
+              >
+                <span className="whitespace-nowrap">{o.short ?? o.name}{o.priceCentavos > 0 ? <span className="text-muted"> +{money(o.priceCentavos)}</span> : null}</span>
+              </Chip>
+            ))}
+          </OptionDisclosure>
 
-          <div role="group" aria-labelledby="add-label">
-            <FieldLabel id="add-label" aside="Optional">Add-ons</FieldLabel>
-            <div className={`${ROW} auto-cols-max gap-2 snap-proximity`}>
-              {catalog.addOns.map((o) => (
-                <Chip
-                  key={o.id}
-                  selected={addOnIds.includes(o.id)}
-                  onClick={() => toggleAddOn(o.id)}
-                  className="snap-start"
-                  icon={o.icon ? <Icon3D name={o.icon} size={24} /> : undefined}
-                >
-                  <span className="whitespace-nowrap">{o.name} <span className="text-muted">+{money(o.priceCentavos)}</span></span>
-                </Chip>
-              ))}
-            </div>
-          </div>
+          <OptionDisclosure
+            id={addId}
+            label="Add-ons"
+            summary={pickedAddOns.length === 0 ? "None" : pickedAddOns.length <= 2 ? pickedAddOns.map((o) => o.name).join(", ") : `${pickedAddOns.length} selected`}
+            aside={addOnsCentavos > 0 ? `+${money(addOnsCentavos)}` : "Optional"}
+            open={openOptions === "addons"}
+            onToggle={() => toggleOptions("addons")}
+          >
+            {catalog.addOns.map((o) => (
+              <Chip
+                key={o.id}
+                selected={addOnIds.includes(o.id)}
+                onClick={() => toggleAddOn(o.id)}
+                icon={o.icon ? <Icon3D name={o.icon} size={24} /> : undefined}
+              >
+                <span className="whitespace-nowrap">{o.name} <span className="text-muted">+{money(o.priceCentavos)}</span></span>
+              </Chip>
+            ))}
+          </OptionDisclosure>
 
           <div>
-            <Input size="md" label="Return date" hideLabel readOnly value={`Return ${returnLabel}`} leadingIcon={<CalendarDays size={18} strokeWidth={1.75} />}
-              trailing={
-                <button type="button" onClick={() => setPickingReturn((v) => !v)} aria-expanded={pickingReturn}
-                  className="-mr-2 inline-flex h-11 items-center px-2 text-[13px] font-bold underline decoration-grey-300 underline-offset-[3px]">
-                  {pickingReturn ? "Done" : "Change"}
-                </button>
-              } />
+            <FieldLabel id="ful-label">Fulfillment</FieldLabel>
+            <div role="radiogroup" aria-labelledby="ful-label" className="grid grid-cols-2 gap-1 rounded-tile bg-grey-100 p-1">
+              {FULFILLMENT.map((f) => {
+                const on = f.id === fulfillment;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setFulfillment(f.id)}
+                    className={`flex min-h-[52px] items-center justify-center gap-2.5 rounded-[11px] px-2 text-left [-webkit-tap-highlight-color:transparent] transition-[background-color,box-shadow,color] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${on ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"}`}
+                  >
+                    <span className={`inline-flex size-8 flex-none items-center justify-center rounded-full transition-colors ${on ? "bg-ink text-white" : "bg-grey-200 text-ink-2"}`} aria-hidden>{f.icon}</span>
+                    <span className="flex min-w-0 flex-col leading-tight">
+                      <b className="text-[14px] font-bold">{f.label}</b>
+                      <small className="truncate text-[11.5px] font-semibold text-muted">{f.hint}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-2 flex min-h-11 items-center gap-2 px-1 text-[13.5px] font-semibold text-ink-2">
+              <CalendarDays size={17} strokeWidth={1.75} className="flex-none text-muted" aria-hidden />
+              <span className="min-w-0 flex-1 truncate">{fulfillment === "delivery" ? "Deliver" : "Ready"} {returnLabel}</span>
+              <button type="button" onClick={() => setPickingReturn((v) => !v)} aria-expanded={pickingReturn}
+                className="-mr-1 inline-flex h-11 flex-none items-center px-2 text-[13px] font-bold text-ink underline decoration-grey-300 underline-offset-[3px]">
+                {pickingReturn ? "Done" : "Change"}
+              </button>
+            </div>
             {pickingReturn ? (
-              <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Return date">
+              <div className="mt-1 flex flex-wrap gap-2" role="group" aria-label={fulfillment === "delivery" ? "Delivery date" : "Pickup date"}>
                 {catalog.returnSlots.map((r) => (
                   <Chip key={r.id} selected={r.id === returnSlotId} onClick={() => { setReturnSlotId(r.id); setPickingReturn(false); }}>{r.label}</Chip>
                 ))}

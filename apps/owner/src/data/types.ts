@@ -174,6 +174,9 @@ export interface OrderOption {
 }
 
 /** shops/{shopId}/orders/{orderId}. Timestamps are epoch milliseconds on the client. */
+/** How a walk-in order goes back to the customer. */
+export type Fulfillment = "pickup" | "delivery";
+
 export interface Order {
   id: string;
   shopId: string;
@@ -206,6 +209,8 @@ export interface Order {
   paidCentavos: Centavos;
   /** e.g. "Mon, Oct 5 · 5:00 PM" */
   readyBy: string;
+  /** Pickup at the shop or delivery to the customer (absent on older orders). */
+  fulfillment?: Fulfillment;
   /** One-line summary, e.g. "6.5 kg · Wash-Dry-Fold". */
   detail: string;
   stageTimes: Partial<Record<OrderStatus, number>>;
@@ -222,6 +227,8 @@ export interface NewWalkInOrder {
   detergentId: string;
   addOnIds: string[];
   returnSlotId: string;
+  /** Defaults to "pickup". */
+  fulfillment?: Fulfillment;
 }
 
 export interface PickupRequest {

@@ -104,7 +104,10 @@ export function OrderDetail({ order }: { order: Order }) {
             </div>
           </Card>
           <Card className="px-4 py-3.5">
-            <CardHeader title="Order" subtitle={order.readyBy ? `Ready by ${order.readyBy}` : undefined} />
+            <CardHeader title="Order" subtitle={[
+              order.fulfillment === "delivery" ? "Delivery" : order.fulfillment === "pickup" ? "Pickup at shop" : null,
+              order.readyBy ? `${order.fulfillment === "delivery" ? "Deliver" : "Ready"} by ${order.readyBy}` : null,
+            ].filter(Boolean).join(" · ") || undefined} />
             <ul className="mt-3 flex flex-col gap-2">
               {order.lines.map((l, i) => (
                 <li key={i} className="flex items-baseline justify-between gap-3 text-[14px] font-medium">

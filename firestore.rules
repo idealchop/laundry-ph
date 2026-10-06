@@ -132,10 +132,11 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly([
             'shopId', 'ref', 'queueNo', 'ticketId', 'source', 'status', 'customer', 'customerId', 'serviceId', 'serviceName', 'unit',
             'quantity', 'billedQuantity', 'kg', 'detergent', 'addOns', 'lines', 'subtotalCentavos', 'totalCentavos',
-            'paymentStatus', 'paymentMethod', 'paidCentavos', 'readyBy', 'detail', 'stageTimes', 'createdAt', 'updatedAt', 'createdBy', 'sample'
+            'paymentStatus', 'paymentMethod', 'paidCentavos', 'readyBy', 'fulfillment', 'detail', 'stageTimes', 'createdAt', 'updatedAt', 'createdBy', 'sample'
           ])
           && request.resource.data.status == 'received'
           && request.resource.data.source == 'walk-in'
+          && request.resource.data.get('fulfillment', 'pickup') in ['pickup', 'delivery']
           && request.resource.data.ref is string && request.resource.data.ref.matches('LDY-[0-9]{4,6}')
           && request.resource.data.ticketId is string && request.resource.data.ticketId.matches('LDY-[0-9]{4,6}-[A-Z0-9]{8}')
           && request.resource.data.kg is number && request.resource.data.kg >= 0 && request.resource.data.kg <= 200

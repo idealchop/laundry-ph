@@ -87,6 +87,7 @@ function toOrder(snap: DocumentSnapshot): Order {
     paymentMethod: d.paymentMethod ?? null,
     paidCentavos: cents(d, "paidCentavos"),
     readyBy: String(d.readyBy ?? ""),
+    ...(d.fulfillment === "pickup" || d.fulfillment === "delivery" ? { fulfillment: d.fulfillment as "pickup" | "delivery" } : {}),
     detail: String(d.detail ?? ""),
     stageTimes: timesMap<OrderStatus>(d.stageTimes),
     createdAt,
