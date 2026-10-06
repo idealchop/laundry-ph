@@ -90,7 +90,7 @@ export const Composer = forwardRef<ComposerHandle, { me: PostAuthor; onPost: (bo
     };
 
     return (
-      <section aria-label="New post" className={cn("px-4 pb-3.5 pt-4 lg:px-5", className)}>
+      <section aria-label="New post" className={cn("px-1 pb-3.5 pt-3", className)}>
         <div className="flex items-center gap-2.5">
           <Avatar name={me.name} preset={me.photoUrl ? undefined : me.avatar} src={me.photoUrl} size={40} className="flex-none" />
           <b className="min-w-0 truncate text-[15px] font-extrabold leading-tight tracking-[-0.01em]">{me.name}</b>

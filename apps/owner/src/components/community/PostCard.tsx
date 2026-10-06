@@ -38,7 +38,7 @@ export function PostCard({ post, now, me, onLike, onRepost, onShare, onReply, on
   };
 
   return (
-    <article className="px-4 pb-3 pt-4 lg:px-5" aria-label={`Post by ${post.author.name}`}>
+    <article className="px-1 pb-3 pt-4" aria-label={`Post by ${post.author.name}`}>
       <header className="flex items-start gap-2.5">
         <Avatar name={post.author.name} preset={post.author.photoUrl ? undefined : post.author.avatar} src={post.author.photoUrl} size={40} className="flex-none" />
         <div className="min-w-0 flex-1 leading-tight">
@@ -85,7 +85,7 @@ export function PostCard({ post, now, me, onLike, onRepost, onShare, onReply, on
           {repliers.length ? (
             <span className="flex -space-x-1.5">
               {repliers.map((a) => (
-                <Avatar key={a.name} name={a.name} preset={a.photoUrl ? undefined : a.avatar} src={a.photoUrl} size={18} className="ring-2 ring-surface" />
+                <Avatar key={a.name} name={a.name} preset={a.photoUrl ? undefined : a.avatar} src={a.photoUrl} size={18} className="ring-2 ring-canvas" />
               ))}
             </span>
           ) : null}

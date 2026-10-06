@@ -1,15 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Order, OrderStatus } from "@/data";
-import { startOfShopDay } from "@/lib/format";
-import { isActive, summarizeToday, weekSales } from "@/lib/orders";
+import { minimalDate, startOfShopDay } from "@/lib/format";
+import { isActive, summarizeToday } from "@/lib/orders";
 import { useAction, useBoardOrders, useBookings, useCustomers, useShop } from "@/lib/shop";
-import { ErrorNote, Spinner } from "../ui";
-import { GrowthDashboard } from "./GrowthDashboard";
-import { PaidHomeMobile } from "./PaidHomeMobile";
+import { AdvanceButton, ErrorNote, Spinner } from "../ui";
+import { HomeLayout } from "./HomeLayout";
 
-/** Live home: today's numbers and the order queue straight from the shop's orders. */
+/** Paid home (phone + desktop): the shared HomeLayout fed by the shop's orders, with walk-ins on. */
 export function HomeScreen() {
   const { shop } = useShop();
   const [now] = useState(() => Date.now());
@@ -25,26 +25,37 @@ export function HomeScreen() {
     () => summarizeToday(orders, { dailyTargetCentavos: shop.dailyTargetCentavos, newPickups: newBookings, customers }),
     [orders, shop.dailyTargetCentavos, newBookings, customers],
   );
-  const week = useMemo(() => weekSales(orders), [orders]);
-  const queue = useMemo(() => orders.filter((o) => isActive(o) || o.status === "ready").sort((a, b) => a.createdAt - b.createdAt), [orders]);
+  const open = useMemo(() => orders.filter((o) => isActive(o) || o.status === "ready").sort((a, b) => a.createdAt - b.createdAt), [orders]);
 
   const onAdvance = async (order: Order, to: OrderStatus) => {
     setBusyId(order.id);
     await action.run((s) => s.setOrderStatus(order.id, to), "Sign in to update this order.");
     setBusyId(null);
   };
+  const queue = open.map((o) => ({
+    id: o.id,
+    title: <Link href={`/orders/view?id=${o.id}`} className="hover:underline">{o.customer.name}</Link>,
+    subtitle: <>{o.detail} · {minimalDate(o.createdAt)}</>,
+    trailing: <AdvanceButton order={o} compact onAdvance={(to) => onAdvance(o, to)} busy={busyId === o.id} />,
+  }));
 
   if (loading && orders.length === 0) return <Spinner label="Loading orders" />;
   const err = error ?? action.error;
   return (
     <>
       {err ? <ErrorNote className="mx-4 mt-3 lg:mx-[30px]">{err}</ErrorNote> : null}
-      <div className="lg:hidden">
-        <PaidHomeMobile shop={shop} today={today} queue={queue} onAdvance={onAdvance} busyId={busyId} />
-      </div>
-      <div className="hidden lg:block">
-        <GrowthDashboard shop={shop} today={today} week={week} queue={queue} customers={customers} onAdvance={onAdvance} busyId={busyId} />
-      </div>
+      <HomeLayout
+        shop={shop}
+        today={today}
+        canWalkIn
+        queue={queue}
+        queueHref="/orders"
+        bookings={live.bookings}
+        bookingsLoading={live.loading}
+        bookingsError={live.error}
+        canConvert
+        onlineHref="/online"
+      />
     </>
   );
 }

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import type { DaySummary, Shop } from "@/data";
 import { money } from "@/lib/format";
-import { useGreeting } from "@/lib/greeting";
+import { homeTitle, useGreeting } from "@/lib/greeting";
 import { LaundryScene } from "../brand";
 
 /** Compact pill on the black hero; ::after pads the tap area to 44px tall without changing the look. */
@@ -83,12 +83,13 @@ export function HomeHeroDesktop({ today, showWalkIn = true, className }: HomeHer
 
 /** Desktop header shared by Paid and Partner home: greeting title, date · shop, ticket search, Online Orders, avatar. */
 export function HomeTopbar({ shop, today, subtitleExtra, onlineHref = "/online" }: { shop: Shop; today: DaySummary; subtitleExtra?: ReactNode; onlineHref?: string }) {
+  const greeting = useGreeting();
   const router = useRouter();
   const [search, setSearch] = useState("");
   return (
     <Topbar
       className="px-1"
-      title={`Hi ${shop.ownerName}, here’s today`}
+      title={homeTitle(shop.ownerName, shop.name, greeting)}
       subtitle={<>{today.longDateLabel} · {shop.name}{shop.area ? `, ${shop.area.split(", ").pop()}` : ""}{subtitleExtra}</>}
       actions={<>
         <form className="hidden xl:flex" onSubmit={(e) => { e.preventDefault(); if (search.trim()) router.push(`/scan/result?code=${encodeURIComponent(search.trim())}`); }}>

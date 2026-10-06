@@ -2,7 +2,7 @@
 
 import { SquarePen } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Button, Card, Topbar } from "@river-apps/ui";
+import { Button, Topbar } from "@river-apps/ui";
 import { useShop } from "@/lib/shop";
 import { Composer, type ComposerHandle } from "./Composer";
 import { PostCard } from "./PostCard";
@@ -88,7 +88,8 @@ export function CommunityScreen() {
         }
       />
 
-      <Card padding="none" className="mt-4 overflow-hidden">
+      {/* Threads-style feed: no cards, items sit on the page separated by hairlines. */}
+      <div className="mt-3 border-b border-line">
         <Composer ref={composerRef} me={me} onPost={(body, images) => {
           const post: CommunityPost = {
             id: `mine-${Date.now().toString(36)}`,
@@ -103,9 +104,9 @@ export function CommunityScreen() {
           };
           return update((st) => ({ ...st, mine: [post, ...st.mine] }), "Posted");
         }} />
-      </Card>
+      </div>
 
-      <Card padding="none" className="mt-3 overflow-hidden">
+      <div>
         <ul className="divide-y divide-line" aria-label="Community posts">
           {posts.map((p) => (
             <li key={p.id} id={p.id} className="scroll-mt-20">
@@ -135,8 +136,8 @@ export function CommunityScreen() {
             </li>
           ))}
         </ul>
-        <p className="border-t border-line px-5 py-4 text-center text-[13px] font-semibold text-muted">You’re all caught up</p>
-      </Card>
+        <p className="border-t border-line px-1 py-4 text-center text-[13px] font-semibold text-muted">You’re all caught up</p>
+      </div>
 
       <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-[70] flex justify-center lg:bottom-8">
         {toast ? <span className="rounded-pill bg-ink px-4 py-2.5 text-[14px] font-bold text-on-ink shadow-raised">{toast}</span> : null}

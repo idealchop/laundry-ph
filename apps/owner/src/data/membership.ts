@@ -81,14 +81,14 @@ function slug(name: string): string {
 /** Create a new shop owned by `user`, with a starter price list and ticket counter. Returns the shop id. */
 export async function createShop(user: User, input: { name: string; area: string; ownerName: string }): Promise<string> {
   const name = input.name.trim();
-  const ownerName = input.ownerName.trim() || user.displayName?.split(" ")[0] || "Owner";
+  const ownerName = input.ownerName.trim() || user.displayName?.split(" ")[0] || ""; // blank = greet by shop name
   if (name.length < 2) throw new Error("Enter your shop name.");
   const db = getDb();
   const shopId = `${slug(name)}-${randomToken(5).toLowerCase()}`;
   // 1) shop + owner membership + user pointer (rules: member create checks getAfter(shop).ownerUid).
   const b1 = writeBatch(db);
   b1.set(doc(db, "shops", shopId), {
-    id: shopId, name, area: input.area.trim(), ownerName, ownerAvatar: avatarFor(ownerName), tier: "partner",
+    id: shopId, name, area: input.area.trim(), ownerName, ownerAvatar: avatarFor(ownerName || name), tier: "partner",
     planSource: null, planExpiresAt: null, address: null, location: null, photoUrls: [],
     ownerUid: user.uid, sample: false, dailyTargetCentavos: 500_000, createdAt: serverTimestamp(),
   });
