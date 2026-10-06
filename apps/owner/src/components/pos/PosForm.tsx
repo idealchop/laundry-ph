@@ -271,58 +271,54 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
           ) : null}
 
           <div>
-            {/* One row, two equal-height columns. Both use justify-between so their top and bottom edges
-                line up: basket art top ≈ header top, "Almost full" baseline ≈ bottom of the − / + pair. */}
-            <div className="flex items-stretch gap-3 sm:gap-4" role="group" aria-labelledby="qty-label">
-              <div className="flex w-[116px] flex-none flex-col items-center justify-between">
-                {/* The art has ~18px of headroom for the rising heap; pull it up so the visible basket meets the top edge. */}
-                <BasketFill fill={basketFill} size={116} className="-mt-[18px]" />
-                <div className="flex flex-col items-center">
-                  <div className="relative mt-2 h-1 w-[5.75rem] overflow-hidden rounded-full bg-grey-200" aria-hidden>
+            {/* Product-card row: basket left (96px), details left-aligned 16px to its right, vertically centred. */}
+            <div className="flex items-center gap-4" role="group" aria-labelledby="qty-label">
+              <div className="flex w-[96px] flex-none flex-col items-center">
+                {/* The art keeps ~15px of headroom for the rising heap; pull it up so the visible basket is what's centred. */}
+                <BasketFill fill={basketFill} size={96} className="-mt-[15px]" />
+                  <div className="relative mt-2 h-1 w-[4.75rem] overflow-hidden rounded-full bg-grey-200" aria-hidden>
                   <span
                     className="absolute inset-y-0 left-0 w-full origin-left rounded-full bg-ink transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none"
                     style={{ transform: `scaleX(${Math.min(1, basketFill).toFixed(3)})` }}
                   />
                   {perKg ? <span className="absolute inset-y-0 w-0.5 bg-surface" style={{ left: `${Math.min(100, (catalog.minKg / fullAt) * 100)}%` }} /> : null}
                 </div>
-                  <span className="mt-1.5 max-w-[116px] text-center text-[12px] font-semibold leading-none text-muted">{basketLabel(basketFill, q.minimumApplied)}</span>
-                </div>
+                <span className="mt-1.5 max-w-[96px] text-center text-[12px] font-semibold leading-none text-muted">{basketLabel(basketFill, q.minimumApplied)}</span>
               </div>
-              <div ref={qtyField} className="flex min-w-0 flex-1 flex-col items-center justify-between gap-2 text-center">
+              <div ref={qtyField} className="flex min-w-0 flex-1 flex-col items-start gap-2">
                 <p id="qty-label" className="text-[13px] leading-none">
                   <span className="font-semibold text-ink">{perKg ? "Weight" : "Pieces"}</span>
                   <span className="font-semibold text-muted"> · {perKg ? `Min. ${catalog.minKg} kg` : "Per piece"}</span>
                 </p>
-                {/* Value + unit centred together as one pair. */}
-                <label className="flex max-w-full cursor-text items-baseline justify-center gap-1">
-                    {/* Auto-width: an invisible copy of the text sizes the grid cell, so the input hugs the digits. */}
-                    <span className="inline-grid text-[38px] font-extrabold leading-[1.05] tracking-[-0.03em] tabular-nums min-[380px]:text-[44px]">
-                      <span className="invisible col-start-1 row-start-1 whitespace-pre border-b-2 border-transparent px-px" aria-hidden>{qtyText || String(quantity) || "0"}</span>
-                      <input
-                        aria-label={perKg ? "Weight in kilos" : "Number of pieces"}
-                        inputMode="decimal"
-                        autoComplete="off"
-                        className="col-start-1 row-start-1 w-0 min-w-full origin-center rounded-none border-b-2 border-transparent bg-transparent p-0 text-center font-[inherit] tracking-[inherit] text-ink outline-none transition-colors focus:border-ink"
-                        value={qtyText ?? String(quantity)}
-                        onFocus={(e) => e.currentTarget.select()}
-                        onChange={(e) => {
-                          const t = e.target.value.replace(",", ".");
-                          if (!/^\d*\.?\d*$/.test(t)) return;
-                          setQtyText(t);
-                          const v = Number.parseFloat(t);
-                          if (!Number.isNaN(v)) { if (perKg) setKg(Math.min(max, v)); else setPieces(Math.min(max, Math.round(v))); }
-                          else if (t === "") { if (perKg) setKg(0); else setPieces(0); }
-                        }}
-                        onBlur={() => { setQtyText(null); setQuantity(quantity); }}
-                      />
-                    </span>
-                  <span className="flex-none text-[15px] font-bold text-muted min-[380px]:text-[16px]" aria-hidden>{perKg ? "kg" : "pcs"}</span>
+                <label className="flex max-w-full cursor-text items-baseline gap-1">
+                  {/* Auto-width: an invisible copy of the text sizes the grid cell, so the input hugs the digits. */}
+                  <span className="inline-grid text-[36px] font-extrabold leading-[1.05] tracking-[-0.03em] tabular-nums min-[380px]:text-[40px]">
+                    <span className="invisible col-start-1 row-start-1 whitespace-pre border-b-2 border-transparent" aria-hidden>{qtyText || String(quantity) || "0"}</span>
+                    <input
+                      aria-label={perKg ? "Weight in kilos" : "Number of pieces"}
+                      inputMode="decimal"
+                      autoComplete="off"
+                      className="col-start-1 row-start-1 w-0 min-w-full origin-left rounded-none border-b-2 border-transparent bg-transparent p-0 text-left font-[inherit] tracking-[inherit] text-ink outline-none transition-colors focus:border-ink"
+                      value={qtyText ?? String(quantity)}
+                      onFocus={(e) => e.currentTarget.select()}
+                      onChange={(e) => {
+                        const t = e.target.value.replace(",", ".");
+                        if (!/^\d*\.?\d*$/.test(t)) return;
+                        setQtyText(t);
+                        const v = Number.parseFloat(t);
+                        if (!Number.isNaN(v)) { if (perKg) setKg(Math.min(max, v)); else setPieces(Math.min(max, Math.round(v))); }
+                        else if (t === "") { if (perKg) setKg(0); else setPieces(0); }
+                      }}
+                      onBlur={() => { setQtyText(null); setQuantity(quantity); }}
+                    />
+                  </span>
+                  <span className="flex-none text-[15px] font-bold text-muted" aria-hidden>{perKg ? "kg" : "pcs"}</span>
                 </label>
-                <div className="flex items-center justify-center gap-2.5">
-                  <IconButton type="button" label={perKg ? "Less 0.5 kg" : "One piece less"} size="md" variant="soft" icon={<Minus size={20} strokeWidth={2.2} />}
-                    className={`${STEP_BTN} flex-none border border-line`} disabled={quantity <= 0} onClick={() => stepBy(-1)} />
-                  <IconButton type="button" label={perKg ? "More 0.5 kg" : "One piece more"} size="md" variant="soft" icon={<Plus size={20} strokeWidth={2.2} />}
-                    className={`${STEP_BTN} flex-none border border-line`} disabled={quantity >= max} onClick={() => stepBy(1)} />
+                <div className="flex items-center gap-2">
+                  <IconButton type="button" label={perKg ? "Less 0.5 kg" : "One piece less"} variant="soft" icon={<Minus size={18} strokeWidth={2.2} />}
+                    className={`${STEP_BTN} size-10 flex-none border border-line`} disabled={quantity <= 0} onClick={() => stepBy(-1)} />
+                  <IconButton type="button" label={perKg ? "More 0.5 kg" : "One piece more"} variant="soft" icon={<Plus size={18} strokeWidth={2.2} />}
+                    className={`${STEP_BTN} size-10 flex-none border border-line`} disabled={quantity >= max} onClick={() => stepBy(1)} />
                 </div>
               </div>
             </div>

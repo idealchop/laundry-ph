@@ -21,6 +21,7 @@ import {
 } from "firebase/firestore";
 import { getDb, getFirebaseAuth } from "@/lib/firebase/client";
 import { dayKey } from "@/lib/format";
+import { SHOP_ABOUT_MAX } from "@/lib/shop-about";
 import { avatarFor, buildWalkInOrder, formatRef, makeTicketId, nextStatus, previousStatus, ticketStage, toPublicTicket } from "@/lib/orders";
 import {
   ACTIVE_STATUSES, ORDER_FLOW,
@@ -237,6 +238,7 @@ function shopFromSnap(snap: DocumentSnapshot): Shop {
     address: toAddress(d.address),
     location: toLocation(d.location),
     photoUrls: Array.isArray(d.photoUrls) ? d.photoUrls.filter((u): u is string => typeof u === "string" && u.startsWith("https://")).slice(0, 6) : [],
+    about: typeof d.about === "string" ? d.about.slice(0, SHOP_ABOUT_MAX) : "",
     planSource: toPlanSource(d.planSource),
     planExpiresAt: typeof d.planExpiresAt === "number" ? d.planExpiresAt : ms(d.planExpiresAt),
   };
@@ -477,9 +479,10 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
       const body: DocumentData = {
         name, area, ownerName, address, location,
       };
+      if (typeof patch.about === "string") body.about = patch.about.trim().slice(0, SHOP_ABOUT_MAX);
       if (typeof patch.dailyTargetCentavos === "number") body.dailyTargetCentavos = Math.max(0, Math.round(patch.dailyTargetCentavos));
       await updateDoc(shopDocRef(), body);
-      shopCache = { ...shop, name, area, ownerName, address, location, dailyTargetCentavos: body.dailyTargetCentavos ?? shop.dailyTargetCentavos };
+      shopCache = { ...shop, name, area, ownerName, address, location, about: body.about ?? shop.about, dailyTargetCentavos: body.dailyTargetCentavos ?? shop.dailyTargetCentavos };
       return shopCache;
     },
 

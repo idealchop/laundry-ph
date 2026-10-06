@@ -53,6 +53,8 @@ export interface Shop {
   location?: ShopLocation | null;
   /** Shop storefront / interior photos for River Mobile listing (download URLs). */
   photoUrls?: string[];
+  /** Short owner-written blurb for the River Mobile listing (max 300 chars). */
+  about?: string;
   /** How Paid was unlocked; null on Partner. */
   planSource?: PlanSource;
   /** Epoch ms when a monthly Paid plan ends; null for lifetime / Partner. */
@@ -66,6 +68,8 @@ export interface ShopProfileUpdate {
   ownerName: string;
   address: ShopAddress | null;
   location: ShopLocation | null;
+  /** Listing blurb (max 300 chars). Omit to leave the stored value untouched. */
+  about?: string;
   /** HTTPS download URLs from Firebase Storage (max 6). */
   photoUrls?: string[];
   dailyTargetCentavos?: Centavos;

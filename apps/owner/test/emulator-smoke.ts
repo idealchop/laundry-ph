@@ -139,6 +139,10 @@ async function main() {
   }).then((sh) => sh, () => null);
   const shopSnap = await getDoc(doc(db, "shops", shopId));
   ok("owner saves profile with pin-derived address", Boolean(savedProfile) && shopSnap.data()?.area === "Kapitolyo, Pasig" && shopSnap.data()?.address?.postalCode === "1603", shopSnap.data()?.area);
+  // About blurb: saved via updateShopProfile; rules cap it at 300 chars.
+  await srcB.updateShopProfile({ name: "Bea's Wash", area: pa.area, ownerName: "Bea", address: pa.address, location: { lat: 14.5704, lng: 121.0573, formattedAddress: pa.formatted }, about: "Bea's Wash is your neighbourhood laundry shop in Kapitolyo, Pasig." });
+  ok("owner saves about", (await getDoc(doc(db, "shops", shopId))).data()?.about === "Bea's Wash is your neighbourhood laundry shop in Kapitolyo, Pasig.");
+  await denied("about over 300 chars denied", () => updateDoc(doc(db, "shops", shopId), { about: "x".repeat(301) }));
   await denied("B creates shop owned by someone else", () => setDoc(doc(db, "shops", "evil-shop"), { id: "evil-shop", name: "Evil", ownerUid: "someone", sample: false, tier: "paid", createdAt: serverTimestamp() }));
   await denied("B creates a sample shop", () => setDoc(doc(db, "shops", "evil2"), { id: "evil2", name: "Evil", ownerUid: b.uid, sample: true, tier: "paid", createdAt: serverTimestamp() }));
 

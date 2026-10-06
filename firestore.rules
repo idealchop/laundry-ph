@@ -84,8 +84,9 @@ service cloud.firestore {
         && request.resource.data.name.size() >= 2
         && request.resource.data.keys().hasOnly([
           'id', 'name', 'area', 'ownerName', 'ownerAvatar', 'tier', 'ownerUid', 'sample', 'dailyTargetCentavos', 'createdAt',
-          'address', 'location', 'photoUrls', 'planSource', 'planExpiresAt'
+          'address', 'location', 'photoUrls', 'planSource', 'planExpiresAt', 'about'
         ])
+        && shortString(request.resource.data.get('about', ''), 300)
         && request.resource.data.createdAt == request.time;
 
       // Owner edits profile, address/map pin, or plan (demo billing until PayMongo webhook owns plan writes).
@@ -95,8 +96,9 @@ service cloud.firestore {
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.sample == resource.data.sample
         && request.resource.data.tier in ['paid', 'partner']
+        && shortString(request.resource.data.get('about', ''), 300)
         && changedOnly([
-          'name', 'area', 'ownerName', 'ownerAvatar', 'dailyTargetCentavos',
+          'name', 'area', 'ownerName', 'ownerAvatar', 'dailyTargetCentavos', 'about',
           'address', 'location', 'photoUrls', 'photosUpdatedAt', 'tier', 'planSource', 'planExpiresAt', 'planUpdatedAt'
         ]);
       allow delete: if false;

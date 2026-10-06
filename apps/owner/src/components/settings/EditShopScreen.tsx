@@ -2,12 +2,13 @@
 
 import { MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { Badge, Button, Card, Input } from "@river-apps/ui";
 import type { Shop, ShopAddress, ShopLocation } from "@/data";
 import { reverseGeocodePin } from "@/lib/geocode";
 import { FocusHeader } from "@/components/FocusHeader";
-import { useAction, useShop } from "@/lib/shop";
+import { useAction, useShop, useShopQuery } from "@/lib/shop";
+import { SHOP_ABOUT_MAX, defaultShopAbout } from "@/lib/shop-about";
 import { ErrorNote } from "../ui";
 import { LocationPicker } from "./LocationPicker";
 import { ShopPhotos } from "./ShopPhotos";
@@ -15,7 +16,7 @@ import { ShopPhotos } from "./ShopPhotos";
 function profileKey(shop: Shop): string {
   const a = shop.address;
   const L = shop.location;
-  return [shop.name, shop.ownerName, a?.line1, a?.city, L?.lat, L?.lng, L?.formattedAddress].join("|");
+  return [shop.name, shop.ownerName, shop.about, a?.line1, a?.city, L?.lat, L?.lng, L?.formattedAddress].join("|");
 }
 
 /** Full-screen shop profile editor (name, map pin, photos). Address/area are derived from the pin. */
@@ -70,6 +71,12 @@ function ProfileEditor({
   const [saved, setSaved] = useState(false);
   const [name, setName] = useState(shop.name);
   const [location, setLocation] = useState<ShopLocation | null>(shop.location ?? null);
+  /** null = untouched: show the stored blurb, or a personalised starter built from the shop's data. */
+  const [aboutDraft, setAboutDraft] = useState<string | null>(null);
+  const catalog = useShopQuery((s) => s.getCatalog());
+  const serviceNames = (catalog.data?.services ?? []).map((sv) => sv.name);
+  const about = aboutDraft ?? (shop.about?.trim() ? shop.about : defaultShopAbout(shop, serviceNames));
+  const aboutId = useId();
   const readOnly = shop.sample === true && source.mode === "firebase";
 
   useEffect(() => {
@@ -98,7 +105,7 @@ function ProfileEditor({
       }
       // Owner name is no longer edited here; resend the stored value untouched.
       const loc = location && geoFill && !location.formattedAddress ? { ...location, formattedAddress: geoFill } : location;
-      await s.updateShopProfile({ name, area, ownerName: shop.ownerName, address, location: loc });
+      await s.updateShopProfile({ name, area, ownerName: shop.ownerName, address, location: loc, about: about.slice(0, SHOP_ABOUT_MAX) });
       return true;
     }, "Sign in to save your shop profile and map pin.");
     if (ok) {
@@ -133,6 +140,28 @@ function ProfileEditor({
 
       <form id="edit-shop-form" onSubmit={onSave} className="mt-3 grid gap-4 sm:grid-cols-2">
         <Input size="md" label="Shop name" containerClassName="sm:col-span-2" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={80} disabled={readOnly || busy} />
+        <div className="flex flex-col sm:col-span-2">
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <label htmlFor={aboutId} className="text-[14px] font-bold">About <span className="font-semibold text-muted">(optional)</span></label>
+            <span className={`text-[12px] font-semibold tabular-nums ${about.length >= SHOP_ABOUT_MAX ? "text-ink" : "text-muted"}`} aria-live="polite">
+              {about.length}/{SHOP_ABOUT_MAX}
+            </span>
+          </div>
+          <textarea
+            id={aboutId}
+            value={about}
+            onChange={(e) => setAboutDraft(e.target.value.slice(0, SHOP_ABOUT_MAX))}
+            maxLength={SHOP_ABOUT_MAX}
+            rows={5}
+            disabled={readOnly || busy}
+            placeholder="Tell River Mobile customers what makes your shop great."
+            aria-describedby={`${aboutId}-hint`}
+            className="min-h-[140px] resize-y rounded-tile bg-canvas px-4 py-3 text-[14px] font-medium leading-relaxed text-ink outline-none transition-shadow placeholder:text-subtle focus:bg-surface focus:ring-2 focus:ring-ink disabled:opacity-60"
+          />
+          <p id={`${aboutId}-hint`} className="mt-1.5 text-[12px] font-semibold text-muted">
+            {aboutDraft === null && !shop.about?.trim() ? "A starter from your shop details. Edit it, or save as is." : "Shown on your River Mobile listing."}
+          </p>
+        </div>
 
         <div className="sm:col-span-2">
           <LocationPicker value={location} onChange={setLocation} disabled={readOnly || busy} />

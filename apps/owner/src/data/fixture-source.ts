@@ -143,6 +143,7 @@ export function createFixtureDataSource(): LaundryDataSource {
         ownerName: patch.ownerName.trim() || store.shop.ownerName,
         address: patch.address,
         location: patch.location,
+        about: typeof patch.about === "string" ? patch.about.trim().slice(0, 300) : store.shop.about,
         dailyTargetCentavos: patch.dailyTargetCentavos ?? store.shop.dailyTargetCentavos,
         // Fixture demo shop is editable in-memory so settings can be exercised offline.
         sample: store.shop.sample,
