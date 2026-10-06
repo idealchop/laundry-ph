@@ -56,7 +56,7 @@ export function PartnerHome({ shop, today, schedule, requests }: { shop: Shop; t
     <>
       {/* Phone: mirrors PaidHomeMobile spacing. */}
       <div className="mx-auto w-full max-w-[560px] pb-4 lg:hidden">
-        <Greeting name={shop.ownerName} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} onlineHref="/partner/bookings" />
+        <Greeting name={shop.ownerName} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} onlineHref="/partner/orders" />
         <HomeHeroMobile shop={shop} today={today} showWalkIn={false} />
         <SectionHeader className="px-5 pb-1 pt-4" title="Schedule" aside={schedule.monthLabel} />
         <Card padding="none" className="mx-4 px-3 py-3">
@@ -69,7 +69,7 @@ export function PartnerHome({ shop, today, schedule, requests }: { shop: Shop; t
 
       {/* Desktop: mirrors GrowthDashboard spacing. */}
       <div className="mx-auto hidden w-full max-w-[1120px] px-4 pb-6 pt-4 lg:block lg:px-[30px] lg:pt-6">
-        <HomeTopbar shop={shop} today={today} onlineHref="/partner/bookings" subtitleExtra={<> · Partner <SampleNote className="ml-1 align-middle" /></>} />
+        <HomeTopbar shop={shop} today={today} onlineHref="/partner/orders" subtitleExtra={<> · Partner <SampleNote className="ml-1 align-middle" /></>} />
         <div className="mt-5">
           <HomeHeroDesktop shop={shop} today={today} showWalkIn={false} />
         </div>
@@ -79,7 +79,7 @@ export function PartnerHome({ shop, today, schedule, requests }: { shop: Shop; t
             <DateStrip items={schedule.days} selectedKey={schedule.todayKey} />
           </Card>
           <Card padding="none" className="px-[18px] pb-4 pt-4">
-            <CardHeader className="mb-3" title="Pickups to accept" subtitle={pickupsAside} action={<Link href="/partner/bookings" className={linkCls}>All bookings</Link>} />
+            <CardHeader className="mb-3" title="Pickups to accept" subtitle={pickupsAside} action={<Link href="/partner/orders" className={linkCls}>All bookings</Link>} />
             <Pickups requests={requests} />
           </Card>
         </div>

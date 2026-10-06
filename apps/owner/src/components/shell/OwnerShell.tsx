@@ -88,7 +88,7 @@ export function OwnerShell({ children }: { children: ReactNode }) {
       }
       mobileTabBar={
         focus ? undefined : (
-          <OwnerTabBar items={tabs} activeKey={tabKey} use3d={!usePartnerChrome} />
+          <OwnerTabBar items={tabs} activeKey={tabKey} />
         )
       }
       mainClassName={focus ? "pb-0" : "pb-[6.75rem]"}

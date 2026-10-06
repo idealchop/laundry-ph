@@ -1,5 +1,5 @@
 import {
-  Calendar, CircleHelp, History, House, List, MessageSquareText, MessagesSquare, Settings, Users,
+  CircleHelp, History, House, List, MessageSquareText, MessagesSquare, Settings, Users,
 } from "lucide-react";
 import type { IconName } from "@river-apps/icons";
 import type { NavItem } from "@river-apps/ui";
@@ -36,17 +36,16 @@ export const PAID_TAB_ICONS: Record<string, IconName> = {
   community: "chat",
 };
 
-/** Partner tier: River Mobile bookings, history and Community. Shop listing + Settings live under My Account / Profile. */
+/** Partner tier mirrors Paid: Home, Orders (Bookings | History tabs inside), Community. Shop listing + Settings live under My Account. */
 export const PARTNER_NAV: NavItem[] = [
   { key: "home", label: "Home", href: "/partner", icon: <House {...side} /> },
-  { key: "bookings", label: "Bookings", href: "/partner/bookings", icon: <Calendar {...side} /> },
-  { key: "history", label: "History", href: "/partner/history", icon: <History {...side} /> },
+  { key: "orders", label: "Orders", href: "/partner/orders", icon: <List {...side} /> },
   { key: "community", label: "Community", href: "/community", icon: <MessagesSquare {...side} /> },
 ];
+/** Same three tabs (and 3D icons) as Paid; Partner Home/Orders point at Partner routes. */
 export const PARTNER_TABS: NavItem[] = [
   { key: "home", label: "Home", href: "/partner", icon: <House {...tab} /> },
-  { key: "bookings", label: "Bookings", href: "/partner/bookings", icon: <Calendar {...tab} /> },
-  { key: "history", label: "History", href: "/partner/history", icon: <History {...tab} /> },
+  { key: "orders", label: "Orders", href: "/partner/orders", icon: <List {...tab} /> },
   { key: "community", label: "Community", href: "/community", icon: <MessagesSquare {...tab} /> },
 ];
 
