@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import type { Booking, DaySummary, Shop } from "@/data";
 import { money } from "@/lib/format";
 import { ownerFirstName } from "@/lib/greeting";
+import { PAID_PER_MO } from "@/lib/plans";
 import { BookingCard } from "../bookings/BookingCard";
 import { TestBookingButton, useBookingActions } from "../bookings/BookingsList";
 import { Greeting } from "../Greeting";
@@ -159,7 +160,7 @@ export function UpgradeCard() {
     <Card padding="none" className="flex items-center justify-between gap-3 px-4 py-3.5">
       <span className="flex min-w-0 flex-col leading-[1.3]">
         <b className="text-[14px]">You’re on Partner (free)</b>
-        <small className="text-[12.5px] font-semibold text-muted">Paid adds walk-ins, Sales and Customers · ₱950/mo</small>
+        <small className="text-[12.5px] font-semibold text-muted">Paid adds walk-ins, Sales and Customers · {PAID_PER_MO}</small>
       </span>
       <Button href="/settings/billing" variant="secondary" size="sm" className="flex-none">Plans</Button>
     </Card>

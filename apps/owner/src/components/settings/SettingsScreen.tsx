@@ -4,14 +4,13 @@ import {
   BadgeCheck, ChevronLeft, ChevronRight, CreditCard, History, LogOut, MapPin, Package, Pencil, Store, Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Avatar, Badge, Button, Card, ListItem, Topbar } from "@river-apps/ui";
+import { Avatar, Button, Card, ListItem, Topbar } from "@river-apps/ui";
 import type { Shop } from "@/data";
-import { firestoreDatabaseId } from "@/lib/firebase/config";
 import { useAuthGate } from "@/components/auth/AuthGateProvider";
 import { money } from "@/lib/format";
-import { signOut, useAuth } from "@/lib/auth";
+import { signOut } from "@/lib/auth";
 import { useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
 import {
@@ -20,7 +19,8 @@ import {
   DEMO_PENDING_CENTAVOS,
   DEMO_WITHDRAWN_CENTAVOS,
 } from "./CreditsPanel";
-import { FEATURES } from "./FeaturesScreen";
+import { FeatureList } from "./FeaturesScreen";
+import { PAID_PER_MO, PAID_PER_MONTH } from "@/lib/plans";
 
 /** Soft @handle from shop name (Oceanus-style). */
 function shopHandle(name: string): string {
@@ -54,25 +54,19 @@ const SHOP_LISTING_LINK = { href: "/partner/shop", icon: Store, title: "Shop lis
 const HUB_LINKS = [
   { href: "/profile/services", icon: Package, title: "Services", subtitle: "Products, prices and POS catalog" },
   { href: "/history", icon: History, title: "History", subtitle: "Sales totals and completed orders" },
-  { href: "/settings/billing", icon: CreditCard, title: "Plan & billing", subtitle: "Partner free · Paid ₱950/mo · Lifetime" },
+  { href: "/settings/billing", icon: CreditCard, title: "Plan & billing", subtitle: `Partner free · Paid ${PAID_PER_MO} · Lifetime` },
 ] as const;
 
 /** Shop profile hub: Oceanus header, Credits, Features, Edit shop, setup links, logout. */
 export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) {
-  const { shop, member, source, isGuest } = useShop();
-  const { user } = useAuth();
+  const { shop, member, isGuest } = useShop();
   const { openAuthCta, isAuthenticated } = useAuthGate();
   const searchParams = useSearchParams();
-  const [view, setView] = useState<"hub" | "credits">("hub");
-  useEffect(() => {
-    if (searchParams.get("credits") === "1") setView("credits");
-  }, [searchParams]);
+  const [view, setView] = useState<"hub" | "credits">(() => (searchParams.get("credits") === "1" ? "credits" : "hub"));
   const photo = shop.photoUrls?.[0];
   const handle = shopHandle(shop.name);
   const place = locationLine(shop);
   const bio = shopBio(shop);
-  const accountLabel =
-    user?.phoneNumber ?? user?.email ?? user?.displayName ?? (isGuest ? "Guest browse" : "Signed in");
 
   if (view === "credits") {
     return (
@@ -211,72 +205,13 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
               See all
             </Link>
           </div>
-          <ul className="mt-1">
-            {FEATURES.map((f) => {
-              const Icon = f.icon;
-              const row = (
-                <ListItem
-                  variant="row"
-                  className="py-2"
-                  leading={
-                    <span className="inline-flex size-10 items-center justify-center rounded-tile bg-grey-100">
-                      <Icon size={18} strokeWidth={1.75} />
-                    </span>
-                  }
-                  title={f.title}
-                  subtitle={f.subtitle}
-                  trailing={
-                    <Badge variant="soft" size="sm">
-                      {f.status}
-                    </Badge>
-                  }
-                />
-              );
-              if (f.id === "scan") {
-                return (
-                  <li key={f.id}>
-                    <button
-                      type="button"
-                      onClick={() => setView("credits")}
-                      className="block w-full rounded-tile text-left focus-visible:outline-2 focus-visible:outline-ink"
-                    >
-                      {row}
-                    </button>
-                  </li>
-                );
-              }
-              return (
-                <li key={f.id}>
-                  <Link href={f.href} className="block rounded-tile focus-visible:outline-2 focus-visible:outline-ink">
-                    {row}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          <FeatureList tier={shop.tier} className="mt-1" />
         </Card>
-
-        <dl className="rounded-card border border-line bg-surface px-4 py-3 text-[13px] lg:col-span-2">
-          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-            <dt className="font-semibold text-muted">Shop ID</dt>
-            <dd className="font-mono">{shop.id}</dd>
-            <dt className="font-semibold text-muted">Account</dt>
-            <dd className="truncate">{accountLabel}</dd>
-            <dt className="font-semibold text-muted">Data</dt>
-            <dd className="font-mono">{source.mode === "firebase" ? `Firestore · ${firestoreDatabaseId}` : "In-memory sample"}</dd>
-            {shop.location ? (
-              <>
-                <dt className="font-semibold text-muted">Pin</dt>
-                <dd className="font-mono">{shop.location.lat.toFixed(5)}, {shop.location.lng.toFixed(5)}</dd>
-              </>
-            ) : null}
-          </div>
-        </dl>
 
         <Card id="help" className="px-4 py-3.5 lg:col-span-2">
           <b className="text-[16px]">Help</b>
           <p className="mt-1.5 text-[13.5px] font-medium text-muted">
-            Partner free covers River Mobile bookings. Paid unlocks the counter POS, sales, customers and SMS from ₱950/month.
+            Partner free covers River Mobile bookings. Paid unlocks the walk-in POS, sales and customers for {PAID_PER_MONTH}.
           </p>
         </Card>
       </div>

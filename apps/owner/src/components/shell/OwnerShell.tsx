@@ -6,7 +6,7 @@ import { AppShell, Button } from "@river-apps/ui";
 import { useAuthGate } from "@/components/auth/AuthGateProvider";
 import { useAuth } from "@/lib/auth";
 import { useShop } from "@/lib/shop";
-import { planLabel } from "@/lib/plans";
+import { PAID_PER_MONTH, planLabel } from "@/lib/plans";
 import { LaundryBrand, LaundryScene } from "../brand";
 import { PlanGate } from "../billing/PlanGate";
 import { WideSidebar } from "../kit-extensions";
@@ -34,7 +34,7 @@ function PartnerTierCard({ label }: { label: string }) {
     <div className="rounded-[22px] bg-grey-100 p-4">
       <b className="block text-[14.5px]">You’re on {label}</b>
       <small className="mb-3 mt-0.5 block text-[12.5px] font-semibold text-ink/55">
-        Paid adds the counter POS, Sales Record, Customers and SMS — from ₱950/month.
+        Paid adds the walk-in POS, Sales Record and Customers — {PAID_PER_MONTH}.
       </small>
       <Button size="sm" variant="secondary" fullWidth href="/settings/billing">Upgrade</Button>
     </div>

@@ -13,7 +13,7 @@ import { NextResponse } from "next/server";
  *      planUpdatedAt: serverTimestamp()
  * 4. Append shops/{shopId}/billing/{eventId} for idempotency.
  *
- * Money in the event payload is integer centavos (95000 = ₱950, 1000000 = ₱10,000).
+ * Money in the event payload is integer centavos (49900 = ₱499, 1000000 = ₱10,000).
  */
 export async function POST(req: Request) {
   const secret = process.env.PAYMONGO_WEBHOOK_SECRET;
