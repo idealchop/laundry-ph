@@ -4,7 +4,7 @@
  * Money is integer centavos. scripts/seed-laundrydb-dev.mjs mirrors this file.
  */
 import type {
-  Booking, Catalog, Customer, GrowthTip, Machine, NewWalkInOrder, Order, PickupRequest, Schedule, Shop, VerifiedBooking,
+  Booking, Catalog, Customer, GrowthTip, Machine, NewWalkInOrder, Order, PickupRequest, Shop, VerifiedBooking,
 } from "./types";
 import { buildWalkInOrder, formatRef } from "@/lib/orders";
 
@@ -26,18 +26,6 @@ export const shop: Shop = {
     formattedAddress: "12 Mabini St., Kapitolyo, Pasig, Metro Manila",
   },
   photoUrls: [],
-};
-
-export const schedule: Schedule = {
-  monthLabel: "October 2026",
-  todayKey: "2026-10-04",
-  days: [
-    { key: "2026-10-02", weekday: "Fri", day: 2, count: 3 },
-    { key: "2026-10-03", weekday: "Sat", day: 3, count: 6 },
-    { key: "2026-10-04", weekday: "Sun", day: 4, count: 5, ariaLabel: "Sunday 4 October, today, 5 bookings" },
-    { key: "2026-10-05", weekday: "Mon", day: 5, count: 2 },
-    { key: "2026-10-06", weekday: "Tue", day: 6, count: 1 },
-  ],
 };
 
 export const machines: Machine[] = [

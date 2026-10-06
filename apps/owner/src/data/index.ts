@@ -14,7 +14,7 @@
 import { hasFirebaseWebConfig } from "@/lib/firebase/config";
 import type {
   Booking, BookingStatus, Catalog, Customer, GrowthTip, Machine, NewCustomer, NewWalkInOrder, Order, OrderStatus, PaymentMethod, PickupRequest,
-  PublicTicket, Schedule, Shop, ShopPlanUpdate, ShopProfileUpdate, VerifiedBooking,
+  PublicTicket, Shop, ShopPlanUpdate, ShopProfileUpdate, VerifiedBooking,
 } from "./types";
 
 export * from "./types";
@@ -36,7 +36,6 @@ export interface LaundryDataSource {
   readonly mode: DataMode;
   readonly shopId: string;
   getShop(): Promise<Shop>;
-  getSchedule(): Promise<Schedule>;
   getMachines(): Promise<Machine[]>;
   getPickupRequests(): Promise<PickupRequest[]>;
   /** River Mobile booking resolved from a QR (Partner API v1 later). Demo doc only for now. */

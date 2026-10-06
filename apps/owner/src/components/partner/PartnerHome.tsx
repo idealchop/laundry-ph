@@ -1,8 +1,8 @@
 "use client";
-import { Button, Card, CardHeader, DateStrip, SectionHeader } from "@river-apps/ui";
+import { Button, Card, CardHeader, SectionHeader } from "@river-apps/ui";
 import Link from "next/link";
 import { useState } from "react";
-import type { Booking, DaySummary, Schedule, Shop } from "@/data";
+import type { Booking, DaySummary, Shop } from "@/data";
 import { isPaidShop } from "@/lib/plans";
 import { useShop } from "@/lib/shop";
 import { BookingCard } from "../bookings/BookingCard";
@@ -14,14 +14,14 @@ import { ErrorNote } from "../ui";
 
 const linkCls = "text-[14px] font-bold underline decoration-grey-300 underline-offset-[3px]";
 
-const PICKUPS_ON_HOME = 3;
-
-/** Live open bookings (new requests first), answerable right here. */
-function Pickups({ bookings, loading, error }: { bookings: Booking[]; loading: boolean; error: string | null }) {
+/** Live open bookings (new requests first), answerable right here. Desktop shows up to 4, two per row. */
+function Pickups({ bookings, loading, error, max = 3, twoUp = false }: {
+  bookings: Booking[]; loading: boolean; error: string | null; max?: number; twoUp?: boolean;
+}) {
   const { shop } = useShop();
   const actions = useBookingActions();
   const [now] = useState(() => Date.now());
-  const shown = bookings.slice(0, PICKUPS_ON_HOME);
+  const shown = bookings.slice(0, max);
   const more = bookings.length - shown.length;
   if (loading) return <p className="rounded-[18px] bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-muted">Loading bookings…</p>;
   return (
@@ -33,7 +33,11 @@ function Pickups({ bookings, loading, error }: { bookings: Booking[]; loading: b
           No bookings yet. When River Mobile customers book your shop, they’ll show up here.
         </p>
       ) : null}
-      {shown.map((b) => <BookingCard key={b.id} booking={b} canConvert={isPaidShop(shop.tier)} onMove={actions.onMove} compact now={now} />)}
+      {shown.length ? (
+        <div className={twoUp ? "grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2" : "flex flex-col gap-2.5"}>
+          {shown.map((b) => <BookingCard key={b.id} booking={b} canConvert={isPaidShop(shop.tier)} onMove={actions.onMove} compact now={now} />)}
+        </div>
+      ) : null}
       {more > 0 ? <Link href="/partner/orders" className={`${linkCls} self-center py-2`}>See {more} more</Link> : null}
       <TestBookingButton className="self-center" />
     </div>
@@ -54,10 +58,10 @@ function UpgradeCard({ className }: { className?: string }) {
 
 /**
  * Partner (free) home. Same header and black hero as Paid home (from River Mobile / online bookings data),
- * without the Walk-in button. Partner sections below: schedule, pickups to accept, plan upgrade.
+ * without the Walk-in button. Partner sections below: pickups to accept, plan upgrade.
  */
-export function PartnerHome({ shop, today, schedule, bookings, bookingsLoading, bookingsError }: {
-  shop: Shop; today: DaySummary; schedule: Schedule; bookings: Booking[]; bookingsLoading: boolean; bookingsError: string | null;
+export function PartnerHome({ shop, today, bookings, bookingsLoading, bookingsError }: {
+  shop: Shop; today: DaySummary; bookings: Booking[]; bookingsLoading: boolean; bookingsError: string | null;
 }) {
   const fresh = bookings.filter((b) => b.status === "requested").length;
   const pickupsAside = bookingsLoading ? "" : fresh ? `${fresh} new` : bookings.length ? `${bookings.length} open` : "Live";
@@ -67,10 +71,6 @@ export function PartnerHome({ shop, today, schedule, bookings, bookingsLoading, 
       <div className="mx-auto w-full max-w-[560px] pb-4 lg:hidden">
         <Greeting name={shop.ownerName} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} onlineHref="/partner/orders" />
         <HomeHeroMobile shop={shop} today={today} showWalkIn={false} />
-        <SectionHeader className="px-5 pb-1 pt-4" title="Schedule" aside={schedule.monthLabel} />
-        <Card padding="none" className="mx-4 px-3 py-3">
-          <DateStrip items={schedule.days} selectedKey={schedule.todayKey} />
-        </Card>
         <SectionHeader className="px-5 pb-1 pt-4" title="Pickups to accept" aside={pickupsAside} />
         <div className="mx-4"><Pickups bookings={bookings} loading={bookingsLoading} error={bookingsError} /></div>
         <UpgradeCard className="mx-4 mt-2.5" />
@@ -82,16 +82,11 @@ export function PartnerHome({ shop, today, schedule, bookings, bookingsLoading, 
         <div className="mt-5">
           <HomeHeroDesktop shop={shop} today={today} showWalkIn={false} />
         </div>
-        <div className="mt-5 grid items-start gap-5 xl:grid-cols-[1fr_1fr]">
-          <Card padding="none" className="px-[18px] pb-4 pt-4">
-            <CardHeader className="mb-3" title="Schedule" subtitle={schedule.monthLabel} />
-            <DateStrip items={schedule.days} selectedKey={schedule.todayKey} />
-          </Card>
-          <Card padding="none" className="px-[18px] pb-4 pt-4">
-            <CardHeader className="mb-3" title="Pickups to accept" subtitle={pickupsAside} action={<Link href="/partner/orders" className={linkCls}>All bookings</Link>} />
-            <Pickups bookings={bookings} loading={bookingsLoading} error={bookingsError} />
-          </Card>
-        </div>
+        {/* Full width: booking cards sit two per row. */}
+        <Card padding="none" className="mt-5 px-[18px] pb-4 pt-4">
+          <CardHeader className="mb-3" title="Pickups to accept" subtitle={pickupsAside} action={<Link href="/partner/orders" className={linkCls}>All bookings</Link>} />
+          <Pickups bookings={bookings} loading={bookingsLoading} error={bookingsError} max={4} twoUp />
+        </Card>
         <UpgradeCard className="mt-5" />
       </div>
     </>

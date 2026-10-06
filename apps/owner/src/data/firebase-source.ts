@@ -9,7 +9,7 @@
  *   shops/{shopId}/members/{uid}             { uid, shopId, role: owner|staff, status: active }
  *   shops/{shopId}/meta/catalog              Catalog (services, detergents, add-ons, min kg, return slots)
  *   shops/{shopId}/meta/counters             { nextTicketNo, queueDate, queueNo }  (ticket refs / daily queue)
- *   shops/{shopId}/meta/schedule | growth | verifiedBooking   demo-only reads (Partner API / AI later)
+ *   shops/{shopId}/meta/growth | verifiedBooking   demo-only reads (AI / QR verify later)
  *   shops/{shopId}/orders/{autoId}           Order (status received→washing→drying→folding→ready→claimed|delivered)
  *   shops/{shopId}/customers/{autoId}        Customer (visits, spentCentavos)
  *   shops/{shopId}/machines/{id}, pickups/{id}  read-only for now
@@ -28,7 +28,7 @@ import { avatarFor, buildWalkInOrder, formatRef, makeTicketId, nextStatus, previ
 import {
   ACTIVE_STATUSES, ORDER_FLOW,
   type Booking, type BookingStatus, type Catalog, type CatalogOption, type CatalogService, type Customer, type GrowthTip, type Machine, type Order, type OrderStatus,
-  type PickupRequest, type PlanSource, type PublicTicket, type Schedule, type Shop, type ShopAddress, type ShopLocation,
+  type PickupRequest, type PlanSource, type PublicTicket, type Shop, type ShopAddress, type ShopLocation,
   type TicketStage, type VerifiedBooking,
 } from "./types";
 import { normalizeCode, refFromCode, type LaundryDataSource, type PublicTicketSource, type Unsubscribe } from "./index";
@@ -314,10 +314,6 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
     mode: "firebase",
     shopId,
     getShop,
-    async getSchedule() {
-      const m = await meta<Schedule>("schedule");
-      return m ?? { monthLabel: "", todayKey: "", days: [] };
-    },
     async getMachines() {
       const snap = await getDocs(collection(db(), "shops", shopId, "machines"));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Machine);

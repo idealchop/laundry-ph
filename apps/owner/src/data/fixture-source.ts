@@ -39,7 +39,6 @@ export function createFixtureDataSource(): LaundryDataSource {
     mode: "fixtures",
     shopId: fx.SAMPLE_SHOP_ID,
     getShop: async () => ({ ...store.shop }),
-    getSchedule: async () => fx.schedule,
     getMachines: async () => fx.machines,
     getPickupRequests: async () => fx.pickupRequests,
     getVerifiedBooking: async (ref) => (!ref || ref === fx.verifiedBooking.ref ? fx.verifiedBooking : null),

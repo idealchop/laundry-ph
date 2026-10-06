@@ -40,7 +40,7 @@ CI (`.github/workflows/ci.yml`) runs install, typecheck, lint and build on every
 | `/home` | Paid home on phones (live queue with one-tap status advance); **Growth Dashboard** from the `lg` breakpoint (≥1024px). Data comes from Firestore |
 | `/orders` | Order board: Active / Ready / Done / All, search, advance or undo a status, mark paid |
 | `/orders/view?id=<orderId>` | Order detail: status timeline, payment, ticket link |
-| `/partner` | Partner home: scan River Mobile customers, schedule, pickups to accept |
+| `/partner` | Partner home: today’s summary, live pickups to accept, plan upgrade |
 | `/scan/result?code=<ticket URL or LDY-####>` | Look up a real ticket by scanned or typed code and open the order. The River Mobile booking card is demo only (Partner API comes in Phase 2) |
 | `/orders/new` | Walk-in counter POS: kg stepper, service, detergent, add-ons, optional customer (search or new), return date, live total. **Record Sale** writes the order + public ticket, then shows the ticket link |
 | `/t/[ticketId]` | Public customer ticket (no login, no app shell). Live status from `public_tickets` with a masked name. GCash / SMS / feedback are UI only for now. Seeded sample: `/t/LDY-0418-SAMPLE08` |

@@ -126,18 +126,6 @@ const catalog = {
   defaults: { serviceId: "wdf", kg: 6.5, pieces: 10, detergentId: "shop", addOnIds: ["softener"], returnSlotId: "tomorrow" },
 };
 
-const schedule = {
-  monthLabel: "October 2026",
-  todayKey: "2026-10-04",
-  days: [
-    { key: "2026-10-02", weekday: "Fri", day: 2, count: 3 },
-    { key: "2026-10-03", weekday: "Sat", day: 3, count: 6 },
-    { key: "2026-10-04", weekday: "Sun", day: 4, count: 5, ariaLabel: "Sunday 4 October, today, 5 bookings" },
-    { key: "2026-10-05", weekday: "Mon", day: 5, count: 2 },
-    { key: "2026-10-06", weekday: "Tue", day: 6, count: 1 },
-  ],
-};
-
 const machines = [
   { id: "w1", kind: "washer", name: "Washer 1", status: "running", stage: "Washing", orderRef: "LDY-0415", customerName: "Ana L.", kg: 4, progress: 58, minutesLeft: 18 },
   { id: "w2", kind: "washer", name: "Washer 2", status: "running", stage: "Rinsing", orderRef: "LDY-0414", customerName: "Grace V.", kg: 7, progress: 84, minutesLeft: 6 },
@@ -272,7 +260,6 @@ async function main() {
   const counters = await fsFetch(token, "GET", `/shops/${SHOP_ID}/meta/counters`).catch((e) => (e.status === 404 ? null : Promise.reject(e)));
   const currentNo = Number(counters?.fields?.nextTicketNo?.integerValue ?? 0);
   if (!counters || currentNo < 423) await upsert(token, `shops/${SHOP_ID}/meta/counters`, { nextTicketNo: 423, queueDate: "", queueNo: 0 });
-  await upsert(token, `shops/${SHOP_ID}/meta/schedule`, schedule);
   await upsert(token, `shops/${SHOP_ID}/meta/verifiedBooking`, verifiedBooking);
   await upsert(token, `shops/${SHOP_ID}/meta/growth`, growth);
   for (const m of machines) {

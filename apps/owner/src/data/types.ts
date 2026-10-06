@@ -113,19 +113,6 @@ export interface DaySummary {
   notifications: number;
 }
 
-export interface ScheduleDay {
-  key: string;
-  weekday: string;
-  day: number;
-  count: number;
-  ariaLabel?: string;
-}
-export interface Schedule {
-  monthLabel: string;
-  todayKey: string;
-  days: ScheduleDay[];
-}
-
 export type MachineKind = "washer" | "dryer";
 export interface Machine {
   id: string;
