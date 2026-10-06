@@ -29,13 +29,16 @@ export function PaidHomeMobile({ shop, today, queue, onAdvance, busyId }: PaidHo
         <i aria-hidden className="pointer-events-none absolute -right-20 -top-[120px] size-[260px] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,.16),rgba(255,255,255,0)_65%)]" />
         <i aria-hidden className="pointer-events-none absolute -bottom-[140px] right-10 size-[220px] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,.08),rgba(255,255,255,0)_65%)]" />
         <div aria-hidden className="pointer-events-none absolute -right-3 top-3 z-0">
-          <LaundryScene size={120} folded={false} />
+          <LaundryScene size={108} folded={false} />
         </div>
-        <div className="relative z-10 min-w-0 pr-[88px]">
-          <p className="min-h-[15px] text-[12.5px] font-semibold leading-[15px] text-on-ink-muted">{greeting}</p>
-          <p className="mt-0.5 truncate text-[18px] font-extrabold leading-tight tracking-[-0.015em]">{shop.name}</p>
+        {/* min-h keeps the CTA row below the art (art ends ~94px from the top edge). */}
+        <div className="relative z-10 min-h-[80px] min-w-0 pr-[84px]">
+          <p className="truncate text-[12.5px] leading-4">
+            {greeting ? <span className="font-medium text-on-ink-muted">{greeting}, </span> : null}
+            <span className="font-semibold text-on-ink/90">{shop.name}</span>
+          </p>
           {/* Two no-wrap halves so a narrow phone breaks after the "·", never before it. */}
-          <h2 className="mt-2.5 text-[20px] font-extrabold leading-[1.12] tracking-[-0.025em]">
+          <h2 className="mt-2 text-[20px] font-extrabold leading-[1.12] tracking-[-0.025em]">
             <span className="whitespace-nowrap">Today: {money(today.salesCentavos)} ·</span>{" "}
             <span className="whitespace-nowrap">{today.orders} orders</span>
           </h2>
