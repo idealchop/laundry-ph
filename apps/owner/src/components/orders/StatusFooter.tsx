@@ -17,8 +17,8 @@ function trackIndex(status: OrderStatus): number {
 }
 
 /**
- * Footer strip for an order row: current status with a 5-step track, a back step (undo a mis-tap)
- * and the next-step action. Both moves go through `onMove`, i.e. the same `setOrderStatus`
+ * Status control for the order page: back one step (undo a mis-tap), current status with a
+ * 5-step track, and the next-step action. Both moves go through `onMove`, i.e. the same `setOrderStatus`
  * transaction as everywhere else, so only one step forward or back is ever written.
  */
 export function StatusFooter({ order, busy, onMove }: { order: Order; busy: boolean; onMove: (to: OrderStatus) => void }) {
@@ -47,15 +47,11 @@ export function StatusFooter({ order, busy, onMove }: { order: Order; busy: bool
         </span>
         <span className="grid grid-cols-5 gap-1" aria-hidden>
           {TRACK.map((step, i) => (
-            <span key={step} className="flex min-w-0 flex-col gap-1">
-              <span
-                className={cn(
-                  "h-1.5 rounded-full transition-colors duration-300 motion-reduce:transition-none",
-                  i <= idx ? "bg-ink" : "bg-grey-200",
-                )}
-              />
-              <span className={cn("hidden truncate text-[11px] font-semibold sm:block", i === idx ? "text-ink" : "text-subtle")}>{TRACK_LABEL[step]}</span>
-            </span>
+            <span
+              key={step}
+              title={TRACK_LABEL[step]}
+              className={cn("h-1.5 rounded-full transition-colors duration-300 motion-reduce:transition-none", i <= idx ? "bg-ink" : "bg-grey-200")}
+            />
           ))}
         </span>
       </div>

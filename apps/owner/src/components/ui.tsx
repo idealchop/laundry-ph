@@ -42,6 +42,32 @@ export function StatusBadge({ status, className }: { status: OrderStatus; classN
   return <Badge variant={strong ? "solid" : "soft"} className={cn("text-[12px]", className)}>{ORDER_STATUS_LABEL[status]}</Badge>;
 }
 
+const PILL_TONE: Record<OrderStatus, string> = {
+  received: "bg-grey-100 text-ink-2",
+  washing: "bg-[#E6F0FF] text-[#1D4ED8]",
+  drying: "bg-[#E6F0FF] text-[#1D4ED8]",
+  folding: "bg-[#E6F0FF] text-[#1D4ED8]",
+  ready: "bg-[#DDF5EA] text-[#0B7A50]",
+  claimed: "bg-grey-100 text-muted",
+  delivered: "bg-grey-100 text-muted",
+  cancelled: "bg-grey-100 text-subtle line-through",
+};
+const DOT_TONE: Record<OrderStatus, string> = {
+  received: "bg-grey-400", washing: "bg-[#3B82F6]", drying: "bg-[#3B82F6]", folding: "bg-[#3B82F6]",
+  ready: "bg-[#10B981]", claimed: "bg-grey-300", delivered: "bg-grey-300", cancelled: "bg-grey-300",
+};
+
+/** Compact coloured status pill for lists: blue while in the machines, green when ready, grey when done. */
+export function StatusPill({ status, className }: { status: OrderStatus; className?: string }) {
+  const done = status === "claimed" || status === "delivered";
+  return (
+    <span className={cn("inline-flex h-[22px] items-center gap-1 rounded-pill px-2 text-[11.5px] font-bold leading-none", PILL_TONE[status], className)}>
+      <span aria-hidden className={cn("size-1.5 rounded-full", DOT_TONE[status])} />
+      {done ? `Done · ${ORDER_STATUS_LABEL[status]}` : ORDER_STATUS_LABEL[status]}
+    </span>
+  );
+}
+
 export function PaymentBadge({ order }: { order: Pick<Order, "paymentStatus" | "paymentMethod"> }) {
   return order.paymentStatus === "paid"
     ? <Badge variant="outline" size="sm">Paid{order.paymentMethod ? ` · ${order.paymentMethod === "gcash" ? "GCash" : "Cash"}` : ""}</Badge>

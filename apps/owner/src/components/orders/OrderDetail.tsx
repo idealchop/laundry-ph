@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Copy, ExternalLink, Undo2 } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink } from "lucide-react";
 import { CoinIcon, EWalletIcon } from "@river-apps/icons";
 import { Avatar, Button, Card, CardHeader, EmptyState, MonoText, StatusDot, Topbar } from "@river-apps/ui";
 import Link from "next/link";
@@ -8,11 +8,11 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { ORDER_FLOW, ORDER_STATUS_LABEL, type Order, type OrderStatus } from "@/data";
 import { money, timeLabel, whenLabel } from "@/lib/format";
-import { actionLabel, nextStatus, previousStatus } from "@/lib/orders";
 import { useAction, useOrder, useShop } from "@/lib/shop";
 import { StepTracker } from "../kit-extensions";
 import { SampleNote } from "../SampleNote";
 import { ErrorNote, PaymentBadge, Spinner, StatusBadge, statusIcon } from "../ui";
+import { StatusFooter } from "./StatusFooter";
 
 /** Order detail from ?id=…: live status, lines, payment and the public ticket link. */
 export function OrderDetailScreen() {
@@ -35,8 +35,6 @@ export function OrderDetail({ order }: { order: Order }) {
   const { } = useShop();
   const action = useAction();
   const [copied, setCopied] = useState(false);
-  const next = nextStatus(order);
-  const prev = previousStatus(order);
   const flowIndex = ORDER_FLOW.indexOf(order.status);
   const current = order.status === "cancelled" ? 0 : flowIndex >= 0 ? flowIndex : ORDER_FLOW.length;
   const ticketPath = `/t/${order.ticketId}`;
@@ -73,15 +71,8 @@ export function OrderDetail({ order }: { order: Order }) {
                 {order.status === "delivered" ? "Delivered" : "Claimed"} {timeLabel((order.stageTimes.claimed ?? order.stageTimes.delivered)!)}
               </p>
             ) : null}
-            <div className="mt-4 flex gap-2.5">
-              {prev ? (
-                <Button variant="secondary" className="flex-1" disabled={action.busy} onClick={() => void move(prev)} leadingIcon={<Undo2 size={18} strokeWidth={1.9} />}>
-                  Back to {ORDER_STATUS_LABEL[prev]}
-                </Button>
-              ) : null}
-              {next ? (
-                <Button className="flex-[2]" disabled={action.busy} onClick={() => void move(next)}>{action.busy ? "Saving…" : actionLabel(next)}</Button>
-              ) : null}
+            <div className="mt-4 flex items-center justify-between gap-3 border-t border-dashed border-[#E8E8EC] px-1 pt-3">
+              <StatusFooter order={order} busy={action.busy} onMove={(to) => void move(to)} />
             </div>
           </Card>
           <Card className="px-4 py-3.5">
