@@ -9,6 +9,7 @@ import {
   type OrderStatus, type PublicTicket, type SalesPoint, type Shop, type TicketStage,
 } from "@/data/types";
 import { dayKey, longDate, maskName, money, qty, shortDate, startOfShopDay, weekday } from "./format";
+import { pieceLabel } from "./clothes";
 import { quote } from "./pricing";
 
 /* ---------- Ids ---------- */
@@ -74,7 +75,8 @@ export interface OrderContext {
 /** Order document (without id) for a walk-in POS selection. Throws on an empty order. */
 export function buildWalkInOrder(catalog: Catalog, input: NewWalkInOrder, ctx: OrderContext): Omit<Order, "id"> {
   const q = quote(catalog, input);
-  if (q.totalCentavos <= 0 || input.quantity <= 0) throw new Error("Add the weight or pieces first.");
+  const byPiece = q.clothesType?.pricing === "per_piece";
+  if (q.totalCentavos <= 0 || (byPiece ? q.typePieces <= 0 : input.quantity <= 0)) throw new Error("Add the weight or pieces first.");
   const name = input.customer.name.trim() || "Walk-in customer";
   const readyBy = catalog.returnSlots.find((r) => r.id === input.returnSlotId)?.label ?? "";
   const perKg = q.service.unit === "kg";
@@ -89,12 +91,22 @@ export function buildWalkInOrder(catalog: Catalog, input: NewWalkInOrder, ctx: O
     customerId: input.customer.id ?? null,
     serviceId: q.service.id,
     serviceName: q.service.name,
-    unit: q.service.unit,
-    quantity: input.quantity,
-    billedQuantity: q.billedQuantity,
+    // Per-piece clothes types bill pieces; the weight (if entered) is still kept in `kg`.
+    unit: byPiece ? "pc" : q.service.unit,
+    quantity: byPiece ? q.typePieces : input.quantity,
+    billedQuantity: byPiece ? q.typePieces : q.billedQuantity,
     kg: perKg ? input.quantity : 0,
     detergent: q.detergent ? { id: q.detergent.id, name: q.detergent.name, priceCentavos: q.detergent.priceCentavos } : null,
     addOns: q.addOns.map((a) => ({ id: a.id, name: a.name, priceCentavos: a.priceCentavos })),
+    clothesType: q.clothesType
+      ? {
+          id: q.clothesType.id,
+          name: q.clothesType.name,
+          pricing: q.clothesType.pricing,
+          priceCentavos: q.clothesType.priceCentavos,
+          ...(byPiece ? { pieces: q.typePieces, ...(q.clothesType.pieceUnit === "pair" ? { pieceUnit: "pair" as const } : {}) } : {}),
+        }
+      : null,
     lines: q.lines,
     subtotalCentavos: q.subtotalCentavos,
     totalCentavos: q.totalCentavos,
@@ -103,7 +115,9 @@ export function buildWalkInOrder(catalog: Catalog, input: NewWalkInOrder, ctx: O
     paidCentavos: 0,
     readyBy,
     fulfillment: input.fulfillment === "delivery" ? "delivery" : "pickup",
-    detail: `${qty(input.quantity, q.service.unit)} · ${q.service.name}`,
+    detail: byPiece
+      ? `${pieceLabel(q.typePieces, q.clothesType!.pieceUnit)} · ${q.clothesType!.name}`
+      : `${qty(input.quantity, q.service.unit)} · ${q.service.name}${q.clothesType ? ` · ${q.clothesType.name.split(" /")[0]}` : ""}`,
     stageTimes: { received: ctx.now },
     createdAt: ctx.now,
     updatedAt: ctx.now,
@@ -135,8 +149,9 @@ export function toPublicTicket(order: Order, shop: Pick<Shop, "name" | "sample">
     readyBy: order.readyBy,
     updatedAt: order.updatedAt,
     kg: order.kg,
-    quantityLabel: qty(order.quantity, order.unit),
+    quantityLabel: order.clothesType?.pieces ? pieceLabel(order.clothesType.pieces, order.clothesType.pieceUnit) : qty(order.quantity, order.unit),
     serviceName: order.serviceName,
+    ...(order.clothesType ? { clothesType: order.clothesType.name } : {}),
     totalCentavos: order.totalCentavos,
     amountDueCentavos: Math.max(0, order.totalCentavos - order.paidCentavos),
     paid: order.paymentStatus === "paid",

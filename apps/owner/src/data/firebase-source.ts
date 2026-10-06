@@ -16,6 +16,7 @@
  *   shops/{shopId}/bookings/{id}             River Mobile bookings (created by the Partner API; members move status)
  *   public_tickets/{ticketId}                PublicTicket projection (no phone / address), get-only for the public
  */
+import { normalizeClothesTypes, REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import {
   Timestamp, collection, deleteField, doc, getDoc, getDocs, increment, limit, onSnapshot, orderBy, query, runTransaction,
   serverTimestamp, setDoc, updateDoc, where, type DocumentData, type DocumentSnapshot, type Query,
@@ -83,6 +84,7 @@ function toOrder(snap: DocumentSnapshot): Order {
     kg: num(d.kg),
     detergent: d.detergent ?? null,
     addOns: Array.isArray(d.addOns) ? d.addOns : [],
+    clothesType: d.clothesType && typeof d.clothesType === "object" ? (d.clothesType as Order["clothesType"]) : null,
     lines: Array.isArray(d.lines) ? d.lines : [],
     subtotalCentavos: cents(d, "subtotalCentavos"),
     totalCentavos: cents(d, "totalCentavos"),
@@ -152,6 +154,7 @@ function toTicket(snap: DocumentSnapshot): PublicTicket {
     kg: num(d.kg),
     quantityLabel: String(d.quantityLabel ?? (d.kg ? `${d.kg} kg` : "")),
     serviceName: String(d.serviceName ?? ""),
+    ...(typeof d.clothesType === "string" && d.clothesType ? { clothesType: d.clothesType } : {}),
     totalCentavos: cents(d, "totalCentavos", "amountDue"),
     amountDueCentavos: cents(d, "amountDueCentavos", "amountDue"),
     paid: d.paid === true,
@@ -184,6 +187,7 @@ function normCatalog(d: DocumentData): Catalog {
     services: (d.services ?? []).map((s: DocumentData) => ({ ...(s as CatalogService), priceCentavos: cents(s, "priceCentavos", "price") })),
     detergents: (d.detergents ?? []).map(opt),
     addOns: (d.addOns ?? []).map(opt),
+    clothesTypes: normalizeClothesTypes(d.clothesTypes),
     minKg: num(d.minKg, 0),
     returnSlots: d.returnSlots ?? [],
     defaults: d.defaults ?? { serviceId: d.services?.[0]?.id ?? "", kg: 5, pieces: 10, detergentId: d.detergents?.[0]?.id ?? "", addOnIds: [], returnSlotId: d.returnSlots?.[0]?.id ?? "" },
@@ -600,6 +604,8 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         priceCentavos: Math.max(0, Math.round(Number(o.priceCentavos) || 0)),
         ...(o.icon ? { icon: o.icon } : {}),
       }));
+      const clothesTypes = normalizeClothesTypes(next.clothesTypes);
+      if (clothesTypes.some((t) => t.name.length < 2)) throw new Error("Each clothes type needs a name.");
       const returnSlots = next.returnSlots?.length ? next.returnSlots : [{ id: "tomorrow", label: "Tomorrow · 5:00 PM" }];
       const defaults = {
         serviceId: services.some((s) => s.id === next.defaults?.serviceId) ? next.defaults.serviceId : services[0]!.id,
@@ -608,11 +614,13 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         detergentId: detergents.some((d) => d.id === next.defaults?.detergentId) ? next.defaults.detergentId : (detergents[0]?.id ?? ""),
         addOnIds: Array.isArray(next.defaults?.addOnIds) ? next.defaults.addOnIds : [],
         returnSlotId: returnSlots.some((r) => r.id === next.defaults?.returnSlotId) ? next.defaults.returnSlotId : returnSlots[0]!.id,
+        clothesTypeId: REGULAR_CLOTHES_ID,
       };
       const body = {
         services,
         detergents,
         addOns,
+        clothesTypes,
         minKg: Math.max(0, Number(next.minKg) || 0),
         returnSlots,
         defaults,

@@ -1,5 +1,6 @@
 "use client";
 
+import { pieceLabel } from "@/lib/clothes";
 import { ArrowLeft, Copy, ExternalLink, User } from "lucide-react";
 import { CoinIcon, EWalletIcon } from "@river-apps/icons";
 import { Avatar, Button, Card, CardHeader, EmptyState, MonoText, StatusDot } from "@river-apps/ui";
@@ -108,6 +109,14 @@ export function OrderDetail({ order }: { order: Order }) {
               order.fulfillment === "delivery" ? "Delivery" : order.fulfillment === "pickup" ? "Pickup at shop" : null,
               order.readyBy ? `${order.fulfillment === "delivery" ? "Deliver" : "Ready"} by ${order.readyBy}` : null,
             ].filter(Boolean).join(" · ") || undefined} />
+            <p className="mt-2 flex items-baseline justify-between gap-3 text-[13.5px] font-semibold">
+              <span className="flex-none text-muted">Clothes type</span>
+              <span className="min-w-0 text-right text-ink">
+                {order.clothesType?.name ?? "Regular clothes"}
+                {order.clothesType?.pieces ? ` · ${pieceLabel(order.clothesType.pieces, order.clothesType.pieceUnit)}` : ""}
+                {order.clothesType?.pricing === "per_piece" && order.kg > 0 ? ` · ${order.kg} kg` : ""}
+              </span>
+            </p>
             <ul className="mt-3 flex flex-col gap-2">
               {order.lines.map((l, i) => (
                 <li key={i} className="flex items-baseline justify-between gap-3 text-[14px] font-medium">
@@ -119,7 +128,7 @@ export function OrderDetail({ order }: { order: Order }) {
               <b className="text-[15px]">Total</b>
               <b className="text-[22px] font-extrabold tracking-[-0.03em]">{money(order.totalCentavos)}</b>
             </div>
-            {order.billedQuantity !== order.quantity ? (
+            {order.billedQuantity !== order.quantity && order.unit === "kg" ? (
               <p className="mt-1 text-[12.5px] font-semibold text-muted">Weighed {order.quantity} kg · billed minimum {order.billedQuantity} kg</p>
             ) : null}
           </Card>

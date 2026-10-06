@@ -192,6 +192,8 @@ export interface Order {
   kg: number;
   detergent: OrderOption | null;
   addOns: OrderOption[];
+  /** Clothes type (absent on older orders = Regular clothes). */
+  clothesType?: OrderClothesType | null;
   lines: OrderLine[];
   subtotalCentavos: Centavos;
   totalCentavos: Centavos;
@@ -220,6 +222,10 @@ export interface NewWalkInOrder {
   detergentId: string;
   addOnIds: string[];
   returnSlotId: string;
+  /** Clothes type id (defaults to Regular clothes). */
+  clothesTypeId?: string;
+  /** Pieces / pairs for a per-piece clothes type. */
+  typePieces?: number;
   /** Defaults to "pickup". */
   fulfillment?: Fulfillment;
   /** River Mobile booking this order converts (marks the booking "converted" in the same write). */
@@ -319,6 +325,35 @@ export interface CatalogOption {
   priceCentavos: Centavos;
   icon?: IconName;
 }
+/**
+ * How a clothes type changes the walk-in price:
+ * - "regular": the service's own per-kg / per-piece price, no surcharge.
+ * - "per_kg_surcharge": service price + `priceCentavos` extra per billed kg (per-kg services only).
+ * - "per_piece": the load is priced by pieces instead of weight (`priceCentavos` each).
+ */
+export type ClothesPricing = "regular" | "per_kg_surcharge" | "per_piece";
+export interface ClothesType {
+  id: string;
+  name: string;
+  pricing: ClothesPricing;
+  /** Surcharge per kg, or price per piece/pair. 0 for "regular". */
+  priceCentavos: Centavos;
+  /** Per-piece types: "pc" (default) or "pair" (shoes). */
+  pieceUnit?: "pc" | "pair";
+  /** Disabled types stay in the list but don't show at the counter or to River Mobile. */
+  enabled: boolean;
+  icon: IconName;
+}
+/** Clothes type saved on an order (snapshot of the price at the time). */
+export interface OrderClothesType {
+  id: string;
+  name: string;
+  pricing: ClothesPricing;
+  priceCentavos: Centavos;
+  /** Pieces/pairs billed for per-piece types. */
+  pieces?: number;
+  pieceUnit?: "pc" | "pair";
+}
 export interface ReturnSlot {
   id: string;
   label: string;
@@ -327,11 +362,13 @@ export interface Catalog {
   services: CatalogService[];
   detergents: CatalogOption[];
   addOns: CatalogOption[];
+  /** Clothes types with their pricing mode (Regular clothes first). Older catalogs get the PH defaults. */
+  clothesTypes: ClothesType[];
   /** Minimum billed kilos for per-kg services. */
   minKg: number;
   returnSlots: ReturnSlot[];
   /** Pre-filled values for a new walk-in ticket. */
-  defaults: { serviceId: string; kg: number; pieces: number; detergentId: string; addOnIds: string[]; returnSlotId: string };
+  defaults: { serviceId: string; kg: number; pieces: number; detergentId: string; addOnIds: string[]; returnSlotId: string; clothesTypeId?: string };
 }
 
 export type TicketStage = "received" | "washing" | "drying" | "folding" | "ready";
@@ -360,6 +397,8 @@ export interface PublicTicket {
   kg: number;
   quantityLabel: string;
   serviceName: string;
+  /** Clothes type name when not Regular, e.g. "Beddings / blankets / comforters". */
+  clothesType?: string;
   totalCentavos: Centavos;
   amountDueCentavos: Centavos;
   paid: boolean;

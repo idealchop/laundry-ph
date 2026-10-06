@@ -69,10 +69,16 @@ export interface BookingCardProps {
   compact?: boolean;
   /** Render-stable "now" (epoch ms) for relative times. */
   now: number;
+  /** Replaces the status pill (e.g. an order status for an online order). */
+  pill?: React.ReactNode;
+  /** Replaces the "slot · about N kg" line. */
+  meta?: string;
+  /** Replaces the action row (e.g. a single "Order details" button). */
+  footer?: React.ReactNode;
 }
 
 /** One River Mobile booking with the owner's next actions. */
-export function BookingCard({ booking: b, canConvert, onMove, compact = false, now }: BookingCardProps) {
+export function BookingCard({ booking: b, canConvert, onMove, compact = false, now, pill, meta: metaOverride, footer }: BookingCardProps) {
   const [asking, setAsking] = useState<null | "declined" | "cancelled">(null);
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState<BookingMove | null>(null);
@@ -87,7 +93,7 @@ export function BookingCard({ booking: b, canConvert, onMove, compact = false, n
   };
 
   const slot = formatSlot(b.slotAt, now);
-  const meta = [slot, b.estKg ? `about ${b.estKg} kg` : null].filter(Boolean).join(" · ");
+  const meta = metaOverride ?? [slot, b.estKg ? `about ${b.estKg} kg` : null].filter(Boolean).join(" · ");
 
   let outcome: React.ReactNode = null;
   if (b.status === "declined") outcome = <>Declined{b.declineReason ? ` · ${b.declineReason}` : ""}</>;
@@ -108,7 +114,7 @@ export function BookingCard({ booking: b, canConvert, onMove, compact = false, n
           <span className="mt-0.5 text-[13px] font-semibold text-ink-2">{meta}</span>
         </div>
         <span className="flex flex-col items-end gap-1">
-          <BookingStatusPill status={b.status} />
+          {pill ?? <BookingStatusPill status={b.status} />}
           {b.test ? <span className="text-[10.5px] font-semibold text-subtle">Test</span> : null}
         </span>
       </div>
@@ -122,7 +128,7 @@ export function BookingCard({ booking: b, canConvert, onMove, compact = false, n
             {b.status === "requested" ? <> · {ago(b.createdAt, now)}</> : null}
           </small>
         </span>
-        {b.customer.phone && open ? (
+        {b.customer.phone && (open || footer) ? (
           <a href={`tel:${b.customer.phone}`} aria-label={`Call ${b.customer.name}`}
             className="inline-flex size-11 flex-none items-center justify-center rounded-full bg-grey-100 text-ink hover:bg-grey-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
             <Phone size={18} strokeWidth={1.9} />
@@ -145,9 +151,11 @@ export function BookingCard({ booking: b, canConvert, onMove, compact = false, n
 
       {!compact && !canConvert && (b.status === "accepted" || b.status === "received") ? <div className="mt-3"><Steps status={b.status} /></div> : null}
 
-      {outcome ? <p className="mt-3 text-[13px] font-semibold text-muted">{outcome}</p> : null}
+      {outcome && !footer ? <p className="mt-3 text-[13px] font-semibold text-muted">{outcome}</p> : null}
 
-      {asking ? (
+      {footer ? (
+        <div className="mt-3 flex items-center justify-end gap-2">{footer}</div>
+      ) : asking ? (
         <div className="mt-3 rounded-tile bg-grey-50 p-3">
           <p id={reasonId} className="text-[13.5px] font-bold">{asking === "declined" ? "Decline this booking?" : "Cancel this booking?"} <span className="font-semibold text-muted">Reason is optional.</span></p>
           <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-labelledby={reasonId}>

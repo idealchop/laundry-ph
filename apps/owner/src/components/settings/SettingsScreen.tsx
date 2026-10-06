@@ -170,7 +170,7 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
         )}
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card padding="none" className="px-3.5 py-1.5 lg:col-span-2">
           <b className="block px-1 pt-3 text-[16px]">Setup</b>
           <ul className="mt-1">

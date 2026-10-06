@@ -78,7 +78,7 @@ export function normalizePhMobile(raw: unknown): string | null {
 
 /** "+639171234567" → "0917 123 4567" for display. */
 export function formatPhMobile(e164: string): string {
-  const m = /^\+63(9\d{2})(\d{3})(\d{4})$/.exec(e164);
+  const m = /^(?:\+63|0)(9\d{2})(\d{3})(\d{4})$/.exec(e164.replace(/\s+/g, ""));
   return m ? `0${m[1]} ${m[2]} ${m[3]}` : e164;
 }
 

@@ -7,6 +7,7 @@ import { minimalDate, startOfShopDay } from "@/lib/format";
 import { isActive, summarizeToday } from "@/lib/orders";
 import { useAction, useBoardOrders, useBookings, useCustomers, useShop } from "@/lib/shop";
 import { AdvanceButton, ErrorNote, Spinner } from "../ui";
+import { OnlineOrderCard, useConvertedBookings } from "../bookings/OnlineOrderCard";
 import { HomeLayout } from "./HomeLayout";
 
 /** Paid home (phone + desktop): the shared HomeLayout fed by the shop's orders, with walk-ins on. */
@@ -17,6 +18,7 @@ export function HomeScreen() {
   const { orders, error, loading } = useBoardOrders(since);
   const { customers } = useCustomers();
   const live = useBookings("open");
+  const converted = useConvertedBookings();
   const newBookings = live.bookings.filter((b) => b.status === "requested").length;
   const action = useAction();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -32,7 +34,10 @@ export function HomeScreen() {
     await action.run((s) => s.setOrderStatus(order.id, to), "Sign in to update this order.");
     setBusyId(null);
   };
-  const queue = open.map((o) => ({
+  const onlineQueue = open.filter((o) => o.source === "river-mobile").map((o) => (
+    <OnlineOrderCard key={o.id} order={o} booking={o.bookingId ? converted.get(o.bookingId) : null} now={now} />
+  ));
+  const queue = open.filter((o) => o.source !== "river-mobile").map((o) => ({
     id: o.id,
     title: <Link href={`/orders/view?id=${o.id}`} className="hover:underline">{o.customer.name}</Link>,
     subtitle: <>{o.detail} · {minimalDate(o.createdAt)}</>,
@@ -49,6 +54,7 @@ export function HomeScreen() {
         today={today}
         canWalkIn
         queue={queue}
+        onlineQueue={onlineQueue}
         queueHref="/orders"
         bookings={live.bookings}
         bookingsLoading={live.loading}

@@ -22,6 +22,8 @@ export interface HomeLayoutProps {
   canWalkIn: boolean;
   /** Order queue rows, oldest first (Paid: open orders; Partner: orders + accepted/received bookings). */
   queue: QueueListItem[];
+  /** Online (River Mobile) orders in the queue as rich cards, shown above the compact walk-in rows. */
+  onlineQueue?: ReactNode[];
   /** Where "Order queue" links: Paid /orders, Partner /partner/orders. */
   queueHref: string;
   /** Bookings shown under "Pickups to accept" (answerable right here). */
@@ -77,10 +79,8 @@ function Stats({ today, className }: { today: DaySummary; className?: string }) 
   );
 }
 
-function Queue({ queue, canWalkIn }: { queue: QueueListItem[]; canWalkIn: boolean }) {
-  return queue.length ? (
-    <QueueList label="Order queue" items={queue} />
-  ) : (
+function QueueEmpty({ canWalkIn }: { canWalkIn: boolean }) {
+  return (
     <EmptyState
       className="my-2 border-0 py-5"
       title="No orders in the queue"
@@ -112,6 +112,7 @@ function DailyTarget({ today }: { today: DaySummary }) {
  */
 export function HomeLayout(p: HomeLayoutProps) {
   const { shop, today, canWalkIn, queue, queueHref } = p;
+  const online = p.onlineQueue ?? [];
   const fresh = p.bookings.filter((b) => b.status === "requested").length;
   const pickupsAside = p.bookingsLoading ? "" : fresh ? `${fresh} new` : p.bookings.length ? `${p.bookings.length} open` : "Live";
   const queueAside = `${today.inQueue} in progress · ${today.ready} ready`;
@@ -126,7 +127,10 @@ export function HomeLayout(p: HomeLayoutProps) {
         <HomeHeroMobile shop={shop} today={today} showWalkIn={canWalkIn} />
         <Stats today={today} className="mx-4 mt-2.5" />
         <SectionHeader className="px-5 pb-1 pt-4" title="Order queue" aside={<Link href={queueHref} className="underline decoration-grey-300 underline-offset-[3px]">{queueAside}</Link>} />
-        <Card padding="none" className="mx-4 px-4 py-1.5"><Queue queue={queue} canWalkIn={canWalkIn} /></Card>
+        {online.length ? <div className="mx-4 mb-2.5 flex flex-col gap-2.5">{online}</div> : null}
+        {queue.length || !online.length ? (
+          <Card padding="none" className="mx-4 px-4 py-1.5">{queue.length ? <QueueList label="Walk-in queue" items={queue} /> : <QueueEmpty canWalkIn={canWalkIn} />}</Card>
+        ) : null}
         <SectionHeader className="px-5 pb-1 pt-4" title="Pickups to accept" aside={pickupsAside} />
         <div className="mx-4">{pickups(3, false)}</div>
         {p.footer ? <div className="mx-4 mt-2.5">{p.footer}</div> : null}
@@ -142,7 +146,9 @@ export function HomeLayout(p: HomeLayoutProps) {
         <Stats today={today} className="mt-5" />
         <Card padding="none" className="mt-5 px-[18px] pb-2.5 pt-4">
           <CardHeader className="mb-1.5" title="Order queue" subtitle={queueAside} action={<Link href={queueHref} className={linkCls}>Open board</Link>} />
-          <div className="max-h-[360px] overflow-y-auto"><Queue queue={queue} canWalkIn={canWalkIn} /></div>
+          {online.length ? <div className="mb-2 grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2">{online}</div> : null}
+          {queue.length ? <div className="max-h-[360px] overflow-y-auto"><QueueList label="Walk-in queue" items={queue} /></div> : null}
+          {!queue.length && !online.length ? <QueueEmpty canWalkIn={canWalkIn} /> : null}
         </Card>
         <Card padding="none" className="mt-5 px-[18px] pb-4 pt-4">
           <CardHeader className="mb-3" title="Pickups to accept" subtitle={pickupsAside} action={<Link href={p.onlineHref} className={linkCls}>All bookings</Link>} />

@@ -149,7 +149,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasAll(['ref', 'queueNo', 'ticketId', 'status', 'customer', 'serviceId', 'quantity', 'kg', 'lines', 'totalCentavos', 'createdAt'])
           && request.resource.data.keys().hasOnly([
             'shopId', 'ref', 'queueNo', 'ticketId', 'source', 'status', 'customer', 'customerId', 'serviceId', 'serviceName', 'unit',
-            'quantity', 'billedQuantity', 'kg', 'detergent', 'addOns', 'lines', 'subtotalCentavos', 'totalCentavos',
+            'quantity', 'billedQuantity', 'kg', 'detergent', 'addOns', 'clothesType', 'lines', 'subtotalCentavos', 'totalCentavos',
             'paymentStatus', 'paymentMethod', 'paidCentavos', 'readyBy', 'fulfillment', 'detail', 'stageTimes', 'createdAt', 'updatedAt', 'createdBy', 'sample',
             'bookingId'
           ])
@@ -271,8 +271,9 @@ service cloud.firestore {
       allow create: if isMember(request.resource.data.shopId)
         && request.resource.data.keys().hasOnly([
           'shopId', 'shopName', 'ref', 'queueNo', 'maskedName', 'stage', 'done', 'cancelled', 'stageTimes', 'readyBy',
-          'updatedAt', 'kg', 'quantityLabel', 'serviceName', 'totalCentavos', 'amountDueCentavos', 'paid', 'sample'
+          'updatedAt', 'kg', 'quantityLabel', 'serviceName', 'clothesType', 'totalCentavos', 'amountDueCentavos', 'paid', 'sample'
         ])
+        && (!('clothesType' in request.resource.data) || shortString(request.resource.data.clothesType, 80))
         && ticketId.matches('LDY-[0-9]{4,6}-[A-Z0-9]{8}')
         && isTicketStage(request.resource.data.stage)
         && shortString(request.resource.data.maskedName, 40)

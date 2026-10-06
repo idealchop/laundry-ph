@@ -3,6 +3,7 @@
  * Laundry.ph UI scaffold. Screens that show this data carry a <SampleDataTag />.
  * Money is integer centavos. scripts/seed-laundrydb-dev.mjs mirrors this file.
  */
+import { DEFAULT_CLOTHES_TYPES } from "@/lib/clothes";
 import type {
   Booking, Catalog, Customer, GrowthTip, Machine, NewWalkInOrder, Order, PickupRequest, Shop, VerifiedBooking,
 } from "./types";
@@ -74,6 +75,7 @@ export const catalog: Catalog = {
     { id: "stain", name: "Stain removal", priceCentavos: 4_000, icon: "sparkle" },
     { id: "sameday", name: "Same-day", priceCentavos: 5_000 },
   ],
+  clothesTypes: structuredClone(DEFAULT_CLOTHES_TYPES),
   minKg: 5,
   returnSlots: [
     { id: "today", label: "Today · 6:00 PM" },

@@ -3,7 +3,7 @@
 import { Icon3D } from "@river-apps/icons";
 import { Button, EmptyState } from "@river-apps/ui";
 import { FlaskConical } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Booking, BookingMove, BookingScope } from "@/data";
 import { isPaidShop } from "@/lib/plans";
 import { useAction, useBookings, useShop } from "@/lib/shop";
@@ -47,6 +47,12 @@ export function BookingsList({ scope, emptyAction }: { scope: BookingScope; empt
   const actions = useBookingActions();
   const [now] = useState(() => Date.now());
   const canConvert = isPaidShop(shop.tier);
+  // Home "Order details" links here as /partner/orders#<bookingId>: scroll to that card once the list is in.
+  useEffect(() => {
+    if (loading || typeof window === "undefined") return;
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (id) document.getElementById(id)?.scrollIntoView({ block: "center" });
+  }, [loading]);
 
   if (loading) return <Spinner label="Loading bookings" />;
   return (
@@ -70,7 +76,7 @@ export function BookingsList({ scope, emptyAction }: { scope: BookingScope; empt
         )
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2">
-          {bookings.map((b) => <BookingCard key={b.id} booking={b} canConvert={canConvert} onMove={actions.onMove} now={now} />)}
+          {bookings.map((b) => <div key={b.id} id={b.id} className="min-w-0 scroll-mt-24"><BookingCard booking={b} canConvert={canConvert} onMove={actions.onMove} now={now} /></div>)}
         </div>
       )}
       {scope === "open" ? <TestBookingButton className="self-center" /> : null}

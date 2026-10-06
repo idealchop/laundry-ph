@@ -5,6 +5,7 @@ import { useId, useMemo, useRef, useState } from "react";
 import { Icon3D } from "@river-apps/icons";
 import { Avatar, Badge, Button, Input, IconButton, MonoText, SuccessState } from "@river-apps/ui";
 import type { Booking, Catalog, Customer, Fulfillment, NewWalkInOrder, Order } from "@/data";
+import { CLOTHES_PRICING_LABEL, pieceLabel, REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import { money } from "@/lib/format";
 import { parseCustomerText } from "@/lib/orders";
 import { quote } from "@/lib/pricing";
@@ -94,7 +95,9 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   const [addOnIds, setAddOnIds] = useState<string[]>([]);
   const [returnSlotId, setReturnSlotId] = useState(d.returnSlotId);
   const [fulfillment, setFulfillment] = useState<Fulfillment>(booking?.fulfillment ?? "pickup");
-  const [openOptions, setOpenOptions] = useState<"detergent" | "addons" | null>(null);
+  const [clothesTypeId, setClothesTypeId] = useState(REGULAR_CLOTHES_ID);
+  const [typePieces, setTypePieces] = useState(1);
+  const [openOptions, setOpenOptions] = useState<"clothes" | "detergent" | "addons" | null>(null);
   const [pickingReturn, setPickingReturn] = useState(false);
   const [created, setCreated] = useState<Order | null>(null);
   const [saving, setSaving] = useState(false);
@@ -109,13 +112,22 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   const breakdownId = useId();
   const detId = useId();
   const addId = useId();
+  const clothesId = useId();
 
   const service = catalog.services.find((s) => s.id === serviceId) ?? catalog.services[0]!;
   const perKg = service.unit === "kg";
   const quantity = perKg ? kg : pieces;
   const step = perKg ? KG_STEP : 1;
   const max = perKg ? KG_MAX : PC_MAX;
-  const q = useMemo(() => quote(catalog, { serviceId, quantity, detergentId, addOnIds }), [catalog, serviceId, quantity, detergentId, addOnIds]);
+  const q = useMemo(
+    () => quote(catalog, { serviceId, quantity, detergentId, addOnIds, clothesTypeId, typePieces }),
+    [catalog, serviceId, quantity, detergentId, addOnIds, clothesTypeId, typePieces],
+  );
+  const clothesTypes = (catalog.clothesTypes ?? []).filter((t) => t.enabled);
+  const clothesType = clothesTypes.find((t) => t.id === clothesTypeId) ?? clothesTypes[0];
+  /** Applied type (null when Regular, or a per-kg surcharge on a per-piece service). */
+  const appliedType = q.clothesType;
+  const byPiece = appliedType?.pricing === "per_piece";
   /** Basket is "full" at twice the minimum (at least 8 kg); per-piece services fill at PC_FULL pieces. */
   const fullAt = perKg ? Math.max(catalog.minKg * 2, 8) : PC_FULL;
   const basketFill = quantity / fullAt;
@@ -124,7 +136,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   const detergent = catalog.detergents.find((o) => o.id === detergentId);
   const pickedAddOns = catalog.addOns.filter((o) => addOnIds.includes(o.id));
   const addOnsCentavos = pickedAddOns.reduce((sum, o) => sum + o.priceCentavos, 0);
-  const toggleOptions = (which: "detergent" | "addons") => setOpenOptions((v) => (v === which ? null : which));
+  const toggleOptions = (which: "clothes" | "detergent" | "addons") => setOpenOptions((v) => (v === which ? null : which));
   const matches = useMemo(() => {
     const t = customer.trim().toLowerCase();
     if (picked || t.length < 2) return [];
@@ -143,6 +155,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
       const order = await onCreate({
         customer: { id: picked?.id ?? null, name: parsed.name, ...(parsed.phone ? { phone: parsed.phone } : {}) },
         serviceId, quantity, detergentId, addOnIds, returnSlotId, fulfillment,
+        ...(appliedType ? { clothesTypeId: appliedType.id, ...(byPiece ? { typePieces } : {}) } : {}),
         ...(booking ? { bookingId: booking.id } : {}),
       });
       setCreated(order);
@@ -187,7 +200,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   };
   const reset = () => {
     setCustomer(""); setPicked(null); setAddingCustomer(false); setServiceId(d.serviceId); setKg(d.kg); setPieces(d.pieces); setDetergentId(defaultDetergentId(catalog));
-    setAddOnIds([]); setReturnSlotId(d.returnSlotId); setFulfillment("pickup"); setOpenOptions(null); setPickingReturn(false); setCreated(null); setQtyText(null); setError(null); setCopied(false); setShowBreakdown(false);
+    setAddOnIds([]); setClothesTypeId(REGULAR_CLOTHES_ID); setTypePieces(1); setReturnSlotId(d.returnSlotId); setFulfillment("pickup"); setOpenOptions(null); setPickingReturn(false); setCreated(null); setQtyText(null); setError(null); setCopied(false); setShowBreakdown(false);
   };
 
   if (created) {
@@ -297,7 +310,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
               <div ref={qtyField} className="flex min-w-0 flex-1 flex-col items-start gap-2">
                 <p id="qty-label" className="text-[13px] leading-none">
                   <span className="font-semibold text-ink">{perKg ? "Weight" : "Pieces"}</span>
-                  <span className="font-semibold text-muted"> · {perKg ? `Min. ${catalog.minKg} kg` : "Per piece"}</span>
+                  <span className="font-semibold text-muted"> · {byPiece ? "Optional, priced per piece" : perKg ? `Min. ${catalog.minKg} kg` : "Per piece"}</span>
                 </p>
                 <label className="flex max-w-full cursor-text items-baseline gap-1">
                   {/* Auto-width: an invisible copy of the text sizes the grid cell, so the input hugs the digits. */}
@@ -371,6 +384,51 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
               </div>
             ) : null}
           </div>
+
+          {clothesTypes.length > 1 ? (
+            <div>
+              <OptionDisclosure
+                id={clothesId}
+                label="Clothes type"
+                summary={clothesType?.name ?? "Regular clothes"}
+                aside={!clothesType || clothesType.pricing === "regular" ? "Standard"
+                  : clothesType.pricing === "per_piece" ? `${money(clothesType.priceCentavos)}/${clothesType.pieceUnit ?? "pc"}`
+                  : `+${money(clothesType.priceCentavos)}/kg`}
+                open={openOptions === "clothes"}
+                onToggle={() => toggleOptions("clothes")}
+              >
+                {clothesTypes.map((t) => {
+                  const off = t.pricing === "per_kg_surcharge" && !perKg;
+                  return (
+                    <Chip key={t.id} selected={t.id === clothesTypeId} disabled={off}
+                      onClick={() => { setClothesTypeId(t.id); if (t.pricing === "per_piece" && typePieces < 1) setTypePieces(1); }}
+                      icon={<Icon3D name={t.icon} size={24} />}>
+                      <span className="whitespace-nowrap">
+                        {t.name}
+                        {t.pricing === "per_piece" ? <span className="text-muted"> {money(t.priceCentavos)}/{t.pieceUnit ?? "pc"}</span>
+                          : t.pricing === "per_kg_surcharge" && t.priceCentavos > 0 ? <span className="text-muted"> +{money(t.priceCentavos)}/kg</span> : null}
+                      </span>
+                    </Chip>
+                  );
+                })}
+              </OptionDisclosure>
+              {clothesType && clothesType.pricing === "per_kg_surcharge" && !perKg ? (
+                <p className="mt-1.5 px-1 text-[12.5px] font-semibold text-muted">{CLOTHES_PRICING_LABEL.per_kg_surcharge} applies to per-kg services only.</p>
+              ) : null}
+              {byPiece && appliedType ? (
+                <div className="mt-2 flex min-h-[52px] items-center gap-3 rounded-tile bg-grey-100 px-3.5 py-2" role="group" aria-label={`${appliedType.name} count`}>
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <b className="block text-[14px] tabular-nums">{pieceLabel(typePieces, appliedType.pieceUnit)}</b>
+                    <small className="block truncate text-[12px] font-semibold text-muted">{money(appliedType.priceCentavos)} each · {money(typePieces * appliedType.priceCentavos)}</small>
+                  </span>
+                  <IconButton type="button" label={`One ${appliedType.pieceUnit ?? "piece"} less`} variant="soft" icon={<Minus size={18} strokeWidth={2.2} />}
+                    className={`${STEP_BTN} size-10 flex-none border border-line bg-surface`} disabled={typePieces <= 1} onClick={() => setTypePieces((n) => Math.max(1, n - 1))} />
+                  <IconButton type="button" label={`One ${appliedType.pieceUnit ?? "piece"} more`} variant="soft" icon={<Plus size={18} strokeWidth={2.2} />}
+                    className={`${STEP_BTN} size-10 flex-none border border-line bg-surface`} disabled={typePieces >= PC_MAX} onClick={() => setTypePieces((n) => Math.min(PC_MAX, n + 1))} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <OptionDisclosure
             id={detId}

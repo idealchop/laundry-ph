@@ -11,6 +11,7 @@ import { isActive, isDone } from "@/lib/orders";
 import { useBoardOrders, useBookings } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
 import { BookingCard } from "../bookings/BookingCard";
+import { OnlineOrderCard, useConvertedBookings } from "../bookings/OnlineOrderCard";
 import { TestBookingButton, useBookingActions } from "../bookings/BookingsList";
 import { ErrorNote, PaymentBadge, Spinner, StatusPill } from "../ui";
 
@@ -28,6 +29,7 @@ export function OrderBoard() {
   const { orders, error, loading } = useBoardOrders(since);
   const live = useBookings("open");
   const bookingActions = useBookingActions();
+  const converted = useConvertedBookings();
   const [channel, setChannel] = useState<Channel>("walk-ins");
   const [search, setSearch] = useState("");
 
@@ -168,13 +170,14 @@ export function OrderBoard() {
           ) : null}
 
           {onlineFilteredOrders.length > 0 ? (
-            <Card padding="none" className="mt-4 px-4 py-1.5">
-              <ul aria-label="Online orders">
+            <div className="mt-4 flex flex-col gap-2.5">
+              <p className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">Online orders</p>
+              <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2" aria-label="Online orders">
                 {onlineFilteredOrders.map((o) => (
-                  <OrderRow key={o.id} order={o} />
+                  <OnlineOrderCard key={o.id} order={o} booking={o.bookingId ? converted.get(o.bookingId) : null} now={now} />
                 ))}
-              </ul>
-            </Card>
+              </div>
+            </div>
           ) : null}
           <TestBookingButton className="mt-3 self-center text-center" />
         </>

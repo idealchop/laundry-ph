@@ -56,7 +56,7 @@ export function TicketView({ ticket }: { ticket: PublicTicket }) {
           steps={TICKET_STAGES.map((s) => ({ key: s, label: STAGE[s].label, icon: STAGE[s].icon(30), meta: ticket.stageTimes[s] && s !== ticket.stage ? timeLabel(ticket.stageTimes[s]!) : undefined }))}
         />
         <p className="mt-3 border-t border-dashed border-[#E8E8EC] px-1 pt-2.5 text-[12.5px] font-semibold text-muted">
-          {ticket.quantityLabel} · {ticket.serviceName} · for {ticket.maskedName}
+          {ticket.quantityLabel} · {ticket.serviceName}{ticket.clothesType ? ` · ${ticket.clothesType}` : ""} · for {ticket.maskedName}
         </p>
       </Card>
       {ticket.paid ? (

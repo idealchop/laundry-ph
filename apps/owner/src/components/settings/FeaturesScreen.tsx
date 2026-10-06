@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Badge, Button, Card, ListItem } from "@river-apps/ui";
+import { Badge, Button, Card } from "@river-apps/ui";
 import { Store } from "lucide-react";
 import type { Tier } from "@/data";
 import { FocusHeader } from "@/components/FocusHeader";
@@ -22,9 +22,16 @@ export function FeatureList({ tier, className }: { tier: Tier; className?: strin
     <ul className={className}>
       {FEATURES.map((f) => {
         const Icon = f.icon;
+        // Own row layout (not ListItem) so the text shrinks/truncates and the Upgrade button never pushes the page wider.
         const row = (trailing: React.ReactNode) => (
-          <ListItem variant="row" className="py-2" leading={<span className={tileCls}><Icon size={18} strokeWidth={1.75} /></span>}
-            title={f.title} subtitle={f.subtitle} trailing={trailing} />
+          <div className="flex min-h-[60px] min-w-0 items-center gap-3 px-1.5 py-2">
+            <span className={`${tileCls} flex-none`}><Icon size={18} strokeWidth={1.75} /></span>
+            <span className="flex min-w-0 flex-1 flex-col leading-[1.3]">
+              <b className="truncate text-[15px] font-bold">{f.title}</b>
+              <small className="truncate text-[13px] font-medium text-muted">{f.subtitle}</small>
+            </span>
+            <span className="flex-none">{trailing}</span>
+          </div>
         );
         return (
           <li key={f.id}>
@@ -33,7 +40,7 @@ export function FeatureList({ tier, className }: { tier: Tier; className?: strin
                 {row(<Badge variant="soft" size="sm">Included</Badge>)}
               </Link>
             ) : (
-              row(<Button href="/settings/billing" size="xs" pill className="flex-none" aria-label={`Upgrade to Paid for ${f.title}, ${PAID_PER_MO}`}>Upgrade · {PAID_PER_MO}</Button>)
+              row(<Button href="/settings/billing" size="xs" pill className="whitespace-nowrap" aria-label={`Upgrade to Paid for ${f.title}, ${PAID_PER_MO}`}>Upgrade · {PAID_PER_MO}</Button>)
             )}
           </li>
         );

@@ -3,13 +3,12 @@
 import { useSearchParams } from "next/navigation";
 import { firestoreErrorMessage } from "@/data/firebase-source";
 import type { NewWalkInOrder } from "@/data";
-import { useAction, useCustomers, useShop, useShopQuery } from "@/lib/shop";
+import { useAction, useCustomers, useShopQuery } from "@/lib/shop";
 import { FocusHeader } from "../FocusHeader";
 import { ErrorNote, Spinner } from "../ui";
 import { PosForm } from "./PosForm";
 
 export function NewOrderScreen() {
-  const { reload } = useShop();
   const bookingId = useSearchParams().get("booking");
   const catalog = useShopQuery((s) => s.getCatalog());
   const booking = useShopQuery((s) => (bookingId ? s.getBooking(bookingId) : Promise.resolve(null)), [bookingId]);
@@ -27,7 +26,8 @@ export function NewOrderScreen() {
   const onCreate = async (input: NewWalkInOrder) => {
     const order = await action.run((s) => s.createWalkInOrder(input), "Sign in to create a walk-in order.");
     if (!order) throw new Error(action.error ?? "Could not create the order.");
-    reload();
+    // No shop reload here: in Firebase mode it remounts the app (loading state) and drops the "Ticket created" screen.
+    // Orders, customers and the home numbers are live listeners.
     return order;
   };
   return (

@@ -2,14 +2,15 @@
  * Partner API data access (firebase-admin, bypasses rules — every check lives here).
  *
  *   shops/{shopId}                     public listing fields only are exposed
- *   shops/{shopId}/meta/catalog        services / add-ons / detergents (prices in centavos)
+ *   shops/{shopId}/meta/catalog        services / clothes types / add-ons / detergents (prices in centavos)
  *   shops/{shopId}/bookings/{id}       River Mobile bookings (created only here)
  *   booking_refs/{id}                  { shopId } lookup so GET /bookings/{id} needs no shop id (admin-only)
  */
 import { createHash, randomInt } from "node:crypto";
 import { FieldPath, FieldValue, Timestamp, type DocumentData, type DocumentSnapshot, type Firestore } from "firebase-admin/firestore";
 import { BOOKING_LIMITS, BOOKING_STATUSES, type BookingInput } from "@/lib/bookings";
-import type { BookingStatus } from "@/data/types";
+import type { BookingStatus, ClothesPricing } from "@/data/types";
+import { normalizeClothesTypes } from "@/lib/clothes";
 import { adminDb, isDevEnv } from "./admin";
 
 const PUBLIC_BASE = process.env.PUBLIC_BASE_URL || "";
@@ -23,6 +24,8 @@ const iso = (v: unknown): string | null => (v instanceof Timestamp ? v.toDate().
 
 export interface PublicService { id: string; name: string; unit: "kg" | "pc"; priceCentavos: number }
 export interface PublicOption { id: string; name: string; priceCentavos: number }
+/** Enabled clothes types. regular = service price; per_kg_surcharge = + priceCentavos per kg; per_piece = priceCentavos per piece (or pair). */
+export interface PublicClothesType { id: string; name: string; pricing: ClothesPricing; priceCentavos: number; unit: "kg" | "pc" | "pair" | null }
 export interface PublicShop {
   id: string;
   name: string;
@@ -33,6 +36,7 @@ export interface PublicShop {
   photos: string[];
   plan: "partner" | "paid";
   services: PublicService[];
+  clothesTypes: PublicClothesType[];
   addOns: PublicOption[];
   detergents: PublicOption[];
   minKg: number;
@@ -65,6 +69,15 @@ function toPublicShop(snap: DocumentSnapshot, catalog: DocumentData | undefined)
     photos: Array.isArray(d.photoUrls) ? d.photoUrls.filter((u: unknown): u is string => typeof u === "string" && u.startsWith("https://")).slice(0, 6) : [],
     plan: d.tier === "partner" ? "partner" : "paid",
     services,
+    clothesTypes: normalizeClothesTypes(catalog?.clothesTypes)
+      .filter((t) => t.enabled)
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        pricing: t.pricing,
+        priceCentavos: t.priceCentavos,
+        unit: t.pricing === "per_piece" ? (t.pieceUnit ?? "pc") : t.pricing === "per_kg_surcharge" ? "kg" : null,
+      })),
     addOns: opts(catalog?.addOns),
     detergents: opts(catalog?.detergents),
     minKg: num(catalog?.minKg),

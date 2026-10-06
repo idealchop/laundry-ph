@@ -3,6 +3,7 @@
  * move statuses, add customers) but nothing persists past a page reload. Only used when the
  * build is not pointed at Firestore (see dataMode()).
  */
+import { normalizeClothesTypes } from "@/lib/clothes";
 import { BOOKING_DONE, BOOKING_OPEN, sortOpenBookings } from "@/lib/bookings";
 import { avatarFor, buildWalkInOrder, formatRef, nextStatus, toPublicTicket } from "@/lib/orders";
 import { ACTIVE_STATUSES, type Booking, type Customer, type Order, type PublicTicket } from "./types";
@@ -69,6 +70,7 @@ export function createFixtureDataSource(): LaundryDataSource {
         services,
         detergents,
         addOns,
+        clothesTypes: normalizeClothesTypes(next.clothesTypes),
         minKg: Math.max(0, next.minKg ?? 5),
         returnSlots: next.returnSlots?.length ? next.returnSlots : store.catalog.returnSlots,
         defaults: { ...store.catalog.defaults, ...defaults, addOnIds: defaults.addOnIds ?? store.catalog.defaults.addOnIds, returnSlotId: defaults.returnSlotId ?? store.catalog.defaults.returnSlotId, kg: defaults.kg ?? store.catalog.defaults.kg, pieces: defaults.pieces ?? store.catalog.defaults.pieces },

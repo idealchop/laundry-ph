@@ -2,9 +2,10 @@
 
 import { ICON_NAMES, Icon3D, type IconName } from "@river-apps/icons";
 import { Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge, Button, Card, Input } from "@river-apps/ui";
-import type { Catalog, CatalogOption, CatalogService } from "@/data";
+import type { Catalog, CatalogOption, CatalogService, ClothesPricing, ClothesType } from "@/data";
+import { CLOTHES_PRICING_LABEL, DEFAULT_CLOTHES_TYPES, REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import { catalog as defaultCatalog } from "@/data/fixtures";
 import { FocusHeader } from "@/components/FocusHeader";
 import { money } from "@/lib/format";
@@ -15,7 +16,15 @@ import { ErrorNote, Spinner } from "../ui";
 const SERVICE_ICONS: IconName[] = ["washer", "dryer", "folded", "basket", "bubbles", "iron", "detergent", "drop", "sparkle"];
 
 function cloneCatalog(c: Catalog): Catalog {
-  return structuredClone(c);
+  const next = structuredClone(c);
+  return next.clothesTypes?.length ? next : { ...next, clothesTypes: structuredClone(DEFAULT_CLOTHES_TYPES) };
+}
+
+/** Icons offered for clothes types (same 3D set as services). */
+const CLOTHES_ICONS: IconName[] = ["folded", "basket", "washer", "drop", "iron", "dryer", "bubbles", "sparkle", "detergent"];
+
+function newClothesType(): ClothesType {
+  return { id: `type-${Date.now()}`, name: "New clothes type", pricing: "per_piece", priceCentavos: 10_000, enabled: true, icon: "folded" };
 }
 
 function pesosFromCentavos(c: number): string {
@@ -51,10 +60,6 @@ export function ServicesScreen() {
   const [draft, setDraft] = useState<Catalog | null>(null);
   const [saved, setSaved] = useState(false);
   const readOnly = shop.sample === true && source.mode === "firebase";
-
-  useEffect(() => {
-    if (q.data && !draft) setDraft(cloneCatalog(q.data));
-  }, [q.data, draft]);
 
   const catalog = draft ?? (q.data ? cloneCatalog(q.data) : cloneCatalog(defaultCatalog));
 
@@ -105,6 +110,13 @@ export function ServicesScreen() {
         ...base,
         [kind]: base[kind].map((o) => (o.id === id ? { ...o, ...patch } : o)),
       };
+    });
+  }
+
+  function patchType(id: string, patch: Partial<ClothesType>) {
+    setDraft((d) => {
+      const base = d ?? cloneCatalog(catalog);
+      return { ...base, clothesTypes: base.clothesTypes.map((t) => (t.id === id ? { ...t, ...patch } : t)) };
     });
   }
 
@@ -240,6 +252,44 @@ export function ServicesScreen() {
           </Button>
         </section>
 
+        <section aria-labelledby="clothes-types-h">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <b id="clothes-types-h" className="text-[16px]">Clothes types</b>
+            <Badge variant="soft" size="sm">{catalog.clothesTypes.filter((t) => t.enabled).length} on</Badge>
+          </div>
+          <p className="mb-2 text-[12.5px] font-medium text-muted">
+            Picked at the counter (default Regular clothes). Extra per kg adds to the service price; per piece prices the load by pieces.
+          </p>
+          <ul className="grid gap-2">
+            {catalog.clothesTypes.map((t) => (
+              <ClothesTypeRow
+                key={t.id}
+                type={t}
+                disabled={readOnly || busy}
+                onChange={(patch) => patchType(t.id, patch)}
+                onRemove={t.id === REGULAR_CLOTHES_ID ? undefined : () => setDraft((d) => {
+                  const base = d ?? cloneCatalog(catalog);
+                  return { ...base, clothesTypes: base.clothesTypes.filter((x) => x.id !== t.id) };
+                })}
+              />
+            ))}
+          </ul>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="mt-2"
+            disabled={readOnly || busy}
+            leadingIcon={<Plus size={16} />}
+            onClick={() => setDraft((d) => {
+              const base = d ?? cloneCatalog(catalog);
+              return { ...base, clothesTypes: [...base.clothesTypes, newClothesType()] };
+            })}
+          >
+            Add clothes type
+          </Button>
+        </section>
+
         <section>
           <b className="mb-2 block text-[16px]">Detergents</b>
           <ul className="grid gap-2">
@@ -355,6 +405,111 @@ function OptionRow({
           onChange={(e) => onChange({ priceCentavos: centavosFromPesos(e.target.value) })}
         />
       </div>
+    </li>
+  );
+}
+
+type PricingChoice = ClothesPricing | "per_pair";
+
+/** One clothes type: icon, name, on/off, pricing mode and price. Regular clothes can't be removed or turned off. */
+function ClothesTypeRow({ type: t, disabled, onChange, onRemove }: {
+  type: ClothesType;
+  disabled?: boolean;
+  onChange: (patch: Partial<ClothesType>) => void;
+  onRemove?: () => void;
+}) {
+  const regular = t.id === REGULAR_CLOTHES_ID;
+  const [picking, setPicking] = useState(false);
+  const choice: PricingChoice = t.pricing === "per_piece" && t.pieceUnit === "pair" ? "per_pair" : t.pricing;
+  const priceLabel = t.pricing === "per_kg_surcharge" ? "Extra ₱/kg" : t.pieceUnit === "pair" ? "₱/pair" : "₱/piece";
+  return (
+    <li className={`rounded-tile border border-line bg-surface px-3 py-2.5 transition-opacity ${t.enabled ? "" : "opacity-60"}`}>
+      <div className="flex items-center gap-2.5">
+        <button
+          type="button"
+          disabled={disabled || regular}
+          aria-label={`Icon for ${t.name}`}
+          aria-expanded={picking}
+          onClick={() => setPicking((v) => !v)}
+          className="inline-flex size-11 flex-none items-center justify-center rounded-tile bg-grey-100 hover:bg-grey-200 disabled:hover:bg-grey-100"
+        >
+          <Icon3D name={(ICON_NAMES as readonly string[]).includes(t.icon) ? t.icon : "folded"} size={30} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <Input size="md" label="Clothes type name" hideLabel value={t.name} disabled={disabled} maxLength={60}
+            onChange={(e) => onChange({ name: e.target.value })} />
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={t.enabled}
+          aria-label={`${t.name} ${t.enabled ? "on" : "off"}`}
+          disabled={disabled || regular}
+          onClick={() => onChange({ enabled: !t.enabled })}
+          className={`relative inline-flex h-7 w-12 flex-none items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed ${t.enabled ? "bg-ink" : "bg-grey-300"}`}
+        >
+          <span aria-hidden className={`absolute size-5 rounded-full bg-white shadow transition-transform ${t.enabled ? "translate-x-6" : "translate-x-1"}`} />
+        </button>
+      </div>
+      {picking && !regular ? (
+        <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Pick an icon">
+          {CLOTHES_ICONS.map((icon) => (
+            <button key={icon} type="button" aria-label={icon} aria-pressed={t.icon === icon} disabled={disabled}
+              onClick={() => { onChange({ icon }); setPicking(false); }}
+              className={`inline-flex size-10 items-center justify-center rounded-tile ${t.icon === icon ? "bg-ink" : "bg-grey-100 hover:bg-grey-200"}`}>
+              <Icon3D name={icon} size={24} />
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {regular ? (
+        <p className="mt-1.5 text-[12.5px] font-semibold text-muted">{CLOTHES_PRICING_LABEL.regular} · always on, the counter default</p>
+      ) : (
+        <div className="mt-2 grid grid-cols-[1fr_7rem] items-end gap-2">
+          <label className="block">
+            <span className="sr-only">Pricing for {t.name}</span>
+            <select
+              className="h-[46px] w-full rounded-control border border-line bg-surface px-3 text-[14.5px] font-semibold"
+              value={choice}
+              disabled={disabled}
+              onChange={(e) => {
+                const v = e.target.value as PricingChoice;
+                if (v === "per_pair") onChange({ pricing: "per_piece", pieceUnit: "pair" });
+                else onChange({ pricing: v, pieceUnit: undefined });
+              }}
+            >
+              <option value="regular">{CLOTHES_PRICING_LABEL.regular}</option>
+              <option value="per_kg_surcharge">{CLOTHES_PRICING_LABEL.per_kg_surcharge}</option>
+              <option value="per_piece">{CLOTHES_PRICING_LABEL.per_piece}</option>
+              <option value="per_pair">Per pair</option>
+            </select>
+          </label>
+          {t.pricing === "regular" ? (
+            <span className="flex h-[46px] items-center justify-center rounded-control bg-grey-100 text-[13px] font-semibold text-muted">No extra</span>
+          ) : (
+            <Input size="md" label={priceLabel} hideLabel placeholder={priceLabel} inputMode="decimal" disabled={disabled}
+              leadingIcon={<span className="text-[14px] font-bold text-muted">₱</span>}
+              value={pesosFromCentavos(t.priceCentavos)}
+              onChange={(e) => onChange({ priceCentavos: centavosFromPesos(e.target.value) })} />
+          )}
+        </div>
+      )}
+      {!regular ? (
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <p className="text-[12.5px] font-semibold text-muted">
+            {t.pricing === "regular" ? "Same as the service price"
+              : t.pricing === "per_kg_surcharge" ? `Service price + ${money(t.priceCentavos)}/kg`
+              : `${money(t.priceCentavos)} per ${t.pieceUnit === "pair" ? "pair" : "piece"}`}
+            {t.enabled ? "" : " · off"}
+          </p>
+          {onRemove ? (
+            <button type="button" aria-label={`Remove ${t.name}`} disabled={disabled} onClick={onRemove}
+              className="-mr-1.5 inline-flex size-10 flex-none items-center justify-center rounded-full text-muted hover:bg-grey-100">
+              <Trash2 size={17} />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </li>
   );
 }

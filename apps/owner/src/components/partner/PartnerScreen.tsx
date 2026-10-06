@@ -1,20 +1,14 @@
 "use client";
 
-import { Button } from "@river-apps/ui";
 import { useMemo, useState } from "react";
-import type { Booking, BookingMove } from "@/data";
-import { bookingTitle, formatSlot } from "@/lib/bookings";
 import { startOfShopDay } from "@/lib/format";
 import { summarizeToday } from "@/lib/orders";
 import { useBookings, useOrders, useShop } from "@/lib/shop";
+import { BookingCard } from "../bookings/BookingCard";
 import { useBookingActions } from "../bookings/BookingsList";
+import { OrderDetailsButton } from "../bookings/OnlineOrderCard";
 import { HomeLayout, UpgradeCard } from "../home/HomeLayout";
 import { ErrorNote } from "../ui";
-
-const NEXT: Partial<Record<Booking["status"], { to: BookingMove; label: string }>> = {
-  accepted: { to: "received", label: "Received" },
-  received: { to: "completed", label: "Done" },
-};
 
 /**
  * Partner home: the same HomeLayout as Paid, without walk-ins. Queue and stats come from River Mobile bookings
@@ -27,7 +21,6 @@ export function PartnerScreen() {
   const { orders } = useOrders({ sinceMs: since });
   const live = useBookings("open");
   const actions = useBookingActions();
-  const [busyId, setBusyId] = useState<string | null>(null);
 
   const requested = useMemo(() => live.bookings.filter((b) => b.status === "requested"), [live.bookings]);
   const inProgress = useMemo(
@@ -39,25 +32,10 @@ export function PartnerScreen() {
     return { ...t, inQueue: t.inQueue + inProgress.length };
   }, [orders, shop.dailyTargetCentavos, requested.length, inProgress]);
 
-  const move = async (b: Booking, to: BookingMove) => {
-    setBusyId(b.id);
-    await actions.onMove(b, to);
-    setBusyId(null);
-  };
-  const queue = inProgress.map((b) => {
-    const next = NEXT[b.status];
-    return {
-      id: b.id,
-      title: b.customer.name,
-      subtitle: <>{bookingTitle(b)} · {formatSlot(b.slotAt, now)}</>,
-      trailing: next ? (
-        <Button size="xs" variant={next.to === "completed" ? "primary" : "secondary"} className="h-9 min-w-[44px]" disabled={busyId === b.id}
-          aria-label={`Mark ${b.ref} ${next.label.toLowerCase()}`} onClick={() => move(b, next.to)}>
-          {next.label}
-        </Button>
-      ) : null,
-    };
-  });
+  const onlineQueue = inProgress.map((b) => (
+    <BookingCard key={b.id} booking={b} canConvert={false} onMove={actions.onMove} compact now={now}
+      footer={<OrderDetailsButton href={`/partner/orders#${b.id}`} label={`Order details for ${b.ref}`} />} />
+  ));
 
   return (
     <>
@@ -66,7 +44,8 @@ export function PartnerScreen() {
         shop={shop}
         today={today}
         canWalkIn={false}
-        queue={queue}
+        queue={[]}
+        onlineQueue={onlineQueue}
         queueHref="/partner/orders"
         bookings={requested}
         bookingsLoading={live.loading}

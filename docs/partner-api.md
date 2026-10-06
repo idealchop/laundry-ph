@@ -79,6 +79,11 @@ Public listing of shops, paginated by shop id.
       "photos": ["https://firebasestorage.googleapis.com/…"],
       "plan": "paid",
       "services": [{ "id": "wdf", "name": "Wash-Dry-Fold", "unit": "kg", "priceCentavos": 3500 }],
+      "clothesTypes": [
+        { "id": "regular", "name": "Regular clothes", "pricing": "regular", "priceCentavos": 0, "unit": null },
+        { "id": "beddings", "name": "Beddings / blankets / comforters", "pricing": "per_piece", "priceCentavos": 15000, "unit": "pc" },
+        { "id": "curtains", "name": "Curtains", "pricing": "per_kg_surcharge", "priceCentavos": 2000, "unit": "kg" }
+      ],
       "addOns": [{ "id": "softener", "name": "Fabric softener", "priceCentavos": 2000 }],
       "detergents": [{ "id": "shop", "name": "Shop detergent", "priceCentavos": 0 }],
       "minKg": 5,
@@ -93,6 +98,12 @@ Public listing of shops, paginated by shop id.
 - `plan` is `partner` (free listing) or `paid` (full owner app). Both plans can be booked.
 - `acceptsBookings` is false until the shop has at least one service.
 - `unit` is `kg` (price per kilo) or `pc` (per piece). `minKg` is the minimum billed weight.
+- `clothesTypes` lists the shop's **enabled** clothes types (Regular clothes is always first). Use them to show what the shop takes and to estimate a price:
+  - `regular`: the service's own price, no surcharge (`priceCentavos` is 0, `unit` null).
+  - `per_kg_surcharge`: service price **plus** `priceCentavos` per kilo (e.g. curtains +₱20/kg). Applies to per-kg services only.
+  - `per_piece`: priced by piece instead of weight, `priceCentavos` each. `unit` is `pc`, or `pair` for shoes.
+  - Typical estimate: `regular` → `max(kg, minKg) × service`; surcharge → `max(kg, minKg) × (service + surcharge)`; per piece → `pieces × priceCentavos`. The shop weighs/counts and sets the final price at the counter.
+  - Older shops that never edited their list get the defaults (Regular, Beddings, Curtains, Towels, Delicates, Jeans / heavy fabrics). Shoes and Stuffed toys are off by default.
 - `sample: true` marks a demo shop. Demo shops are listed and bookable **on dev only** and never appear on prod.
 
 ### `GET /api/v1/shops/{shopId}`
