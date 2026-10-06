@@ -2,16 +2,17 @@
 
 import { Plus } from "lucide-react";
 import { Icon3D } from "@river-apps/icons";
-import { Avatar, Badge, Button, Card, EmptyState, IconTile, ListItem, MonoText, SearchInput, SegmentedControl, Topbar } from "@river-apps/ui";
+import { Avatar, Badge, Button, Card, EmptyState, IconTile, ListItem, MonoText, SearchInput, SegmentedControl, Topbar, cn } from "@river-apps/ui";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Order, OrderStatus } from "@/data";
-import { money, minimalDate, startOfShopDay, whenLabel } from "@/lib/format";
+import { minimalDate, startOfShopDay } from "@/lib/format";
 import { isActive, isDone } from "@/lib/orders";
 import { useAction, useBoardOrders, useShopQuery } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
 import { PickupRequestCard } from "../partner/PickupRequestCard";
-import { AdvanceButton, ErrorNote, PaymentBadge, Spinner, StatusBadge } from "../ui";
+import { ErrorNote, PaymentBadge, Spinner } from "../ui";
+import { StatusFooter } from "./StatusFooter";
 
 type Channel = "walk-ins" | "online";
 type StatusTab = "progress" | "ready" | "done" | "all";
@@ -37,7 +38,7 @@ export function OrderBoard() {
 
   const walkIns = useMemo(() => orders.filter((o) => o.source !== "river-mobile"), [orders]);
   const onlineOrders = useMemo(() => orders.filter((o) => o.source === "river-mobile"), [orders]);
-  const pickupList = pickups.data ?? [];
+  const pickupList = useMemo(() => pickups.data ?? [], [pickups.data]);
 
   const counts = useMemo(() => ({
     progress: walkIns.filter(isActive).length,
@@ -112,13 +113,7 @@ export function OrderBoard() {
             <SampleNote className="ml-1 align-middle" />
           </>
         }
-        actions={
-          channel === "walk-ins" ? (
-            <Button href="/orders/new" size="md" leadingIcon={<Plus size={18} strokeWidth={2} />}>
-              New order
-            </Button>
-          ) : undefined
-        }
+        actions={<ChannelArt channel={channel} />}
       />
 
       <SegmentedControl
@@ -133,13 +128,22 @@ export function OrderBoard() {
       />
 
       <div className="mt-3 flex flex-col gap-2.5">
-        <SearchInput
-          className="w-full"
-          placeholder={channel === "walk-ins" ? "Ticket or customer" : "Customer or service"}
-          label="Search orders"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="flex items-center gap-2">
+          <SearchInput
+            className="min-w-0 flex-1"
+            placeholder={channel === "walk-ins" ? "Ticket or customer" : "Customer or service"}
+            label="Search orders"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {channel === "walk-ins" ? (
+            <Button href="/orders/new" size="md" aria-label="New order" leadingIcon={<Plus size={18} strokeWidth={2.2} />}
+              className="flex-none px-4 min-[380px]:px-5">
+              <span className="min-[380px]:hidden">New</span>
+              <span className="hidden min-[380px]:inline">New order</span>
+            </Button>
+          ) : null}
+        </div>
         {channel === "walk-ins" ? (
           <SegmentedControl
             className="w-full sm:w-fit"
@@ -171,7 +175,7 @@ export function OrderBoard() {
           <Card padding="none" className="mt-4 px-4 py-1.5" hidden={walkInList.length === 0}>
             <ul aria-label="Walk-in orders">
               {walkInList.map((o) => (
-                <OrderRow key={o.id} order={o} busy={busyId === o.id} onAdvance={(to) => advance(o, to)} />
+                <OrderRow key={o.id} order={o} busy={busyId === o.id} onMove={(to) => advance(o, to)} />
               ))}
             </ul>
           </Card>
@@ -236,7 +240,7 @@ export function OrderBoard() {
             <Card padding="none" className="mt-4 px-4 py-1.5">
               <ul aria-label="Online orders">
                 {onlineFilteredOrders.map((o) => (
-                  <OrderRow key={o.id} order={o} busy={busyId === o.id} onAdvance={(to) => advance(o, to)} />
+                  <OrderRow key={o.id} order={o} busy={busyId === o.id} onMove={(to) => advance(o, to)} />
                 ))}
               </ul>
             </Card>
@@ -247,20 +251,39 @@ export function OrderBoard() {
   );
 }
 
+/** Decorative top-right art that follows the channel tab, crossfading on switch. */
+function ChannelArt({ channel }: { channel: Channel }) {
+  return (
+    <span aria-hidden className="relative inline-flex size-[52px] flex-none items-center justify-center rounded-[16px] bg-surface shadow-tile">
+      {(["walk-ins", "online"] as const).map((c) => (
+        <span
+          key={c}
+          className={cn(
+            "absolute inset-0 flex items-center justify-center transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none",
+            c === channel ? "scale-100 opacity-100" : "scale-75 opacity-0",
+          )}
+        >
+          <Icon3D name={c === "walk-ins" ? "basket" : "car"} size={38} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function OrderRow({
   order: o,
   busy,
-  onAdvance,
+  onMove,
 }: {
   order: Order;
   busy: boolean;
-  onAdvance: (to: OrderStatus) => void;
+  onMove: (to: OrderStatus) => void;
 }) {
   return (
     <ListItem
       as="li"
       variant="row"
-      className="border-b border-line py-2.5 last:border-b-0"
+      className="border-b border-line py-3 last:border-b-0"
       title={
         <Link href={`/orders/view?id=${o.id}`} className="hover:underline">
           {o.customer.name}
@@ -271,19 +294,8 @@ function OrderRow({
           {o.detail} · {minimalDate(o.createdAt)}
         </>
       }
-      trailing={
-        <span className="flex flex-none flex-col items-end gap-1">
-          {isActive(o) || o.status === "ready" ? (
-            <AdvanceButton order={o} onAdvance={onAdvance} busy={busy} />
-          ) : (
-            <StatusBadge status={o.status} />
-          )}
-          <span className="flex items-center gap-1">
-            {isActive(o) ? <StatusBadge status={o.status} className="text-[11px]" /> : null}
-            <PaymentBadge order={o} />
-          </span>
-        </span>
-      }
+      trailing={<span className="flex-none self-start"><PaymentBadge order={o} /></span>}
+      footer={<StatusFooter order={o} busy={busy} onMove={onMove} />}
     />
   );
 }

@@ -49,7 +49,7 @@ export function PaymentBadge({ order }: { order: Pick<Order, "paymentStatus" | "
 }
 
 /** Small "→ Washing" button that moves an order one step forward. */
-export function AdvanceButton({ order, onAdvance, busy, compact = false }: { order: Order; onAdvance: (to: OrderStatus) => void; busy?: boolean; compact?: boolean }) {
+export function AdvanceButton({ order, onAdvance, busy, compact = false, className }: { order: Order; onAdvance: (to: OrderStatus) => void; busy?: boolean; compact?: boolean; className?: string }) {
   const to = nextStatus(order);
   if (!to) return <StatusBadge status={order.status} />;
   return (
@@ -60,7 +60,7 @@ export function AdvanceButton({ order, onAdvance, busy, compact = false }: { ord
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAdvance(to); }}
       aria-label={`${actionLabel(to)} for ${order.ref}`}
       trailingIcon={compact ? undefined : <ArrowRight size={14} strokeWidth={2.2} />}
-      className="h-9 min-w-[44px]"
+      className={cn("h-9 min-w-[44px]", className)}
     >
       {compact ? ORDER_STATUS_LABEL[to] : actionLabel(to)}
     </Button>
