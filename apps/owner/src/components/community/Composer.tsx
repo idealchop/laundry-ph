@@ -1,10 +1,10 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element -- local previews (data URLs / pasted links). */
-import { ImagePlus, Link2, X } from "lucide-react";
+/* eslint-disable @next/next/no-img-element -- local photo previews (data URLs). */
+import { ImagePlus, X } from "lucide-react";
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Avatar, Button, cn } from "@river-apps/ui";
-import { fileToDataUrl, isImageUrl, type PostAuthor } from "./posts";
+import { fileToDataUrl, type PostAuthor } from "./posts";
 
 const MAX_IMAGES = 4;
 const MAX_CHARS = 1000;
@@ -14,15 +14,13 @@ export interface ComposerHandle {
 }
 
 /**
- * "What's new?" composer. Text + up to 4 photos (from device or an image link).
+ * "What's new?" composer. Text + up to 4 photos from the device (or pasted).
  * Device photos are downscaled to JPEG data URLs and kept on this device for now.
  */
 export const Composer = forwardRef<ComposerHandle, { me: PostAuthor; onPost: (body: string, images: string[]) => boolean; className?: string }>(
   function Composer({ me, onPost, className }, ref) {
     const [body, setBody] = useState("");
     const [images, setImages] = useState<string[]>([]);
-    const [linkOpen, setLinkOpen] = useState(false);
-    const [link, setLink] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const textRef = useRef<HTMLTextAreaElement>(null);
@@ -58,22 +56,6 @@ export const Composer = forwardRef<ComposerHandle, { me: PostAuthor; onPost: (bo
       }
     };
 
-    const addLink = () => {
-      const u = link.trim();
-      if (!isImageUrl(u)) {
-        setError("Paste a full image link that starts with https://");
-        return;
-      }
-      if (room <= 0) {
-        setError(`Up to ${MAX_IMAGES} photos per post.`);
-        return;
-      }
-      setError(null);
-      setImages((cur) => [...cur, u]);
-      setLink("");
-      setLinkOpen(false);
-    };
-
     const canPost = !busy && (body.trim().length > 0 || images.length > 0) && body.length <= MAX_CHARS;
     const submit = () => {
       if (!canPost) return;
@@ -83,8 +65,6 @@ export const Composer = forwardRef<ComposerHandle, { me: PostAuthor; onPost: (bo
       }
       setBody("");
       setImages([]);
-      setLink("");
-      setLinkOpen(false);
       setError(null);
       if (textRef.current) textRef.current.style.height = "";
     };
@@ -138,30 +118,6 @@ export const Composer = forwardRef<ComposerHandle, { me: PostAuthor; onPost: (bo
               </ul>
             ) : null}
 
-            {linkOpen ? (
-              <div className="mt-2.5 flex items-center gap-2">
-                <input
-                  type="url"
-                  inputMode="url"
-                  autoFocus
-                  value={link}
-                  onChange={(e) => setLink(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addLink();
-                    }
-                  }}
-                  placeholder="https://… image link"
-                  aria-label="Image link"
-                  className="h-10 min-w-0 flex-1 rounded-[12px] bg-grey-100 px-3.5 text-[14px] font-medium outline-none placeholder:text-muted focus:ring-2 focus:ring-ink"
-                />
-                <Button size="sm" variant="secondary" onClick={addLink} disabled={!link.trim()}>
-                  Add
-                </Button>
-              </div>
-            ) : null}
-
             {error ? <p role="alert" className="mt-2 text-[13px] font-semibold text-[#E5484D]">{error}</p> : null}
 
             <div className="-ml-2 mt-2 flex items-center gap-1">
@@ -183,19 +139,6 @@ export const Composer = forwardRef<ComposerHandle, { me: PostAuthor; onPost: (bo
                 className="flex size-9 items-center justify-center rounded-full text-ink-2 hover:bg-grey-100 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-ink"
               >
                 <ImagePlus size={20} strokeWidth={1.9} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setLinkOpen((v) => !v)}
-                disabled={room <= 0}
-                aria-label="Add image link"
-                aria-pressed={linkOpen}
-                className={cn(
-                  "flex size-9 items-center justify-center rounded-full text-ink-2 hover:bg-grey-100 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-ink",
-                  linkOpen && "bg-grey-100 text-ink",
-                )}
-              >
-                <Link2 size={20} strokeWidth={1.9} />
               </button>
               {busy ? <span className="ml-1 text-[12.5px] font-semibold text-muted">Adding photo…</span> : null}
               <span className="ml-auto flex items-center gap-3">

@@ -1,10 +1,8 @@
 "use client";
 
-import { SquarePen } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Button, Topbar } from "@river-apps/ui";
 import { useShop } from "@/lib/shop";
-import { Composer, type ComposerHandle } from "./Composer";
+import { Composer } from "./Composer";
 import { PostCard } from "./PostCard";
 import { SEED_POSTS, updateCommunityStore, useCommunityStore, useNow, type CommunityPost, type CommunityStore, type PostAuthor, type PostReply } from "./posts";
 
@@ -22,7 +20,6 @@ export function CommunityScreen() {
   const store = useCommunityStore();
   const now = useNow();
   const [toast, setToast] = useState<string | null>(null);
-  const composerRef = useRef<ComposerHandle>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flash = useCallback((msg: string) => {
@@ -76,21 +73,11 @@ export function CommunityScreen() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[640px] lg:px-[30px] lg:pt-6">
-      <Topbar
-        className="px-1"
-        title="Community"
-        subtitle="River Apps · laundry shop owners"
-        actions={
-          <Button size="sm" variant="secondary" pill leadingIcon={<SquarePen size={16} strokeWidth={2} />} onClick={() => composerRef.current?.focus()}>
-            New post
-          </Button>
-        }
-      />
-
+    <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-[max(0.75rem,env(safe-area-inset-top))] lg:max-w-[640px] lg:px-[30px] lg:pt-6">
+      <h1 className="sr-only">Community</h1>
       {/* Threads-style feed: no cards, items sit on the page separated by hairlines. */}
-      <div className="mt-3 border-b border-line">
-        <Composer ref={composerRef} me={me} onPost={(body, images) => {
+      <div className="border-b border-line">
+        <Composer me={me} onPost={(body, images) => {
           const post: CommunityPost = {
             id: `mine-${Date.now().toString(36)}`,
             author: me,
