@@ -277,9 +277,8 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
           ) : null}
 
           <div>
-            <FieldLabel id="qty-label" aside={perKg ? `Min. ${catalog.minKg} kg` : "Per piece"}>{perKg ? "Weight" : "Pieces"}</FieldLabel>
-            {/* Basket left; − / value / + grouped on the right (value returned into that control cluster). */}
-            <div className="flex items-center gap-3 sm:gap-4" role="group" aria-labelledby="qty-label">
+            {/* Basket left; right column stacks the label row, the big value, then − / + as a centred pair. */}
+            <div className="flex items-start gap-3 sm:gap-4" role="group" aria-labelledby="qty-label">
               <div className="flex w-[116px] flex-none flex-col items-center pt-0.5">
                 <BasketFill fill={basketFill} size={116} />
                 <div className="relative mt-1.5 h-1 w-[5.75rem] overflow-hidden rounded-full bg-grey-200" aria-hidden>
@@ -291,13 +290,11 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
                 </div>
                 <span className="mt-1 max-w-[116px] text-center text-[12px] font-semibold leading-tight text-muted">{basketLabel(basketFill, q.minimumApplied)}</span>
               </div>
-              {/* − · value · + on the basket's centre line. Equal round buttons; the number is centred
-                  between them and the unit hangs off its baseline so it never pushes the number off-centre. */}
-              <div ref={qtyField} className="mt-0.5 flex h-[116px] min-w-0 flex-1 items-center gap-1 self-start min-[380px]:gap-2">
-                <IconButton type="button" label={perKg ? "Less 0.5 kg" : "One piece less"} size="md" variant="soft" icon={<Minus size={20} strokeWidth={2.2} />}
-                  className={`${STEP_BTN} flex-none border border-line`} disabled={quantity <= 0} onClick={() => stepBy(-1)} />
-                <label className="flex min-w-0 flex-1 cursor-text justify-center">
-                  <span className="relative inline-flex text-[23px] leading-none min-[380px]:text-[31px]">
+              <div ref={qtyField} className="flex min-w-0 flex-1 flex-col">
+                <FieldLabel id="qty-label" className="mb-0 leading-tight" aside={perKg ? `Min. ${catalog.minKg} kg` : "Per piece"}>{perKg ? "Weight" : "Pieces"}</FieldLabel>
+                {/* Number centred in the column; the unit hangs off its baseline so it never shifts the number. */}
+                <label className="mt-3 flex cursor-text justify-center">
+                  <span className="relative inline-flex text-[32px] leading-none min-[380px]:text-[36px]">
                     <input
                       aria-label={perKg ? "Weight in kilos" : "Number of pieces"}
                       inputMode="decimal"
@@ -317,13 +314,17 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
                       onBlur={() => { setQtyText(null); setQuantity(quantity); }}
                     />
                     {/* Same font-size strut as the number, so the small unit sits on the number's baseline. */}
-                    <span className="pointer-events-none absolute left-full top-0 ml-[3px] whitespace-nowrap" aria-hidden>
-                      <span className="text-[12px] font-bold text-muted min-[380px]:text-[14px]">{perKg ? "kg" : "pcs"}</span>
+                    <span className="pointer-events-none absolute left-full top-0 ml-1 whitespace-nowrap" aria-hidden>
+                      <span className="text-[14px] font-bold text-muted min-[380px]:text-[15px]">{perKg ? "kg" : "pcs"}</span>
                     </span>
                   </span>
                 </label>
-                <IconButton type="button" label={perKg ? "More 0.5 kg" : "One piece more"} size="md" variant="soft" icon={<Plus size={20} strokeWidth={2.2} />}
-                  className={`${STEP_BTN} flex-none border border-line`} disabled={quantity >= max} onClick={() => stepBy(1)} />
+                <div className="mt-3 flex items-center justify-center gap-2.5">
+                  <IconButton type="button" label={perKg ? "Less 0.5 kg" : "One piece less"} size="md" variant="soft" icon={<Minus size={20} strokeWidth={2.2} />}
+                    className={`${STEP_BTN} flex-none border border-line`} disabled={quantity <= 0} onClick={() => stepBy(-1)} />
+                  <IconButton type="button" label={perKg ? "More 0.5 kg" : "One piece more"} size="md" variant="soft" icon={<Plus size={20} strokeWidth={2.2} />}
+                    className={`${STEP_BTN} flex-none border border-line`} disabled={quantity >= max} onClick={() => stepBy(1)} />
+                </div>
               </div>
             </div>
             {q.minimumApplied ? <p className="mt-1.5 text-[12.5px] font-semibold text-muted" role="status">Minimum charge of {catalog.minKg} kg applies.</p> : null}

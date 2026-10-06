@@ -10,20 +10,14 @@ import { MapPin, Navigation } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Input } from "@river-apps/ui";
 import type { ShopLocation } from "@/data";
+import { reverseGeocodePin } from "@/lib/geocode";
 import { FieldLabel } from "../kit-extensions";
 
 const GOOGLE_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 async function reverseGeocode(lat: number, lng: number): Promise<string> {
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=0`;
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!res.ok) return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-    const data = (await res.json()) as { display_name?: string };
-    return data.display_name?.trim() || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-  } catch {
-    return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-  }
+  const hit = await reverseGeocodePin(lat, lng);
+  return hit?.formatted || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 }
 
 function osmEmbed(lat: number, lng: number): string {

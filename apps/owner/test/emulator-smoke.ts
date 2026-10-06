@@ -11,6 +11,7 @@ import { createFirebaseDataSource, firebaseTicketSource } from "@/data/firebase-
 import { createShop, getJoinableDemoShop, joinDemoShop, resolveMembership } from "@/data/membership";
 import { catalog } from "@/data/fixtures";
 import type { Order } from "@/data/types";
+import { toPinAddress } from "@/lib/geocode";
 
 const PROJECT = "demo-mylaundryph";
 const DB = "laundrydb-dev";
@@ -127,6 +128,17 @@ async function main() {
   const ob = await srcB.createWalkInOrder({ customer: { name: "" }, serviceId: "wd", quantity: 3, detergentId: "shop", addOnIds: [], returnSlotId: "today" });
   ok("B first order LDY-0001 min-kg billed", ob.ref === "LDY-0001" && ob.billedQuantity === 5 && ob.totalCentavos === 15000 && !ob.customerId, [ob.ref, ob.totalCentavos]);
   await setDoc(doc(db, "shops", shopId, "meta", "catalog"), { ...catalog, minKg: 4 }).then(() => ok("owner edits catalog", true), () => ok("owner edits catalog", false));
+  // Edit shop: address/area are derived from the map pin (reverse-geocode parts → area + structured address).
+  const pa = toPinAddress("Santa Catalina Street, Kapitolyo, Pasig, Metro Manila, 1603, Philippines", {
+    road: "Santa Catalina Street", quarter: "Kapitolyo", city_district: "Pasig First District", city: "Pasig", region: "Metro Manila", postcode: "1603",
+  });
+  ok("pin → area + address", pa.area === "Kapitolyo, Pasig" && pa.address?.line1 === "Santa Catalina Street" && pa.address?.city === "Pasig" && pa.address?.barangay === "Kapitolyo", [pa.area, pa.address]);
+  const savedProfile = await srcB.updateShopProfile({
+    name: "Bea's Wash", area: pa.area, ownerName: "Bea", address: pa.address,
+    location: { lat: 14.5704, lng: 121.0573, formattedAddress: pa.formatted },
+  }).then((sh) => sh, () => null);
+  const shopSnap = await getDoc(doc(db, "shops", shopId));
+  ok("owner saves profile with pin-derived address", Boolean(savedProfile) && shopSnap.data()?.area === "Kapitolyo, Pasig" && shopSnap.data()?.address?.postalCode === "1603", shopSnap.data()?.area);
   await denied("B creates shop owned by someone else", () => setDoc(doc(db, "shops", "evil-shop"), { id: "evil-shop", name: "Evil", ownerUid: "someone", sample: false, tier: "paid", createdAt: serverTimestamp() }));
   await denied("B creates a sample shop", () => setDoc(doc(db, "shops", "evil2"), { id: "evil2", name: "Evil", ownerUid: b.uid, sample: true, tier: "paid", createdAt: serverTimestamp() }));
 
