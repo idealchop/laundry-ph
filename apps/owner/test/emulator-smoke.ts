@@ -112,6 +112,32 @@ async function main() {
   ok("findOrder by short ref", found2?.id === o2.id);
   await new Promise<void>((res) => { const un = src.watchOrders({ openOnly: true }, (rows) => { ok("watch open orders", rows.some((r) => r.id === o2.id)); un(); res(); }, (e) => { ok("watch open orders", false, e.message); res(); }); });
   await new Promise<void>((res) => { const un = src.watchOrders({ sinceMs: Date.now() - 86400000 }, (rows) => { ok("watch recent orders", rows.length >= 2, rows.length); un(); res(); }, (e) => { ok("watch recent", false, e.message); res(); }); });
+  // River Mobile bookings (created by the Partner API = admin; members move status).
+  const bk = (id: string, extra: Record<string, unknown> = {}) => adminSet(`shops/sample-laundry/bookings/${id}`, {
+    id, shopId: "sample-laundry", ref: `BK-${id.toUpperCase()}`, source: "river-mobile", status: "requested",
+    customer: { name: "Rica Dela Cruz", phone: "+639171234000" }, serviceId: "wdf", serviceName: "Wash-Dry-Fold", type: "pickup", fulfillment: "delivery",
+    slot: { date: "2026-10-07", time: "10:00" }, slotAt: Date.now() + 86400000, estKg: 6, address: "1 Test St., Pasig", location: null, notes: null,
+    declineReason: null, cancelReason: null, cancelledBy: null, orderId: null, statusTimes: { requested: Date.now() }, createdAt: Date.now(), updatedAt: Date.now(), updatedBy: "api", test: true, ...extra,
+  });
+  await bk("b1"); await bk("b2"); await bk("b3", { fulfillment: "pickup" });
+  await new Promise<void>((res) => { const un = src.watchBookings("open", (rows) => { ok("watch open bookings", rows.filter((r) => r.status === "requested").length === 3, rows.length); un(); res(); }, (e) => { ok("watch open bookings", false, e.message); res(); }); });
+  await src.setBookingStatus("b1", "accepted");
+  ok("accept booking", (await getDoc(doc(db, "shops", "sample-laundry", "bookings", "b1"))).data()?.status === "accepted");
+  await denied("accepted → declined", () => updateDoc(doc(db, "shops", "sample-laundry", "bookings", "b1"), { status: "declined", "statusTimes.declined": serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: a.uid }));
+  await src.setBookingStatus("b2", "declined", "Fully booked");
+  const b2 = (await getDoc(doc(db, "shops", "sample-laundry", "bookings", "b2"))).data();
+  ok("decline with reason", b2?.status === "declined" && b2?.declineReason === "Fully booked", b2?.status);
+  await denied("client creates booking", () => setDoc(doc(db, "shops", "sample-laundry", "bookings", "evil"), { status: "requested", shopId: "sample-laundry" }));
+  await denied("member edits booking customer", () => updateDoc(doc(db, "shops", "sample-laundry", "bookings", "b3"), { "customer.name": "X", updatedAt: serverTimestamp(), updatedBy: a.uid }));
+  await denied("convert without an order", () => updateDoc(doc(db, "shops", "sample-laundry", "bookings", "b1"), { status: "converted", orderId: "nope", "statusTimes.converted": serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: a.uid }));
+  const conv = await src.createWalkInOrder({ customer: { name: "Rica Dela Cruz", phone: "09171234000" }, serviceId: "wdf", quantity: 6, detergentId: "shop", addOnIds: [], returnSlotId: "tomorrow", fulfillment: "delivery", bookingId: "b1" });
+  const b1 = (await getDoc(doc(db, "shops", "sample-laundry", "bookings", "b1"))).data();
+  const convSaved = (await getDoc(doc(db, "shops", "sample-laundry", "orders", conv.id))).data();
+  ok("convert booking → order", b1?.status === "converted" && b1?.orderId === conv.id && convSaved?.source === "river-mobile" && convSaved?.bookingId === "b1" && convSaved?.fulfillment === "delivery", [b1?.status, convSaved?.source]);
+  try { await src.createWalkInOrder({ customer: { name: "Rica" }, serviceId: "wdf", quantity: 6, detergentId: "shop", addOnIds: [], returnSlotId: "tomorrow", bookingId: "b1" }); ok("convert twice rejected", false); } catch { ok("convert twice rejected", true); }
+  await src.setBookingStatus("b3", "accepted"); await src.setBookingStatus("b3", "received"); await src.setBookingStatus("b3", "completed");
+  ok("partner steps accept → received → completed", (await getDoc(doc(db, "shops", "sample-laundry", "bookings", "b3"))).data()?.status === "completed");
+  await new Promise<void>((res) => { const un = src.watchBookings("history", (rows) => { ok("watch booking history", ["b1", "b2", "b3"].every((id) => rows.some((r) => r.id === id)), rows.map((r) => r.status)); un(); res(); }, (e) => { ok("watch booking history", false, e.message); res(); }); });
   await denied("staff edits catalog", () => setDoc(doc(db, "shops", "sample-laundry", "meta", "catalog"), { x: 1 }));
   await denied("staff edits demo shop", () => updateDoc(doc(db, "shops", "sample-laundry"), { name: "Hacked" }));
   await signOut(auth);
@@ -120,6 +146,8 @@ async function main() {
   const b = (await createUserWithEmailAndPassword(auth, `b${Date.now()}@test.dev`, "secret123")).user;
   await denied("B reads A's shop orders", () => getDocs(collection(db, "shops", "sample-laundry", "orders")));
   await denied("B reads A's customers", () => getDocs(collection(db, "shops", "sample-laundry", "customers")));
+  await denied("B reads A's bookings", () => getDocs(collection(db, "shops", "sample-laundry", "bookings")));
+  await denied("B reads booking_refs", () => getDoc(doc(db, "booking_refs", "b1")));
   await denied("B updates A's public ticket", () => updateDoc(doc(db, "public_tickets", order.ticketId), { stage: "received" }));
   const shopId = await createShop(b, { name: "Bea's Wash", area: "Cubao", ownerName: "Bea" });
   const mb = await resolveMembership(b.uid);

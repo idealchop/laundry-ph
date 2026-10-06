@@ -170,7 +170,7 @@ function ProfileEditor({
         {error ? <ErrorNote className="sm:col-span-2">{error}</ErrorNote> : null}
         {saved ? (
           <p className="sm:col-span-2 text-[13.5px] font-semibold text-ink">
-            Saved. River Mobile can use this pin once the Partner API ships.
+            Saved. River Mobile customers will see your shop at this pin.
           </p>
         ) : null}
 

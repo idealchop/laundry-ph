@@ -13,13 +13,16 @@
  */
 import { hasFirebaseWebConfig } from "@/lib/firebase/config";
 import type {
-  Catalog, Customer, GrowthTip, Machine, NewCustomer, NewWalkInOrder, Order, OrderStatus, PaymentMethod, PickupRequest,
+  Booking, BookingStatus, Catalog, Customer, GrowthTip, Machine, NewCustomer, NewWalkInOrder, Order, OrderStatus, PaymentMethod, PickupRequest,
   PublicTicket, Schedule, Shop, ShopPlanUpdate, ShopProfileUpdate, VerifiedBooking,
 } from "./types";
 
 export * from "./types";
 
 export type Unsubscribe = () => void;
+export type BookingScope = "open" | "history";
+/** Status moves an owner can make from the app ("converted" happens through createWalkInOrder). */
+export type BookingMove = Extract<BookingStatus, "accepted" | "declined" | "received" | "completed" | "cancelled">;
 export type DataMode = "firebase" | "fixtures";
 
 export interface WatchOrdersOptions {
@@ -53,6 +56,17 @@ export interface LaundryDataSource {
   createWalkInOrder(input: NewWalkInOrder): Promise<Order>;
   setOrderStatus(orderId: string, status: OrderStatus): Promise<void>;
   markOrderPaid(orderId: string, method: PaymentMethod): Promise<void>;
+
+  /**
+   * Live River Mobile bookings. "open" = requested / accepted / received (soonest slot first);
+   * "history" = completed / converted / declined / cancelled (latest first, up to 100).
+   */
+  watchBookings(scope: BookingScope, onData: (bookings: Booking[]) => void, onError: (e: Error) => void): Unsubscribe;
+  getBooking(bookingId: string): Promise<Booking | null>;
+  /** Owner moves a booking (rules allow only valid steps). `reason` is kept for declined / cancelled. */
+  setBookingStatus(bookingId: string, to: BookingMove, reason?: string | null): Promise<void>;
+  /** Dev / local only: create a sample River Mobile booking for this shop. */
+  createTestBooking(): Promise<{ id: string; ref: string }>;
 
   watchCustomers(onData: (customers: Customer[]) => void, onError: (e: Error) => void): Unsubscribe;
   createCustomer(input: NewCustomer): Promise<Customer>;

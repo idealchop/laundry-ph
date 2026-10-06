@@ -62,11 +62,11 @@ export function PartnerShopScreen() {
       </Card>
 
       <Card className="mt-4 px-4 py-3.5">
-        <b className="text-[16px]">Coming in Phase 2</b>
+        <b className="text-[16px]">What River Mobile customers see</b>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-[13.5px] font-medium text-muted">
-          <li>Hours, photos and service / kilo prices on River Mobile</li>
-          <li>Pause listing when the shop is full</li>
-          <li>Live sync through the Partner API</li>
+          <li>Your shop name, About, photos and map pin</li>
+          <li>Your services and prices per kilo</li>
+          <li>A booking slot — you accept or decline it in Orders</li>
         </ul>
         <Button className="mt-3" href="/settings" variant="secondary" size="md">Edit address & pin</Button>
       </Card>

@@ -12,6 +12,9 @@ rules_version = '2';
 //   shops/{shopId}/meta/catalog         price list (owner writes)
 //   shops/{shopId}/meta/counters        ticket number + daily queue (members bump by exactly one)
 //   shops/{shopId}/meta/*, machines, pickups   read-only to members (seed / future Cloud Functions)
+//   shops/{shopId}/bookings/{bookingId} River Mobile bookings: created ONLY by the Partner API (Admin SDK);
+//                                       members accept / decline / mark received / complete / convert / cancel
+//   booking_refs/{bookingId}            { shopId } lookup for the Partner API (Admin SDK only, no client access)
 //   public_tickets/{ticketId}           public-safe projection: anyone may GET one by its unguessable id, nobody may LIST
 //
 // Least privilege: shop data is readable/writable only by active members; field lists are
@@ -56,6 +59,19 @@ service cloud.firestore {
     }
     function shortString(v, max) {
       return v is string && v.size() <= max;
+    }
+    function bookingPath(shopId, bookingId) {
+      return /databases/$(database)/documents/shops/$(shopId)/bookings/$(bookingId);
+    }
+    // Booking status move by a shop member: only the listed fields change, statusTimes gains exactly the new status,
+    // and the write is stamped with the member + server time.
+    function bookingMove(from, to, extra) {
+      return resource.data.status in from
+        && request.resource.data.status == to
+        && changedOnly(['status', 'statusTimes', 'updatedAt', 'updatedBy'].concat(extra))
+        && request.resource.data.statusTimes.diff(resource.data.get('statusTimes', {})).affectedKeys().hasOnly([to])
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
     }
 
     // ---------- users ----------
@@ -134,10 +150,18 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly([
             'shopId', 'ref', 'queueNo', 'ticketId', 'source', 'status', 'customer', 'customerId', 'serviceId', 'serviceName', 'unit',
             'quantity', 'billedQuantity', 'kg', 'detergent', 'addOns', 'lines', 'subtotalCentavos', 'totalCentavos',
-            'paymentStatus', 'paymentMethod', 'paidCentavos', 'readyBy', 'fulfillment', 'detail', 'stageTimes', 'createdAt', 'updatedAt', 'createdBy', 'sample'
+            'paymentStatus', 'paymentMethod', 'paidCentavos', 'readyBy', 'fulfillment', 'detail', 'stageTimes', 'createdAt', 'updatedAt', 'createdBy', 'sample',
+            'bookingId'
           ])
           && request.resource.data.status == 'received'
-          && request.resource.data.source == 'walk-in'
+          && (
+            (request.resource.data.source == 'walk-in' && !('bookingId' in request.resource.data))
+            // Converted River Mobile booking: the same batch must flip that booking to converted → this order.
+            || (request.resource.data.source == 'river-mobile'
+              && request.resource.data.bookingId is string
+              && getAfter(bookingPath(shopId, request.resource.data.bookingId)).data.status == 'converted'
+              && getAfter(bookingPath(shopId, request.resource.data.bookingId)).data.orderId == orderId)
+          )
           && request.resource.data.get('fulfillment', 'pickup') in ['pickup', 'delivery']
           && request.resource.data.ref is string && request.resource.data.ref.matches('LDY-[0-9]{4,6}')
           && request.resource.data.ticketId is string && request.resource.data.ticketId.matches('LDY-[0-9]{4,6}-[A-Z0-9]{8}')
@@ -216,6 +240,26 @@ service cloud.firestore {
       match /pickups/{pickupId} {
         allow read: if isMember(shopId);
         allow write: if false;
+      }
+
+      // River Mobile bookings. No client create / delete: the Partner API (Admin SDK) creates them.
+      match /bookings/{bookingId} {
+        allow read: if isMember(shopId);
+        allow create, delete: if false;
+        allow update: if isMember(shopId) && (
+          bookingMove(['requested'], 'accepted', [])
+          || (bookingMove(['requested'], 'declined', ['declineReason'])
+            && (request.resource.data.declineReason == null || shortString(request.resource.data.declineReason, 200)))
+          || bookingMove(['accepted'], 'received', [])
+          || bookingMove(['accepted', 'received'], 'completed', [])
+          || (bookingMove(['accepted', 'received'], 'cancelled', ['cancelReason', 'cancelledBy'])
+            && request.resource.data.cancelledBy == 'shop'
+            && (request.resource.data.cancelReason == null || shortString(request.resource.data.cancelReason, 200)))
+          // Convert: the same batch creates shops/{shopId}/orders/{orderId} pointing back at this booking.
+          || (bookingMove(['accepted', 'received'], 'converted', ['orderId'])
+            && request.resource.data.orderId is string
+            && getAfter(/databases/$(database)/documents/shops/$(shopId)/orders/$(request.resource.data.orderId)).data.bookingId == bookingId)
+        );
       }
     }
 

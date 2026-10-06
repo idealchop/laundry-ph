@@ -2,15 +2,16 @@
 
 import { Plus } from "lucide-react";
 import { Icon3D } from "@river-apps/icons";
-import { Avatar, Badge, Button, Card, EmptyState, IconTile, ListItem, MonoText, SearchInput, SegmentedControl, Topbar, cn } from "@river-apps/ui";
+import { Button, Card, EmptyState, SearchInput, SegmentedControl, Topbar, cn } from "@river-apps/ui";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Order } from "@/data";
 import { minimalDate, startOfShopDay } from "@/lib/format";
 import { isActive, isDone } from "@/lib/orders";
-import { useBoardOrders, useShopQuery } from "@/lib/shop";
+import { useBoardOrders, useBookings } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
-import { PickupRequestCard } from "../partner/PickupRequestCard";
+import { BookingCard } from "../bookings/BookingCard";
+import { TestBookingButton, useBookingActions } from "../bookings/BookingsList";
 import { ErrorNote, PaymentBadge, Spinner, StatusPill } from "../ui";
 
 type Channel = "walk-ins" | "online";
@@ -25,13 +26,14 @@ export function OrderBoard() {
   const [now] = useState(() => Date.now());
   const since = useMemo(() => startOfShopDay(now, -29), [now]);
   const { orders, error, loading } = useBoardOrders(since);
-  const pickups = useShopQuery((s) => s.getPickupRequests());
+  const live = useBookings("open");
+  const bookingActions = useBookingActions();
   const [channel, setChannel] = useState<Channel>("walk-ins");
   const [search, setSearch] = useState("");
 
   const walkIns = useMemo(() => orders.filter((o) => o.source !== "river-mobile"), [orders]);
   const onlineOrders = useMemo(() => orders.filter((o) => o.source === "river-mobile"), [orders]);
-  const pickupList = useMemo(() => pickups.data ?? [], [pickups.data]);
+  const pickupList = live.bookings;
 
   const counts = useMemo(() => ({
     progress: walkIns.filter(isActive).length,
@@ -55,16 +57,17 @@ export function OrderBoard() {
       (r) =>
         r.customer.name.toLowerCase().includes(t) ||
         r.serviceName.toLowerCase().includes(t) ||
-        (r.ref?.toLowerCase().includes(t) ?? false) ||
-        (r.area?.toLowerCase().includes(t) ?? false),
+        r.ref.toLowerCase().includes(t) ||
+        r.customer.phone.includes(t) ||
+        (r.address?.toLowerCase().includes(t) ?? false),
     );
   }, [pickupList, search]);
 
   const onlineEmpty = onlineFilteredOrders.length === 0 && onlineFilteredPickups.length === 0;
-  const onlineLoading = (loading && onlineOrders.length === 0) || (pickups.loading && pickupList.length === 0);
+  const onlineLoading = (loading && onlineOrders.length === 0) || (live.loading && pickupList.length === 0);
 
   const onlineTotal = onlineOrders.length + pickupList.length;
-  const onlineNew = pickupList.filter((r) => r.isNew).length;
+  const onlineNew = pickupList.filter((r) => r.status === "requested").length;
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
@@ -75,7 +78,7 @@ export function OrderBoard() {
           <>
             {channel === "walk-ins"
               ? <>{counts.progress} in progress · {counts.ready} ready</>
-              : <>{onlineNew} new pickups · {onlineOrders.length} bookings</>}
+              : <>{onlineNew} new {onlineNew === 1 ? "booking" : "bookings"} · {onlineOrders.length} online orders</>}
             {" "}
             <SampleNote className="ml-1 align-middle" />
           </>
@@ -116,8 +119,8 @@ export function OrderBoard() {
         ) : null}
       </div>
 
-      {error || pickups.error ? (
-        <ErrorNote className="mt-3">{error ?? pickups.error}</ErrorNote>
+      {error || live.error || bookingActions.error ? (
+        <ErrorNote className="mt-3">{error ?? live.error ?? bookingActions.error}</ErrorNote>
       ) : null}
 
       {channel === "walk-ins" ? (
@@ -146,52 +149,21 @@ export function OrderBoard() {
             <EmptyState
               className="mt-4"
               illustration={<Icon3D name="basket" size={72} />}
-              title={search ? "No matching bookings" : "No online orders yet"}
-              description={
-                search
-                  ? undefined
-                  : "River Mobile pickups and Partner bookings show up here when customers book online."
-              }
-              action={<Button href="/partner" size="md" variant="secondary">Open Partner bookings</Button>}
+              title={search ? "No matching bookings" : "No bookings yet"}
+              description={search ? undefined : "When River Mobile customers book your shop, they’ll show up here."}
             />
           ) : null}
 
           {onlineFilteredPickups.length > 0 ? (
             <div className="mt-4 flex flex-col gap-2.5">
               <p className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">
-                Pickups to accept
+                Bookings to handle
               </p>
-              {onlineFilteredPickups.map((r, i) =>
-                i === 0 && r.isNew ? (
-                  <PickupRequestCard key={r.id} request={r} />
-                ) : (
-                  <ListItem
-                    key={r.id}
-                    leading={<IconTile><Icon3D name={r.icon} size={34} /></IconTile>}
-                    title={`${r.kind === "pickup" ? "Pickup" : "Drop-off"} · ${r.serviceName}`}
-                    subtitle={
-                      <>
-                        {r.window}
-                        {r.pieces ? ` · ${r.pieces} pcs` : ""}
-                        {r.estimateKg ? ` · about ${r.estimateKg} kg` : ""}
-                        {r.ref ? (
-                          <>
-                            {" "}
-                            · <MonoText>{r.ref}</MonoText>
-                          </>
-                        ) : null}
-                      </>
-                    }
-                    trailing={
-                      r.isNew ? (
-                        <Badge variant="soft">New</Badge>
-                      ) : (
-                        <Avatar name={r.customer.name} preset={r.customer.avatar} size={34} />
-                      )
-                    }
-                  />
-                ),
-              )}
+              <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2">
+                {onlineFilteredPickups.map((b) => (
+                  <BookingCard key={b.id} booking={b} canConvert onMove={bookingActions.onMove} now={now} />
+                ))}
+              </div>
             </div>
           ) : null}
 
@@ -204,6 +176,7 @@ export function OrderBoard() {
               </ul>
             </Card>
           ) : null}
+          <TestBookingButton className="mt-3 self-center text-center" />
         </>
       )}
     </div>

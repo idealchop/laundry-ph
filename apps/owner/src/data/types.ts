@@ -222,6 +222,8 @@ export interface Order {
   updatedAt: number;
   createdBy?: string;
   sample?: boolean;
+  /** River Mobile booking this order came from. */
+  bookingId?: string;
 }
 
 export interface NewWalkInOrder {
@@ -233,6 +235,8 @@ export interface NewWalkInOrder {
   returnSlotId: string;
   /** Defaults to "pickup". */
   fulfillment?: Fulfillment;
+  /** River Mobile booking this order converts (marks the booking "converted" in the same write). */
+  bookingId?: string;
 }
 
 export interface PickupRequest {
@@ -249,6 +253,50 @@ export interface PickupRequest {
   distanceKm?: number;
   ref?: string;
   isNew: boolean;
+}
+
+/* ---------- River Mobile bookings (shops/{shopId}/bookings/{bookingId}) ---------- */
+
+/**
+ * requested → accepted → received → completed   (Partner: the shop tracks the booking itself)
+ * requested → accepted → converted               (Paid: becomes a normal order, `orderId` set)
+ * requested → declined (shop)  ·  requested | accepted → cancelled (customer via API, or shop)
+ */
+export type BookingStatus = "requested" | "accepted" | "received" | "completed" | "converted" | "declined" | "cancelled";
+/** How the laundry reaches the shop: the shop picks it up, or the customer drops it off. */
+export type BookingType = "pickup" | "dropoff";
+
+export interface Booking {
+  id: string;
+  shopId: string;
+  /** Short human code shown to the owner and the customer, e.g. "BK-7Q2M9X". */
+  ref: string;
+  source: "river-mobile";
+  status: BookingStatus;
+  customer: { name: string; phone: string };
+  serviceId: string | null;
+  serviceName: string;
+  type: BookingType;
+  /** How the laundry goes back: customer collects at the shop, or the shop delivers. */
+  fulfillment: Fulfillment;
+  /** Shop-local date "YYYY-MM-DD" and time "HH:mm" (Asia/Manila). */
+  slot: { date: string; time: string };
+  /** Epoch ms of the slot start. */
+  slotAt: number;
+  estKg: number | null;
+  address: string | null;
+  location: { lat: number; lng: number } | null;
+  notes: string | null;
+  declineReason: string | null;
+  cancelReason: string | null;
+  cancelledBy: "customer" | "shop" | null;
+  /** Order created from this booking (status "converted"). */
+  orderId: string | null;
+  statusTimes: Partial<Record<BookingStatus, number>>;
+  createdAt: number;
+  updatedAt: number;
+  /** Created by the dev-only test booking tools. */
+  test: boolean;
 }
 
 export interface PricedLine {

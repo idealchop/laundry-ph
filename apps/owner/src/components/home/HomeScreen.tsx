@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { Order, OrderStatus } from "@/data";
 import { startOfShopDay } from "@/lib/format";
 import { isActive, summarizeToday, weekSales } from "@/lib/orders";
-import { useAction, useBoardOrders, useCustomers, useShop, useShopQuery } from "@/lib/shop";
+import { useAction, useBoardOrders, useBookings, useCustomers, useShop } from "@/lib/shop";
 import { ErrorNote, Spinner } from "../ui";
 import { GrowthDashboard } from "./GrowthDashboard";
 import { PaidHomeMobile } from "./PaidHomeMobile";
@@ -16,13 +16,14 @@ export function HomeScreen() {
   const since = useMemo(() => startOfShopDay(now, -13), [now]);
   const { orders, error, loading } = useBoardOrders(since);
   const { customers } = useCustomers();
-  const pickups = useShopQuery((s) => s.getPickupRequests());
+  const live = useBookings("open");
+  const newBookings = live.bookings.filter((b) => b.status === "requested").length;
   const action = useAction();
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const today = useMemo(
-    () => summarizeToday(orders, { dailyTargetCentavos: shop.dailyTargetCentavos, newPickups: (pickups.data ?? []).filter((p) => p.isNew).length, customers }),
-    [orders, shop.dailyTargetCentavos, pickups.data, customers],
+    () => summarizeToday(orders, { dailyTargetCentavos: shop.dailyTargetCentavos, newPickups: newBookings, customers }),
+    [orders, shop.dailyTargetCentavos, newBookings, customers],
   );
   const week = useMemo(() => weekSales(orders), [orders]);
   const queue = useMemo(() => orders.filter((o) => isActive(o) || o.status === "ready").sort((a, b) => a.createdAt - b.createdAt), [orders]);

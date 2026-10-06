@@ -104,6 +104,11 @@ Status flow (UI labels): **Received → Washing → Drying → Folding → Ready
 - Counters move by exactly +1. Only owners can edit the catalog or the shop profile. A sample shop's profile can't be edited at all.
 - Joining: you can create a shop only as its owner (`sample: false`). You can join a `sample: true` shop as staff (demo only).
 - `public_tickets`: anyone can **get** one ticket by ID. **list** is denied. Only members of that shop can create or update its tickets.
+- `bookings` (River Mobile): created only by the Partner API (Admin SDK). Members may only accept / decline (optional reason) / mark received / complete / cancel / convert (convert must create the linked order in the same write). `booking_refs` is server-only.
+
+## Partner API (River Mobile)
+
+Versioned REST API in the Next.js app (`src/app/api/v1`, firebase-admin): shop listing, shop detail, create booking, booking status, cancel. Auth with the `X-River-Key` header (App Hosting secret `river-api-key-dev` → `RIVER_API_KEYS` on laundry-dev). Full reference for the River Mobile team: [`docs/partner-api.md`](docs/partner-api.md). Demo: `pnpm seed:booking` (or **Create test booking · DEV** under Orders → Bookings on laundry-dev).
 
 
 ## Sign in (demo) — browse first, login on action

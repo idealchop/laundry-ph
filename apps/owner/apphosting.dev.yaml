@@ -6,3 +6,8 @@ env:
   - variable: NEXT_PUBLIC_FIRESTORE_DATABASE
     value: laundrydb-dev
     availability: [BUILD, RUNTIME]
+  # Partner API key(s) for River Mobile (X-River-Key). Secret value may hold several keys, comma-separated.
+  # Rotate: firebase apphosting:secrets:set river-api-key-dev --project mylaundryph, then redeploy.
+  - variable: RIVER_API_KEYS
+    secret: river-api-key-dev
+    availability: [RUNTIME]

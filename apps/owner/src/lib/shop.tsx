@@ -6,7 +6,7 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  dataMode, type Customer, type LaundryDataSource, type Membership, type Order, type Shop, type WatchOrdersOptions,
+  dataMode, type Booking, type BookingScope, type Customer, type LaundryDataSource, type Membership, type Order, type Shop, type WatchOrdersOptions,
 } from "@/data";
 import { createFirebaseDataSource, firestoreErrorMessage } from "@/data/firebase-source";
 import { createFixtureDataSource } from "@/data/fixture-source";
@@ -215,6 +215,19 @@ export function useOrder(orderId: string | null) {
   if (!orderId) return { order: null, error: null, loading: false };
   const fresh = state.key === key;
   return { order: fresh ? state.order : null, error: fresh ? state.error : null, loading: !fresh };
+}
+
+/** Live River Mobile bookings for the current shop ("open" or "history"). */
+export function useBookings(scope: BookingScope) {
+  const { source } = useShop();
+  const key = `${source.mode}|${source.shopId}|${scope}`;
+  const [state, setState] = useState<{ key: string; bookings: Booking[]; error: string | null }>({ key: "", bookings: [], error: null });
+  useEffect(
+    () => source.watchBookings(scope, (bookings) => setState({ key, bookings, error: null }), (e) => setState({ key, bookings: [], error: e.message })),
+    [source, scope, key],
+  );
+  const fresh = state.key === key;
+  return { bookings: fresh ? state.bookings : [], error: fresh ? state.error : null, loading: !fresh };
 }
 
 export function useCustomers() {

@@ -22,9 +22,9 @@ function PickupsPromo() {
   return (
     <div className="relative rounded-[22px] bg-grey-100 px-4 pb-4 pt-[78px]">
       <div className="absolute inset-x-0 -top-9 flex justify-center"><LaundryScene size={150} /></div>
-      <b className="block text-[14.5px]">River Mobile pickups</b>
-      <small className="mb-3 mt-0.5 block text-[12.5px] font-semibold text-ink/55">Partner API coming in Phase 2</small>
-      <Button size="sm" fullWidth href="/partner">Open Partner</Button>
+      <b className="block text-[14.5px]">River Mobile bookings</b>
+      <small className="mb-3 mt-0.5 block text-[12.5px] font-semibold text-ink/55">Accept pickups from customers nearby</small>
+      <Button size="sm" fullWidth href="/online">Open bookings</Button>
     </div>
   );
 }

@@ -13,6 +13,7 @@
  *   shops/{shopId}/orders/{autoId}           Order (status received→washing→drying→folding→ready→claimed|delivered)
  *   shops/{shopId}/customers/{autoId}        Customer (visits, spentCentavos)
  *   shops/{shopId}/machines/{id}, pickups/{id}  read-only for now
+ *   shops/{shopId}/bookings/{id}             River Mobile bookings (created by the Partner API; members move status)
  *   public_tickets/{ticketId}                PublicTicket projection (no phone / address), get-only for the public
  */
 import {
@@ -20,12 +21,13 @@ import {
   serverTimestamp, setDoc, updateDoc, where, type DocumentData, type DocumentSnapshot, type Query,
 } from "firebase/firestore";
 import { getDb, getFirebaseAuth } from "@/lib/firebase/client";
+import { BOOKING_DONE, BOOKING_OPEN, BOOKING_STATUSES, sortOpenBookings } from "@/lib/bookings";
 import { dayKey } from "@/lib/format";
 import { SHOP_ABOUT_MAX } from "@/lib/shop-about";
 import { avatarFor, buildWalkInOrder, formatRef, makeTicketId, nextStatus, previousStatus, ticketStage, toPublicTicket } from "@/lib/orders";
 import {
   ACTIVE_STATUSES, ORDER_FLOW,
-  type Catalog, type CatalogOption, type CatalogService, type Customer, type GrowthTip, type Machine, type Order, type OrderStatus,
+  type Booking, type BookingStatus, type Catalog, type CatalogOption, type CatalogService, type Customer, type GrowthTip, type Machine, type Order, type OrderStatus,
   type PickupRequest, type PlanSource, type PublicTicket, type Schedule, type Shop, type ShopAddress, type ShopLocation,
   type TicketStage, type VerifiedBooking,
 } from "./types";
@@ -95,6 +97,39 @@ function toOrder(snap: DocumentSnapshot): Order {
     updatedAt: ms(d.updatedAt) ?? createdAt,
     createdBy: d.createdBy,
     sample: d.sample === true,
+    ...(typeof d.bookingId === "string" ? { bookingId: d.bookingId } : {}),
+  };
+}
+
+function toBooking(snap: DocumentSnapshot): Booking {
+  const d = snap.data({ serverTimestamps: "estimate" }) ?? {};
+  const createdAt = ms(d.createdAt) ?? 0;
+  const loc = d.location && typeof d.location === "object" ? d.location : null;
+  return {
+    id: snap.id,
+    shopId: String(d.shopId ?? ""),
+    ref: String(d.ref ?? snap.id.slice(0, 8).toUpperCase()),
+    source: "river-mobile",
+    status: (BOOKING_STATUSES as string[]).includes(d.status) ? (d.status as BookingStatus) : "requested",
+    customer: { name: String(d.customer?.name ?? "River Mobile customer"), phone: String(d.customer?.phone ?? "") },
+    serviceId: d.serviceId ?? null,
+    serviceName: String(d.serviceName ?? "Laundry"),
+    type: d.type === "dropoff" ? "dropoff" : "pickup",
+    fulfillment: d.fulfillment === "delivery" ? "delivery" : "pickup",
+    slot: { date: String(d.slot?.date ?? ""), time: String(d.slot?.time ?? "") },
+    slotAt: ms(d.slotAt) ?? 0,
+    estKg: typeof d.estKg === "number" ? d.estKg : null,
+    address: typeof d.address === "string" ? d.address : null,
+    location: loc && typeof loc.lat === "number" && typeof loc.lng === "number" ? { lat: loc.lat, lng: loc.lng } : null,
+    notes: typeof d.notes === "string" ? d.notes : null,
+    declineReason: typeof d.declineReason === "string" ? d.declineReason : null,
+    cancelReason: typeof d.cancelReason === "string" ? d.cancelReason : null,
+    cancelledBy: d.cancelledBy === "customer" || d.cancelledBy === "shop" ? d.cancelledBy : null,
+    orderId: typeof d.orderId === "string" ? d.orderId : null,
+    statusTimes: timesMap<BookingStatus>(d.statusTimes),
+    createdAt,
+    updatedAt: ms(d.updatedAt) ?? createdAt,
+    test: d.test === true,
   };
 }
 
@@ -252,6 +287,7 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
   const metaRef = (id: string) => doc(db(), "shops", shopId, "meta", id);
   const ordersCol = () => collection(db(), "shops", shopId, "orders");
   const customersCol = () => collection(db(), "shops", shopId, "customers");
+  const bookingsCol = () => collection(db(), "shops", shopId, "bookings");
   const meta = async <T,>(id: string): Promise<T | null> => {
     const snap = await getDoc(metaRef(id));
     return snap.exists() ? (snap.data() as T) : null;
@@ -345,6 +381,13 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         const counters = await tx.get(countersRef);
         const requestedCustomerId = input.customer.id ?? null;
         const customerSnap = requestedCustomerId ? await tx.get(doc(customersCol(), requestedCustomerId)) : null;
+        const bookingRef = input.bookingId ? doc(bookingsCol(), input.bookingId) : null;
+        const bookingSnap = bookingRef ? await tx.get(bookingRef) : null;
+        if (bookingSnap) {
+          if (!bookingSnap.exists()) throw new Error("That booking no longer exists.");
+          const st = bookingSnap.data().status;
+          if (st !== "accepted" && st !== "received") throw new Error(st === "converted" ? "This booking is already an order." : "Accept the booking before turning it into an order.");
+        }
 
         const now = Date.now();
         const today = dayKey(now);
@@ -359,16 +402,22 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         const newCustomerRef = !customerId && name ? doc(customersCol()) : null;
         if (newCustomerRef) customerId = newCustomerRef.id;
 
-        const base = buildWalkInOrder(catalog, { ...input, customer: { ...input.customer, id: customerId } }, {
+        const built = buildWalkInOrder(catalog, { ...input, customer: { ...input.customer, id: customerId } }, {
           shopId, ref, queueNo, ticketId, uid, now, sample: shop.sample,
         });
+        const base: Omit<Order, "id"> = bookingRef ? { ...built, source: "river-mobile", bookingId: bookingRef.id } : built;
         const orderRef = doc(ordersCol());
         const order: Order = { ...base, id: orderRef.id };
+        if (bookingRef) {
+          tx.update(bookingRef, {
+            status: "converted", orderId: orderRef.id, "statusTimes.converted": serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: uid,
+          });
+        }
 
         tx.set(countersRef, { nextTicketNo: no + 1, queueDate: today, queueNo, updatedAt: serverTimestamp() });
         if (newCustomerRef) {
           tx.set(newCustomerRef, {
-            name, nameLower: name.toLowerCase(), phone: input.customer.phone ?? null, avatar: avatarFor(name), source: "Walk-in",
+            name, nameLower: name.toLowerCase(), phone: input.customer.phone ?? null, avatar: avatarFor(name), source: bookingRef ? "River Mobile" : "Walk-in",
             visits: 1, spentCentavos: order.totalCentavos, tag: null, notes: null,
             lastVisitAt: serverTimestamp(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(), createdBy: uid,
           });
@@ -428,6 +477,37 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         });
         if (ticketSnap.exists()) tx.update(ticketRef, { paid: true, amountDueCentavos: 0, updatedAt: serverTimestamp() });
       });
+    },
+
+    watchBookings(scope, onData, onError) {
+      const q = scope === "open"
+        ? query(bookingsCol(), where("status", "in", BOOKING_OPEN))
+        : query(bookingsCol(), where("status", "in", BOOKING_DONE), orderBy("updatedAt", "desc"), limit(100));
+      return watch(q, toBooking, (rows) => onData(scope === "open" ? sortOpenBookings(rows) : rows), onError);
+    },
+    async getBooking(bookingId) {
+      const snap = await getDoc(doc(bookingsCol(), bookingId));
+      return snap.exists() ? toBooking(snap) : null;
+    },
+    async setBookingStatus(bookingId, to, reason) {
+      const uid = requireUid();
+      const note = reason?.trim().slice(0, 200) || null;
+      const body: DocumentData = { status: to, [`statusTimes.${to}`]: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: uid };
+      if (to === "declined") body.declineReason = note;
+      if (to === "cancelled") { body.cancelReason = note; body.cancelledBy = "shop"; }
+      await updateDoc(doc(bookingsCol(), bookingId), body);
+    },
+    async createTestBooking() {
+      const user = getFirebaseAuth().currentUser;
+      if (!user) throw new Error("Please sign in again.");
+      const res = await fetch("/api/dev/test-booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}` },
+        body: JSON.stringify({ shopId }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { data?: { id: string; ref: string }; error?: { message?: string } };
+      if (!res.ok || !json.data) throw new Error(json.error?.message ?? `Could not create a test booking (${res.status}).`);
+      return { id: json.data.id, ref: json.data.ref };
     },
 
     watchCustomers(onData, onError) {

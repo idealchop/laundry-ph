@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useId, useMemo, useRef, useState } from "react";
 import { Icon3D } from "@river-apps/icons";
 import { Avatar, Badge, Button, Input, IconButton, MonoText, SuccessState } from "@river-apps/ui";
-import type { Catalog, Customer, Fulfillment, NewWalkInOrder, Order } from "@/data";
+import type { Booking, Catalog, Customer, Fulfillment, NewWalkInOrder, Order } from "@/data";
 import { money } from "@/lib/format";
 import { parseCustomerText } from "@/lib/orders";
 import { quote } from "@/lib/pricing";
@@ -75,22 +75,25 @@ export interface PosFormProps {
   /** Persists the order (Firestore transaction) and resolves with the saved order. */
   onCreate: (input: NewWalkInOrder) => Promise<Order>;
   errorMessage?: (err: unknown) => string;
+  /** River Mobile booking being converted: pre-fills customer, service, estimated kg and fulfillment. */
+  booking?: Booking | null;
 }
 
 /** Walk-in counter POS: builds the order, saves it with its public ticket, then shows the ticket. */
-export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormProps) {
+export function PosForm({ catalog, customers, onCreate, errorMessage, booking = null }: PosFormProps) {
   const d = catalog.defaults;
-  const [customer, setCustomer] = useState("");
+  const bookedService = booking?.serviceId && catalog.services.some((s) => s.id === booking.serviceId) ? booking.serviceId : null;
+  const [customer, setCustomer] = useState(booking ? [booking.customer.name, booking.customer.phone].filter(Boolean).join(" · ") : "");
   const [picked, setPicked] = useState<Customer | null>(null);
-  const [serviceId, setServiceId] = useState(d.serviceId);
-  const [kg, setKg] = useState(d.kg);
+  const [serviceId, setServiceId] = useState(bookedService ?? d.serviceId);
+  const [kg, setKg] = useState(booking?.estKg ? Math.min(KG_MAX, Math.round(booking.estKg / KG_STEP) * KG_STEP) : d.kg);
   const [pieces, setPieces] = useState(d.pieces);
   const [qtyText, setQtyText] = useState<string | null>(null);
   const [detergentId, setDetergentId] = useState(() => defaultDetergentId(catalog));
   /** POS starts with no add-ons; the counter picks them per order. */
   const [addOnIds, setAddOnIds] = useState<string[]>([]);
   const [returnSlotId, setReturnSlotId] = useState(d.returnSlotId);
-  const [fulfillment, setFulfillment] = useState<Fulfillment>("pickup");
+  const [fulfillment, setFulfillment] = useState<Fulfillment>(booking?.fulfillment ?? "pickup");
   const [openOptions, setOpenOptions] = useState<"detergent" | "addons" | null>(null);
   const [pickingReturn, setPickingReturn] = useState(false);
   const [created, setCreated] = useState<Order | null>(null);
@@ -98,7 +101,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   /** When false, order is anonymous walk-in (no name/mobile field). */
-  const [addingCustomer, setAddingCustomer] = useState(false);
+  const [addingCustomer, setAddingCustomer] = useState(Boolean(booking));
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [svcIndex, setSvcIndex] = useState(0);
   const svcRow = useRef<HTMLDivElement>(null);
@@ -140,6 +143,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
       const order = await onCreate({
         customer: { id: picked?.id ?? null, name: parsed.name, ...(parsed.phone ? { phone: parsed.phone } : {}) },
         serviceId, quantity, detergentId, addOnIds, returnSlotId, fulfillment,
+        ...(booking ? { bookingId: booking.id } : {}),
       });
       setCreated(order);
     } catch (err) {
@@ -219,7 +223,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
   return (
     <>
       <FocusHeader
-        backHref="/home"
+        backHref={booking ? "/orders" : "/home"}
         trailing={
           addingCustomer || picked ? (
             <button
@@ -242,6 +246,11 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
         onSubmit={(e) => { e.preventDefault(); void submit(); }}
       >
         <div className="flex flex-col gap-3 px-5 pb-48 pt-1 lg:pb-4">
+          {booking ? (
+            <p role="note" className="rounded-tile bg-[#E6F0FF] px-3.5 py-2.5 text-[13px] font-semibold text-[#1D4ED8]">
+              River Mobile booking <span className="font-mono">{booking.ref}</span> · weigh the laundry, then record the sale to turn it into an order.
+            </p>
+          ) : null}
           {addingCustomer || picked ? (
             <div className="relative">
               <Input size="md" label="Customer (optional)" hideLabel value={picked ? `${picked.name}${picked.phone ? ` · ${picked.phone}` : ""}` : customer}

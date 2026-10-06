@@ -20,7 +20,8 @@
     "build:static": "pnpm build:packages && STATIC_EXPORT=1 pnpm --filter @laundry-ph/owner build",
     "firebase:deploy:rules": "firebase deploy --only firestore",
     "test:emulator": "sh scripts/test-emulator.sh",
-    "firebase:deploy:rules:dev": "firebase deploy --only firestore:laundrydb-dev --project mylaundryph"
+    "firebase:deploy:rules:dev": "firebase deploy --only firestore:laundrydb-dev --project mylaundryph",
+    "seed:booking": "node scripts/seed-booking.mjs"
   },
   "devDependencies": {
     "typescript": "5.9.3",
