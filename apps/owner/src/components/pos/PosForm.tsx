@@ -17,6 +17,8 @@ const KG_MAX = 50;
 const PC_MAX = 200;
 /** Pieces that make a "full basket" for per-piece services. */
 const PC_FULL = 30;
+/** − / + press feedback: shrink + darker fill while held; colour-only when reduced motion is on. */
+const STEP_BTN = "[-webkit-tap-highlight-color:transparent] touch-manipulation select-none transition-[transform,background-color] duration-100 ease-out active:scale-90 active:bg-grey-300 disabled:opacity-40 disabled:active:scale-100 motion-reduce:transition-colors motion-reduce:active:scale-100";
 /** Shared horizontal snap row: same left edge (px-5) and snap padding as the page, no scrollbar. */
 const ROW = "-mx-5 grid grid-flow-col overflow-x-auto px-5 scroll-px-5 py-2 snap-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
@@ -50,6 +52,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [svcIndex, setSvcIndex] = useState(0);
   const svcRow = useRef<HTMLDivElement>(null);
+  const qtyField = useRef<HTMLDivElement>(null);
   const breakdownId = useId();
 
   const service = catalog.services.find((s) => s.id === serviceId) ?? catalog.services[0]!;
@@ -94,6 +97,27 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
     const clean = Math.min(max, Math.max(0, Math.round(v / step) * step));
     if (perKg) setKg(clean);
     else setPieces(clean);
+  };
+  /** Step the quantity from − / +, with a light haptic tick and a quick pop on the number. */
+  const stepBy = (dir: 1 | -1) => {
+    const next = Math.min(max, Math.max(0, Math.round((quantity + dir * step) / step) * step));
+    if (next === quantity) return;
+    setQtyText(null);
+    setQuantity(next);
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      try { navigator.vibrate(10); } catch { /* unsupported or blocked */ }
+    }
+    const input = qtyField.current?.querySelector("input");
+    if (!input || typeof input.animate !== "function") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    input.animate(
+      [
+        { transform: "scale(1)", color: "#0A0A0A" },
+        { transform: `scale(1.14) translateY(${dir > 0 ? -1 : 1}px)`, color: dir > 0 ? "#0E9F6E" : "#E4572E", offset: 0.35 },
+        { transform: "scale(1)", color: "#0A0A0A" },
+      ],
+      { duration: 260, easing: "cubic-bezier(.2,.8,.2,1)" },
+    );
   };
   const toggleAddOn = (id: string) => setAddOnIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   const dismissCustomer = () => {
@@ -205,24 +229,31 @@ export function PosForm({ catalog, customers, onCreate, errorMessage }: PosFormP
                 </div>
                 <span className="mt-1 max-w-[84px] text-center text-[11.5px] font-semibold leading-tight text-muted">{basketLabel(basketFill, q.minimumApplied)}</span>
               </div>
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <IconButton type="button" label={perKg ? "Less 0.5 kg" : "One piece less"} size="lg" icon={<Minus size={22} strokeWidth={1.75} />}
-                  disabled={quantity <= 0} onClick={() => { setQtyText(null); setQuantity(quantity - step); }} />
-                <Input hideLabel label={perKg ? "Weight in kilos" : "Number of pieces"} size="lg" inputMode="decimal" containerClassName="min-w-0 flex-1"
-                  className="text-center text-[22px] font-extrabold sm:text-[24px]"
-                  value={qtyText ?? String(quantity)}
-                  onChange={(e) => {
-                    const t = e.target.value.replace(",", ".");
-                    if (!/^\d*\.?\d*$/.test(t)) return;
-                    setQtyText(t);
-                    const v = Number.parseFloat(t);
-                    if (!Number.isNaN(v)) { if (perKg) setKg(Math.min(max, v)); else setPieces(Math.min(max, Math.round(v))); }
-                    else if (t === "") { if (perKg) setKg(0); else setPieces(0); }
-                  }}
-                  onBlur={() => { setQtyText(null); setQuantity(quantity); }}
-                  trailing={<span className="text-[15px] font-bold text-muted">{perKg ? "kg" : "pcs"}</span>} />
-                <IconButton type="button" label={perKg ? "More 0.5 kg" : "One piece more"} size="lg" icon={<Plus size={22} strokeWidth={1.75} />}
-                  disabled={quantity >= max} onClick={() => { setQtyText(null); setQuantity(quantity + step); }} />
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <div ref={qtyField}>
+                  <Input hideLabel label={perKg ? "Weight in kilos" : "Number of pieces"} size="lg" inputMode="decimal" containerClassName="w-full"
+                    className="origin-center text-center text-[24px] font-extrabold"
+                    value={qtyText ?? String(quantity)}
+                    onChange={(e) => {
+                      const t = e.target.value.replace(",", ".");
+                      if (!/^\d*\.?\d*$/.test(t)) return;
+                      setQtyText(t);
+                      const v = Number.parseFloat(t);
+                      if (!Number.isNaN(v)) { if (perKg) setKg(Math.min(max, v)); else setPieces(Math.min(max, Math.round(v))); }
+                      else if (t === "") { if (perKg) setKg(0); else setPieces(0); }
+                    }}
+                    onBlur={() => { setQtyText(null); setQuantity(quantity); }}
+                    trailing={<span className="text-[15px] font-bold text-muted">{perKg ? "kg" : "pcs"}</span>} />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <IconButton type="button" label={perKg ? "Less 0.5 kg" : "One piece less"} size="lg" icon={<Minus size={22} strokeWidth={2} />}
+                    className={STEP_BTN} disabled={quantity <= 0} onClick={() => stepBy(-1)} />
+                  <span className="min-w-0 truncate text-center text-[13px] font-semibold tabular-nums text-muted" aria-hidden>
+                    ± {perKg ? `${KG_STEP} kg` : "1 pc"}
+                  </span>
+                  <IconButton type="button" label={perKg ? "More 0.5 kg" : "One piece more"} size="lg" icon={<Plus size={22} strokeWidth={2} />}
+                    className={STEP_BTN} disabled={quantity >= max} onClick={() => stepBy(1)} />
+                </div>
               </div>
             </div>
             {q.minimumApplied ? <p className="mt-1.5 text-[12.5px] font-semibold text-muted" role="status">Minimum charge of {catalog.minKg} kg applies.</p> : null}
