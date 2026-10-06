@@ -3,6 +3,7 @@ import type { AvatarPreset } from "@river-apps/icons";
 import { Avatar, Button } from "@river-apps/ui";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
+import { useGreeting } from "@/lib/greeting";
 
 /** Short, privacy-friendly account id: "jimb…@gmail.com" or "0917•••123". */
 export function shortAccountId(email?: string | null, phone?: string | null): string | null {
@@ -36,6 +37,7 @@ export function Greeting({
   photoUrl?: string;
 }) {
   const { user } = useAuth();
+  const greeting = useGreeting();
   const accountId = user ? shortAccountId(user.email, user.phoneNumber) : null;
   return (
     <header className="px-4 pt-1">
@@ -59,7 +61,7 @@ export function Greeting({
       </div>
       {title ? (
         <div className="px-1 pb-1">
-          <span className="text-[12.5px] font-semibold text-muted">Good morning</span>
+          <span className="block min-h-[18px] text-[12.5px] font-semibold text-muted">{greeting}</span>
           <b className="block truncate text-[17px] font-extrabold tracking-[-0.01em]">{title}</b>
         </div>
       ) : null}
