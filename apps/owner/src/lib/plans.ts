@@ -84,14 +84,17 @@ export const PAID_ONLY_PREFIXES = [
   "/customers",
   "/sales",
   "/history",
-  "/community",
   "/profile",
   "/online",
   "/messages",
   "/more",
 ] as const;
 
+/** Exact paths under a Paid-only prefix that Partner shops may still open (My Account hub, Edit shop listing). */
+export const PARTNER_ALLOWED_PATHS = ["/profile", "/profile/edit"] as const;
+
 export function isPaidOnlyPath(pathname: string): boolean {
+  if ((PARTNER_ALLOWED_PATHS as readonly string[]).includes(pathname)) return false;
   return PAID_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 

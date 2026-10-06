@@ -1,5 +1,5 @@
 import {
-  Calendar, CircleHelp, History, House, List, MessageSquareText, MessagesSquare, Settings, Store, Users,
+  Calendar, CircleHelp, History, House, List, MessageSquareText, MessagesSquare, Settings, Users,
 } from "lucide-react";
 import type { IconName } from "@river-apps/icons";
 import type { NavItem } from "@river-apps/ui";
@@ -36,19 +36,18 @@ export const PAID_TAB_ICONS: Record<string, IconName> = {
   community: "chat",
 };
 
-/** Partner tier: River Mobile bookings, scan-to-verify, history and shop listing. */
+/** Partner tier: River Mobile bookings, history and Community. Shop listing + Settings live under My Account / Profile. */
 export const PARTNER_NAV: NavItem[] = [
   { key: "home", label: "Home", href: "/partner", icon: <House {...side} /> },
   { key: "bookings", label: "Bookings", href: "/partner/bookings", icon: <Calendar {...side} /> },
   { key: "history", label: "History", href: "/partner/history", icon: <History {...side} /> },
-  { key: "shop", label: "Shop listing", href: "/partner/shop", icon: <Store {...side} /> },
-  { key: "settings", label: "Settings", href: "/settings", icon: <Settings {...side} /> },
+  { key: "community", label: "Community", href: "/community", icon: <MessagesSquare {...side} /> },
 ];
 export const PARTNER_TABS: NavItem[] = [
   { key: "home", label: "Home", href: "/partner", icon: <House {...tab} /> },
   { key: "bookings", label: "Bookings", href: "/partner/bookings", icon: <Calendar {...tab} /> },
-  { key: "shop", label: "Shop", href: "/partner/shop", icon: <Store {...tab} /> },
-  { key: "settings", label: "Settings", href: "/settings", icon: <Settings {...tab} /> },
+  { key: "history", label: "History", href: "/partner/history", icon: <History {...tab} /> },
+  { key: "community", label: "Community", href: "/community", icon: <MessagesSquare {...tab} /> },
 ];
 
 export const HELP_ITEM: NavItem = { key: "help", label: "Help", href: "/settings#help", icon: <CircleHelp {...side} /> };

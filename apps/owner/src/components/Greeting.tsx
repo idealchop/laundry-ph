@@ -28,6 +28,7 @@ export function Greeting({
   avatar,
   name,
   photoUrl,
+  onlineHref = "/online",
 }: {
   /** Big greeting under the row (Partner home). Omit when the greeting lives in the hero card. */
   title?: string;
@@ -35,6 +36,8 @@ export function Greeting({
   name: string;
   /** Shop photo when set — same source as the Profile header. */
   photoUrl?: string;
+  /** Where "Online Orders" goes (Partner shops use their bookings list). */
+  onlineHref?: string;
 }) {
   const { user } = useAuth();
   const greeting = useGreeting();
@@ -42,7 +45,7 @@ export function Greeting({
   return (
     <header className="px-4 pt-1">
       <div className="flex h-16 items-center justify-between gap-3">
-        <Button href="/online" variant="secondary" size="xs" pill className="flex-none">
+        <Button href={onlineHref} variant="secondary" size="xs" pill className="flex-none">
           Online Orders
         </Button>
         <Link

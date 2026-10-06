@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  BadgeCheck, ChevronLeft, ChevronRight, CreditCard, History, LogOut, MapPin, Package, Pencil, Wallet,
+  BadgeCheck, ChevronLeft, ChevronRight, CreditCard, History, LogOut, MapPin, Package, Pencil, Store, Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -47,6 +47,9 @@ function shopBio(shop: Shop): string {
   }
   return `Laundry shop in ${area}. River Mobile bookings and shop listing.`;
 }
+
+/** Partner shops reach their River Mobile listing from here (it's no longer in the Partner nav). */
+const SHOP_LISTING_LINK = { href: "/partner/shop", icon: Store, title: "Shop listing", subtitle: "How River Mobile shows your shop" } as const;
 
 const HUB_LINKS = [
   { href: "/profile/services", icon: Package, title: "Services", subtitle: "Products, prices and POS catalog" },
@@ -177,7 +180,7 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
         <Card padding="none" className="px-3.5 py-1.5 lg:col-span-2">
           <b className="block px-1 pt-3 text-[16px]">Setup</b>
           <ul className="mt-1">
-            {HUB_LINKS.map((it) => {
+            {(shop.tier === "partner" ? [SHOP_LISTING_LINK, ...HUB_LINKS] : HUB_LINKS).map((it) => {
               const Icon = it.icon;
               return (
                 <li key={it.href}>

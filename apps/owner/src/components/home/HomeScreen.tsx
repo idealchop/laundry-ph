@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Order, OrderStatus } from "@/data";
 import { startOfShopDay } from "@/lib/format";
-import { growthStats, isActive, summarizeToday, weekSales } from "@/lib/orders";
+import { isActive, summarizeToday, weekSales } from "@/lib/orders";
 import { useAction, useBoardOrders, useCustomers, useShop, useShopQuery } from "@/lib/shop";
 import { ErrorNote, Spinner } from "../ui";
 import { GrowthDashboard } from "./GrowthDashboard";
@@ -16,7 +16,6 @@ export function HomeScreen() {
   const since = useMemo(() => startOfShopDay(now, -13), [now]);
   const { orders, error, loading } = useBoardOrders(since);
   const { customers } = useCustomers();
-  const tip = useShopQuery((s) => s.getGrowthTip());
   const pickups = useShopQuery((s) => s.getPickupRequests());
   const action = useAction();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -26,7 +25,6 @@ export function HomeScreen() {
     [orders, shop.dailyTargetCentavos, pickups.data, customers],
   );
   const week = useMemo(() => weekSales(orders), [orders]);
-  const stats = useMemo(() => growthStats(orders), [orders]);
   const queue = useMemo(() => orders.filter((o) => isActive(o) || o.status === "ready").sort((a, b) => a.createdAt - b.createdAt), [orders]);
 
   const onAdvance = async (order: Order, to: OrderStatus) => {
@@ -44,7 +42,7 @@ export function HomeScreen() {
         <PaidHomeMobile shop={shop} today={today} queue={queue} onAdvance={onAdvance} busyId={busyId} />
       </div>
       <div className="hidden lg:block">
-        <GrowthDashboard shop={shop} today={today} stats={stats} tip={tip.data ?? null} week={week} queue={queue} customers={customers} onAdvance={onAdvance} busyId={busyId} />
+        <GrowthDashboard shop={shop} today={today} week={week} queue={queue} customers={customers} onAdvance={onAdvance} busyId={busyId} />
       </div>
     </>
   );
