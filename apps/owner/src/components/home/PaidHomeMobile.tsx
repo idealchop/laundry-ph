@@ -21,12 +21,17 @@ export interface PaidHomeMobileProps {
 export function PaidHomeMobile({ shop, today, queue, onAdvance, busyId }: PaidHomeMobileProps) {
   return (
     <div className="mx-auto w-full max-w-[560px] pb-4">
-      <Greeting title={shop.name} name={shop.ownerName} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} />
+      <Greeting name={shop.ownerName} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} />
       <HeroBanner
-        className="mx-4 mt-2"
+        className="mx-4 mt-1"
         size="md"
-        eyebrow={`Today · ${today.dateLabel}`}
-        title={`Today: ${money(today.salesCentavos)} · ${today.orders} orders`}
+        title={
+          <>
+            <span className="block text-[12.5px] font-semibold tracking-normal text-on-ink-muted">Good morning</span>
+            <span className="mt-0.5 block truncate text-[18px] tracking-[-0.015em]">{shop.name}</span>
+            <span className="mt-2.5 block">Today: {money(today.salesCentavos)} · {today.orders} orders</span>
+          </>
+        }
         titleSize="md"
         description={`${today.kgWashed} kg washed`}
         contentWidth={240}
