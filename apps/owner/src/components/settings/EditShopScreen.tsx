@@ -18,7 +18,7 @@ function profileKey(shop: Shop): string {
   return [shop.name, shop.ownerName, a?.line1, a?.city, L?.lat, L?.lng, L?.formattedAddress].join("|");
 }
 
-/** Full-screen shop profile editor (name, owner, map pin, photos). Address/area are derived from the pin. */
+/** Full-screen shop profile editor (name, map pin, photos). Address/area are derived from the pin. */
 export function EditShopScreen() {
   const { shop, source, reload } = useShop();
   const [busy, setBusy] = useState(false);
@@ -69,7 +69,6 @@ function ProfileEditor({
   const { busy, error, run, setError } = useAction();
   const [saved, setSaved] = useState(false);
   const [name, setName] = useState(shop.name);
-  const [ownerName, setOwnerName] = useState(shop.ownerName);
   const [location, setLocation] = useState<ShopLocation | null>(shop.location ?? null);
   const readOnly = shop.sample === true && source.mode === "firebase";
 
@@ -86,16 +85,20 @@ function ProfileEditor({
       // the pin when it moved (or they were never filled). A failed lookup leaves stored values as-is.
       let area = shop.area;
       let address: ShopAddress | null = shop.address ?? null;
+      let geoFill = "";
       const prev = shop.location;
       const pinMoved = location ? !prev || prev.lat.toFixed(6) !== location.lat.toFixed(6) || prev.lng.toFixed(6) !== location.lng.toFixed(6) : false;
       if (location && (pinMoved || !area.trim() || !address)) {
         const geo = await reverseGeocodePin(location.lat, location.lng);
         if (geo) {
+          geoFill = geo.formatted;
           if (geo.area) area = geo.area;
           if (geo.address) address = { ...geo.address, ...(shop.address?.line2 ? { line2: shop.address.line2 } : {}) };
         }
       }
-      await s.updateShopProfile({ name, area, ownerName, address, location });
+      // Owner name is no longer edited here; resend the stored value untouched.
+      const loc = location && geoFill && !location.formattedAddress ? { ...location, formattedAddress: geoFill } : location;
+      await s.updateShopProfile({ name, area, ownerName: shop.ownerName, address, location: loc });
       return true;
     }, "Sign in to save your shop profile and map pin.");
     if (ok) {
@@ -128,9 +131,8 @@ function ProfileEditor({
         </p>
       ) : null}
 
-      <form id="edit-shop-form" onSubmit={onSave} className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Input size="md" label="Shop name" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={80} disabled={readOnly || busy} />
-        <Input size="md" label="Owner first name" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} maxLength={40} disabled={readOnly || busy} />
+      <form id="edit-shop-form" onSubmit={onSave} className="mt-3 grid gap-4 sm:grid-cols-2">
+        <Input size="md" label="Shop name" containerClassName="sm:col-span-2" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={80} disabled={readOnly || busy} />
 
         <div className="sm:col-span-2">
           <LocationPicker value={location} onChange={setLocation} disabled={readOnly || busy} />
