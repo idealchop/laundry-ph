@@ -87,6 +87,7 @@ export function OrderDetail({ order }: { order: Order }) {
             </div>
             <StepTracker
               label="Order status"
+              visible={3}
               current={current}
               steps={ORDER_FLOW.map((s) => ({
                 key: s, label: ORDER_STATUS_LABEL[s], icon: statusIcon(s, 30),
