@@ -6,14 +6,16 @@ import { CoinIcon, EWalletIcon } from "@river-apps/icons";
 import { Avatar, Button, Card, CardHeader, EmptyState, MonoText, StatusDot } from "@river-apps/ui";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ORDER_FLOW, ORDER_STATUS_LABEL, type Order, type OrderStatus } from "@/data";
 import { money, timeLabel, whenLabel } from "@/lib/format";
+import { doneStatus, isDone, statusPath } from "@/lib/orders";
 import { useAction, useOrder, useShop } from "@/lib/shop";
 import { StepTracker } from "../kit-extensions";
 import { SampleNote } from "../SampleNote";
-import { ErrorNote, PaymentBadge, Spinner, StatusBadge, statusIcon } from "../ui";
-import { StatusFooter } from "./StatusFooter";
+import { ErrorNote, PaymentBadge, Spinner, statusIcon } from "../ui";
+
+const UNDO_MS = 5000;
 
 /** Order detail from ?id=…: live status, lines, payment and the public ticket link. */
 export function OrderDetailScreen() {
@@ -36,10 +38,44 @@ export function OrderDetail({ order }: { order: Order }) {
   const { } = useShop();
   const action = useAction();
   const [copied, setCopied] = useState(false);
-  const flowIndex = ORDER_FLOW.indexOf(order.status);
-  const current = order.status === "cancelled" ? 0 : flowIndex >= 0 ? flowIndex : ORDER_FLOW.length;
+  /** Stepper: Received → Washing → Drying → Folding → Ready → Claimed (walk-in) / Delivered (River Mobile). */
+  const flow: OrderStatus[] = [...ORDER_FLOW, doneStatus(order)];
+  const cancelled = order.status === "cancelled";
+  const current = cancelled ? 0 : Math.max(0, flow.indexOf(order.status));
   const ticketPath = `/t/${order.ticketId}`;
-  const move = (to: OrderStatus) => action.run((s) => s.setOrderStatus(order.id, to), "Sign in to update this order.");
+  const [undo, setUndo] = useState<{ from: OrderStatus; to: OrderStatus } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current); }, []);
+
+  /** Walk to `to` one valid transition at a time (setOrderStatus only moves a single step forward or back). */
+  const goTo = async (to: OrderStatus): Promise<boolean> => {
+    const path = statusPath(order, to);
+    if (!path?.length) return false;
+    const ok = await action.run(async (s) => {
+      for (const step of path) await s.setOrderStatus(order.id, step);
+      return true;
+    }, "Sign in to update this order.");
+    return ok === true;
+  };
+  const showUndo = (next: { from: OrderStatus; to: OrderStatus } | null) => {
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    setUndo(next);
+    if (next) undoTimer.current = setTimeout(() => setUndo(null), UNDO_MS);
+  };
+  const select = async (i: number) => {
+    const to = flow[i];
+    if (!to || to === order.status || cancelled || action.busy) return;
+    navigator.vibrate?.(10);
+    const from = order.status;
+    if (await goTo(to)) showUndo({ from, to });
+  };
+  const onUndo = async () => {
+    if (!undo) return;
+    const { from } = undo;
+    showUndo(null);
+    navigator.vibrate?.(10);
+    await goTo(from);
+  };
   const pay = (m: "cash" | "gcash") => action.run((s) => s.markOrderPaid(order.id, m), "Sign in to mark this order paid.");
   const due = Math.max(0, order.totalCentavos - order.paidCentavos);
   /** Anonymous POS sale: no name typed at the counter (stored as "Walk-in customer"). */
@@ -57,23 +93,17 @@ export function OrderDetail({ order }: { order: Order }) {
           <Avatar name={order.customer.name} preset={order.customer.avatar} size={56} />
         )}
         <div className="flex min-w-0 flex-1 flex-col leading-[1.25]">
-          <h1 className="flex min-w-0 items-center gap-2 text-[26px] font-extrabold leading-[1.15] tracking-[-0.03em]">
-            <span className="truncate">{order.ref}</span>
-            <StatusBadge status={order.status} className="flex-none" />
-          </h1>
+          <h1 className="truncate text-[26px] font-extrabold leading-[1.15] tracking-[-0.03em]">{order.ref}</h1>
           <p className="mt-0.5 truncate text-[13.5px] font-semibold text-ink-2">
-            {anonymous ? "Walk-in customer" : order.customer.name}
-            {order.customer.phone ? (
-              <>
-                {" · "}
-                <a href={`tel:${order.customer.phone.replace(/[^\d+]/g, "")}`} className="underline decoration-grey-300 underline-offset-[3px] hover:text-ink">
-                  {order.customer.phone}
-                </a>
-              </>
-            ) : null}
+            {anonymous ? "Walk-in customer" : order.customer.phone ? (
+              <a href={`tel:${order.customer.phone.replace(/[^\d+]/g, "")}`} aria-label={`Call ${order.customer.name}`} className="hover:underline">
+                {order.customer.name}
+              </a>
+            ) : order.customer.name}
+            {anonymous && order.source === "walk-in" ? null : <> · {order.source === "walk-in" ? "Walk-in" : "Online"}</>}
           </p>
           <p className="mt-0.5 text-[12.5px] font-semibold text-muted">
-            Queue #{order.queueNo} · {whenLabel(order.createdAt)} · {order.source === "walk-in" ? "Walk-in" : "River Mobile"}
+            Queue #{order.queueNo} · {whenLabel(order.createdAt)}
             <SampleNote className="ml-1 align-middle" />
           </p>
         </div>
@@ -87,22 +117,17 @@ export function OrderDetail({ order }: { order: Order }) {
               <StatusDot>{ORDER_STATUS_LABEL[order.status]} · updated {timeLabel(order.updatedAt)}</StatusDot>
             </div>
             <StepTracker
-              label="Order status"
+              label="Order status. Tap a step to set it."
               visible={3}
               current={current}
-              steps={ORDER_FLOW.map((s) => ({
+              onSelect={cancelled ? undefined : (i) => void select(i)}
+              disabled={action.busy}
+              steps={flow.map((s) => ({
                 key: s, label: ORDER_STATUS_LABEL[s], icon: statusIcon(s, 30),
-                meta: order.stageTimes[s] && s !== order.status ? timeLabel(order.stageTimes[s]!) : undefined,
+                meta: order.stageTimes[s] && (s !== order.status || isDone(order)) ? timeLabel(order.stageTimes[s]!) : undefined,
               }))}
             />
-            {order.stageTimes.claimed || order.stageTimes.delivered ? (
-              <p className="mt-3 px-1 text-[13px] font-semibold text-muted">
-                {order.status === "delivered" ? "Delivered" : "Claimed"} {timeLabel((order.stageTimes.claimed ?? order.stageTimes.delivered)!)}
-              </p>
-            ) : null}
-            <div className="mt-4 flex items-center justify-between gap-3 border-t border-dashed border-[#E8E8EC] px-1 pt-3">
-              <StatusFooter order={order} busy={action.busy} onMove={(to) => void move(to)} />
-            </div>
+            {cancelled ? <p className="mt-3 px-1 text-[13px] font-semibold text-muted">Cancelled</p> : null}
           </Card>
           <Card className="px-4 py-3.5">
             <CardHeader title="Order" subtitle={[
@@ -165,6 +190,17 @@ export function OrderDetail({ order }: { order: Order }) {
             </div>
           </Card>
         </div>
+      </div>
+      <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-[70] flex justify-center px-4 lg:bottom-8">
+        {undo ? (
+          <div role="status" className="pointer-events-auto flex min-h-12 items-center gap-3 rounded-pill bg-ink py-1.5 pl-4 pr-1.5 text-on-ink shadow-raised">
+            <span className="text-[14px] font-bold">Moved to {ORDER_STATUS_LABEL[undo.to]}</span>
+            <button type="button" onClick={() => void onUndo()} disabled={action.busy}
+              className="h-9 cursor-pointer rounded-pill bg-white/15 px-3.5 text-[13.5px] font-bold text-on-ink transition-transform hover:bg-white/25 active:scale-95 disabled:cursor-wait disabled:opacity-60">
+              Undo
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

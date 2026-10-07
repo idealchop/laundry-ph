@@ -39,6 +39,29 @@ export function previousStatus(order: Pick<Order, "status">): OrderStatus | null
   const i = ORDER_FLOW.indexOf(order.status);
   return i > 0 ? ORDER_FLOW[i - 1]! : null;
 }
+/** Final step after Ready: the order's done status, else claimed (walk-in) / delivered (River Mobile). */
+export function doneStatus(order: Pick<Order, "status" | "source">): OrderStatus {
+  return DONE_STATUSES.includes(order.status) ? order.status : order.source === "river-mobile" ? "delivered" : "claimed";
+}
+/**
+ * The single-step moves (each one a valid `setOrderStatus` transition) that take `order` to `to`, walking
+ * forward with nextStatus or back with previousStatus. [] when already there; null when `to` isn't reachable.
+ */
+export function statusPath(order: Pick<Order, "status" | "source">, to: OrderStatus): OrderStatus[] | null {
+  if (order.status === to) return [];
+  for (const step of [nextStatus, previousStatus]) {
+    const path: OrderStatus[] = [];
+    let at: OrderStatus = order.status;
+    for (let i = 0; i < 8; i++) {
+      const n = step({ status: at, source: order.source });
+      if (!n) break;
+      path.push(n);
+      if (n === to) return path;
+      at = n;
+    }
+  }
+  return null;
+}
 /** Button text for moving to `status`, e.g. "Start washing", "Mark claimed". */
 export function actionLabel(status: OrderStatus): string {
   switch (status) {

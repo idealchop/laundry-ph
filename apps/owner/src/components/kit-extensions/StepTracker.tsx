@@ -23,19 +23,30 @@ export interface StepTrackerProps {
    * step is scrolled to the centre on load and whenever it changes. Omit to show every step.
    */
   visible?: number;
+  /**
+   * Makes every step a button (press-scale, pointer cursor). Called with the tapped step's index;
+   * the current step isn't tappable. Omit for a read-only tracker.
+   */
+  onSelect?: (index: number) => void;
+  /** Disables the step buttons, e.g. while a status change is saving. */
+  disabled?: boolean;
   className?: string;
 }
 
 type State = "done" | "now" | "next";
 
-function StepItem({ step: s, state }: { step: Step; state: State }) {
+function StepItem({ step: s, state, pressable = false }: { step: Step; state: State; pressable?: boolean }) {
   return (
     <>
-      <span className="relative">
+      <span className={cn("relative", pressable && "transition-transform duration-100 group-active:scale-90 motion-reduce:transition-none motion-reduce:group-active:scale-100")}>
         <IconTile
           size={48}
           tone={state === "now" ? "white" : "grey"}
-          className={cn(state === "now" && "ring-2 ring-ink", state === "next" && "[&>svg]:opacity-35 [&>svg]:grayscale")}
+          className={cn(
+            state === "now" && "ring-2 ring-ink ring-offset-2 ring-offset-surface",
+            state === "next" && "[&>svg]:opacity-35 [&>svg]:grayscale",
+            pressable && state !== "now" && "transition-colors group-hover:bg-grey-200",
+          )}
         >
           {s.icon}
         </IconTile>
@@ -56,15 +67,37 @@ function StepItem({ step: s, state }: { step: Step; state: State }) {
 
 const stateOf = (i: number, current: number): State => (i < current ? "done" : i === current ? "now" : "next");
 
+/** One step's content: a plain block, or a button when the tracker is interactive. */
+function StepCell({ step, state, index, onSelect, disabled }: { step: Step; state: State; index: number; onSelect?: (i: number) => void; disabled?: boolean }) {
+  if (!onSelect) return <StepItem step={step} state={state} />;
+  const current = state === "now";
+  return (
+    <button
+      type="button"
+      onClick={() => { if (!current) onSelect(index); }}
+      disabled={disabled}
+      aria-disabled={current || undefined}
+      aria-label={current ? `${step.label}, current status` : `Set status to ${step.label}${state === "done" ? " (move back)" : ""}`}
+      className={cn(
+        "group flex w-full flex-col items-center gap-1.5 rounded-[14px] pb-1 outline-none [-webkit-tap-highlight-color:transparent]",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        current ? "cursor-default" : "cursor-pointer disabled:cursor-wait",
+      )}
+    >
+      <StepItem step={step} state={state} pressable={!current} />
+    </button>
+  );
+}
+
 /**
  * Horizontal progress tracker (Received → Washing → Drying → Folding → Ready).
  * Done steps get a small black check; the current step is a white tile with a black ring;
  * upcoming steps are greyed. Status is also spelled out in words, never colour only.
  * Candidate for upstreaming to @river-apps/ui.
  */
-export function StepTracker({ steps, current, label, visible, className }: StepTrackerProps) {
+export function StepTracker({ steps, current, label, visible, onSelect, disabled, className }: StepTrackerProps) {
   if (visible && visible < steps.length) {
-    return <ScrollingStepTracker steps={steps} current={current} label={label} visible={visible} className={className} />;
+    return <ScrollingStepTracker steps={steps} current={current} label={label} visible={visible} onSelect={onSelect} disabled={disabled} className={className} />;
   }
   const n = Math.max(1, steps.length);
   const edge = 50 / n; // centre of the first/last column, in %
@@ -77,7 +110,7 @@ export function StepTracker({ steps, current, label, visible, className }: StepT
         const state = stateOf(i, current);
         return (
           <li key={s.key} aria-current={state === "now" ? "step" : undefined} className="relative flex flex-col items-center gap-1.5">
-            <StepItem step={s} state={state} />
+            <StepCell step={s} state={state} index={i} onSelect={onSelect} disabled={disabled} />
           </li>
         );
       })}
@@ -86,7 +119,7 @@ export function StepTracker({ steps, current, label, visible, className }: StepT
 }
 
 /** `visible`-at-a-time variant: snap row, per-step connector halves, edge fades, current step kept centred. */
-function ScrollingStepTracker({ steps, current, label, visible, className }: Required<Omit<StepTrackerProps, "className">> & { className?: string }) {
+function ScrollingStepTracker({ steps, current, label, visible, onSelect, disabled, className }: Required<Pick<StepTrackerProps, "steps" | "current" | "label" | "visible">> & Pick<StepTrackerProps, "onSelect" | "disabled" | "className">) {
   const n = steps.length;
   const done = Math.min(Math.max(current, 0), n - 1);
   const row = useRef<HTMLDivElement>(null);
@@ -136,7 +169,7 @@ function ScrollingStepTracker({ steps, current, label, visible, className }: Req
               {/* Connector halves: left half joins the previous step, right half the next. */}
               {i > 0 ? <i aria-hidden className={cn("absolute left-0 right-1/2 top-[23px] h-[3px]", i <= done ? "bg-ink" : "bg-grey-200")} /> : null}
               {i < n - 1 ? <i aria-hidden className={cn("absolute left-1/2 right-0 top-[23px] h-[3px]", i < done ? "bg-ink" : "bg-grey-200")} /> : null}
-              <StepItem step={s} state={state} />
+              <StepCell step={s} state={state} index={i} onSelect={onSelect} disabled={disabled} />
             </li>
           );
         })}
