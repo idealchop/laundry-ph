@@ -145,18 +145,18 @@ export function BookingDetail({ booking: b, backHref, onChanged }: { booking: Bo
                     </small>
                   )}
                 </span>
-                {cust.pin ? (
-                  <Button size="sm" variant="secondary" pill className="h-11 flex-none px-4" href={googleDirectionsUrl(shopPin, cust.pin)} target="_blank" rel="noopener noreferrer"
-                    leadingIcon={<ExternalLink size={15} strokeWidth={2} />}>
-                    Google Maps
-                  </Button>
+                {cust.pin && shopPin ? (
+                  <span className="flex flex-none flex-col items-end gap-1 text-[12px] font-semibold text-muted">
+                    <span className="inline-flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-ink ring-2 ring-white" /> Your shop</span>
+                    <span className="inline-flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-[#2563EB] ring-2 ring-white" /> Customer</span>
+                  </span>
                 ) : null}
               </div>
-              {cust.pin && shopPin ? (
-                <p className="flex items-center gap-4 text-[12px] font-semibold text-muted">
-                  <span className="inline-flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-ink ring-2 ring-white" /> Your shop</span>
-                  <span className="inline-flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-[#2563EB] ring-2 ring-white" /> Customer</span>
-                </p>
+              {cust.pin ? (
+                <Button size="md" variant="secondary" pill fullWidth className="h-11" href={googleDirectionsUrl(shopPin, cust.pin)} target="_blank" rel="noopener noreferrer"
+                  leadingIcon={<ExternalLink size={16} strokeWidth={2} />}>
+                  Open in Google Maps
+                </Button>
               ) : null}
             </div>
           ) : (
