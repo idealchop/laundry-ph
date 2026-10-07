@@ -123,6 +123,8 @@ function toBooking(snap: DocumentSnapshot): Booking {
     estKg: typeof d.estKg === "number" ? d.estKg : null,
     address: typeof d.address === "string" ? d.address : null,
     location: loc && typeof loc.lat === "number" && typeof loc.lng === "number" ? { lat: loc.lat, lng: loc.lng } : null,
+    clothesType: d.clothesType && typeof d.clothesType === "object" && typeof d.clothesType.id === "string"
+      ? { id: d.clothesType.id, name: String(d.clothesType.name ?? d.clothesType.id) } : null,
     notes: typeof d.notes === "string" ? d.notes : null,
     declineReason: typeof d.declineReason === "string" ? d.declineReason : null,
     cancelReason: typeof d.cancelReason === "string" ? d.cancelReason : null,

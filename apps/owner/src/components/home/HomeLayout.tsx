@@ -1,5 +1,5 @@
 "use client";
-import { Badge, Button, Card, CardHeader, EmptyState, ProgressRing, QueueList, SectionHeader, StatCard, type QueueListItem } from "@river-apps/ui";
+import { Badge, Button, Card, CardHeader, ProgressRing, SectionHeader, StatCard } from "@river-apps/ui";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import type { Booking, DaySummary, Shop } from "@/data";
@@ -20,12 +20,6 @@ export interface HomeLayoutProps {
   today: DaySummary;
   /** Paid shops record walk-ins at the counter (Walk-in button, walk-in copy); Partner shops don't. */
   canWalkIn: boolean;
-  /** Order queue rows, oldest first (Paid: open orders; Partner: orders + accepted/received bookings). */
-  queue: QueueListItem[];
-  /** Online (River Mobile) orders in the queue as rich cards, shown above the compact walk-in rows. */
-  onlineQueue?: ReactNode[];
-  /** Where "Order queue" links: Paid /orders, Partner /partner/orders. */
-  queueHref: string;
   /** Bookings shown under "Pickups to accept" (answerable right here). */
   bookings: Booking[];
   bookingsLoading: boolean;
@@ -79,16 +73,6 @@ function Stats({ today, className }: { today: DaySummary; className?: string }) 
   );
 }
 
-function QueueEmpty({ canWalkIn }: { canWalkIn: boolean }) {
-  return (
-    <EmptyState
-      className="my-2 border-0 py-5"
-      title="No orders in the queue"
-      description={canWalkIn ? "New walk-in orders show up here." : "Bookings you accept show up here."}
-    />
-  );
-}
-
 function DailyTarget({ today }: { today: DaySummary }) {
   const pct = today.dailyTargetCentavos > 0 ? Math.round((today.salesCentavos / today.dailyTargetCentavos) * 100) : 0;
   return (
@@ -108,14 +92,12 @@ function DailyTarget({ today }: { today: DaySummary }) {
 
 /**
  * The one home layout for Paid and Partner, phone and desktop: header, black hero, In queue / Ready / Unpaid,
- * Order queue, Pickups to accept. The only plan difference is `canWalkIn` (Partner has no walk-in recording).
+ * Pickups to accept. The order queue lives in Orders. The only plan difference is `canWalkIn` (Partner has no walk-in recording).
  */
 export function HomeLayout(p: HomeLayoutProps) {
-  const { shop, today, canWalkIn, queue, queueHref } = p;
-  const online = p.onlineQueue ?? [];
+  const { shop, today, canWalkIn } = p;
   const fresh = p.bookings.filter((b) => b.status === "requested").length;
   const pickupsAside = p.bookingsLoading ? "" : fresh ? `${fresh} new` : p.bookings.length ? `${p.bookings.length} open` : "Live";
-  const queueAside = `${today.inQueue} in progress · ${today.ready} ready`;
   const pickups = (max: number, twoUp: boolean) => (
     <Pickups bookings={p.bookings} loading={p.bookingsLoading} error={p.bookingsError} canConvert={p.canConvert} moreHref={p.onlineHref} max={max} twoUp={twoUp} />
   );
@@ -126,11 +108,6 @@ export function HomeLayout(p: HomeLayoutProps) {
         <Greeting name={ownerFirstName(shop.ownerName) || shop.name} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} onlineHref={p.onlineHref} />
         <HomeHeroMobile shop={shop} today={today} showWalkIn={canWalkIn} />
         <Stats today={today} className="mx-4 mt-2.5" />
-        <SectionHeader className="px-5 pb-1 pt-4" title="Order queue" aside={<Link href={queueHref} className="underline decoration-grey-300 underline-offset-[3px]">{queueAside}</Link>} />
-        {online.length ? <div className="mx-4 mb-2.5 flex flex-col gap-2.5">{online}</div> : null}
-        {queue.length || !online.length ? (
-          <Card padding="none" className="mx-4 px-4 py-1.5">{queue.length ? <QueueList label="Walk-in queue" items={queue} /> : <QueueEmpty canWalkIn={canWalkIn} />}</Card>
-        ) : null}
         <SectionHeader className="px-5 pb-1 pt-4" title="Pickups to accept" aside={pickupsAside} />
         <div className="mx-4">{pickups(3, false)}</div>
         {p.footer ? <div className="mx-4 mt-2.5">{p.footer}</div> : null}
@@ -144,12 +121,6 @@ export function HomeLayout(p: HomeLayoutProps) {
           <DailyTarget today={today} />
         </div>
         <Stats today={today} className="mt-5" />
-        <Card padding="none" className="mt-5 px-[18px] pb-2.5 pt-4">
-          <CardHeader className="mb-1.5" title="Order queue" subtitle={queueAside} action={<Link href={queueHref} className={linkCls}>Open board</Link>} />
-          {online.length ? <div className="mb-2 grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2">{online}</div> : null}
-          {queue.length ? <div className="max-h-[360px] overflow-y-auto"><QueueList label="Walk-in queue" items={queue} /></div> : null}
-          {!queue.length && !online.length ? <QueueEmpty canWalkIn={canWalkIn} /> : null}
-        </Card>
         <Card padding="none" className="mt-5 px-[18px] pb-4 pt-4">
           <CardHeader className="mb-3" title="Pickups to accept" subtitle={pickupsAside} action={<Link href={p.onlineHref} className={linkCls}>All bookings</Link>} />
           {pickups(4, true)}

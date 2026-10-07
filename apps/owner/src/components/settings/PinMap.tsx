@@ -9,25 +9,41 @@
 import { Minus, Plus } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 
-const TILE = 256;
+export const TILE = 256;
 const MIN_Z = 3;
 const MAX_Z = 19;
 
-type LatLng = { lat: number; lng: number };
-type Px = { x: number; y: number };
+export type LatLng = { lat: number; lng: number };
+export type Px = { x: number; y: number };
 
 const world = (z: number) => TILE * 2 ** z;
-function project({ lat, lng }: LatLng, z: number): Px {
+export function project({ lat, lng }: LatLng, z: number): Px {
   const s = Math.sin((Math.max(-85.05112878, Math.min(85.05112878, lat)) * Math.PI) / 180);
   const W = world(z);
   return { x: ((lng + 180) / 360) * W, y: (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * W };
 }
-function unproject({ x, y }: Px, z: number): LatLng {
+export function unproject({ x, y }: Px, z: number): LatLng {
   const W = world(z);
   const lng = (x / W) * 360 - 180;
   const lat = (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / W))) * 180) / Math.PI;
   return { lat, lng: ((((lng + 180) % 360) + 360) % 360) - 180 };
 }
+/** OSM raster tiles covering a `size` viewport whose top-left world pixel is `origin` at `zoom`. */
+export function osmTiles(origin: Px, size: { w: number; h: number }, zoom: number): { key: string; src: string; left: number; top: number }[] {
+  const n = 2 ** zoom;
+  const tiles: { key: string; src: string; left: number; top: number }[] = [];
+  if (size.w <= 0) return tiles;
+  const x0 = Math.floor(origin.x / TILE), x1 = Math.floor((origin.x + size.w) / TILE);
+  const y0 = Math.max(0, Math.floor(origin.y / TILE)), y1 = Math.min(n - 1, Math.floor((origin.y + size.h) / TILE));
+  for (let ty = y0; ty <= y1; ty++) {
+    for (let tx = x0; tx <= x1; tx++) {
+      const wx = ((tx % n) + n) % n;
+      tiles.push({ key: `${zoom}/${tx}/${ty}`, src: `https://tile.openstreetmap.org/${zoom}/${wx}/${ty}.png`, left: tx * TILE - origin.x, top: ty * TILE - origin.y });
+    }
+  }
+  return tiles;
+}
+
 const round6 = (v: number) => Math.round(v * 1e6) / 1e6;
 
 export interface PinMapProps {
@@ -74,18 +90,7 @@ export function PinMap({ pin, fallbackCenter, onPin, disabled, className }: PinM
   const shown = draft ?? pin;
   const pinPx = shown ? (() => { const p = project(shown, zoom); return { x: p.x - origin.x, y: p.y - origin.y }; })() : null;
 
-  const n = 2 ** zoom;
-  const tiles: { key: string; src: string; left: number; top: number }[] = [];
-  if (size.w > 0) {
-    const x0 = Math.floor(origin.x / TILE), x1 = Math.floor((origin.x + size.w) / TILE);
-    const y0 = Math.max(0, Math.floor(origin.y / TILE)), y1 = Math.min(n - 1, Math.floor((origin.y + size.h) / TILE));
-    for (let ty = y0; ty <= y1; ty++) {
-      for (let tx = x0; tx <= x1; tx++) {
-        const wx = ((tx % n) + n) % n;
-        tiles.push({ key: `${zoom}/${tx}/${ty}`, src: `https://tile.openstreetmap.org/${zoom}/${wx}/${ty}.png`, left: tx * TILE - origin.x, top: ty * TILE - origin.y });
-      }
-    }
-  }
+  const tiles = osmTiles(origin, size, zoom);
 
   const local = (e: PointerEvent): Px => {
     const r = box.current!.getBoundingClientRect();

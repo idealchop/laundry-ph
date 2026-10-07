@@ -79,19 +79,7 @@ export interface BookingCardProps {
 
 /** One River Mobile booking with the owner's next actions. */
 export function BookingCard({ booking: b, canConvert, onMove, compact = false, now, pill, meta: metaOverride, footer }: BookingCardProps) {
-  const [asking, setAsking] = useState<null | "declined" | "cancelled">(null);
-  const [reason, setReason] = useState("");
-  const [pending, setPending] = useState<BookingMove | null>(null);
-  const reasonId = useId();
-  const open = b.status === "requested" || b.status === "accepted" || b.status === "received";
-
-  const move = async (to: BookingMove, why?: string | null) => {
-    setPending(to);
-    const ok = await onMove(b, to, why);
-    setPending(null);
-    if (ok) { setAsking(null); setReason(""); }
-  };
-
+  const open = isOpenBooking(b);
   const slot = formatSlot(b.slotAt, now);
   const meta = metaOverride ?? [slot, b.estKg ? `about ${b.estKg} kg` : null].filter(Boolean).join(" · ");
 
@@ -128,7 +116,7 @@ export function BookingCard({ booking: b, canConvert, onMove, compact = false, n
             {b.status === "requested" ? <> · {ago(b.createdAt, now)}</> : null}
           </small>
         </span>
-        {b.customer.phone && (open || footer) ? (
+        {b.customer.phone && !compact && (open || footer) ? (
           <a href={`tel:${b.customer.phone}`} aria-label={`Call ${b.customer.name}`}
             className="inline-flex size-11 flex-none items-center justify-center rounded-full bg-grey-100 text-ink hover:bg-grey-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
             <Phone size={18} strokeWidth={1.9} />
@@ -155,53 +143,99 @@ export function BookingCard({ booking: b, canConvert, onMove, compact = false, n
 
       {footer ? (
         <div className="mt-3 flex items-center justify-end gap-2">{footer}</div>
-      ) : asking ? (
-        <div className="mt-3 rounded-tile bg-grey-50 p-3">
-          <p id={reasonId} className="text-[13.5px] font-bold">{asking === "declined" ? "Decline this booking?" : "Cancel this booking?"} <span className="font-semibold text-muted">Reason is optional.</span></p>
-          <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-labelledby={reasonId}>
-            {DECLINE_REASONS.map((r) => (
-              <button key={r} type="button" onClick={() => setReason(r)} aria-pressed={reason === r}
-                className={cn("min-h-9 rounded-pill px-3 text-[12.5px] font-semibold ring-1 ring-inset", reason === r ? "bg-ink text-on-ink ring-ink" : "bg-surface text-ink ring-grey-200 hover:bg-grey-100")}>
-                {r}
-              </button>
-            ))}
-          </div>
-          <Input containerClassName="mt-2" size="md" label="Reason" hideLabel placeholder="Add a short note for the customer" value={reason}
-            maxLength={BOOKING_LIMITS.reasonMax} onChange={(e) => setReason(e.target.value)} />
-          <div className="mt-2.5 flex justify-end gap-2">
-            <Button size="sm" variant="ghost" className="h-11" onClick={() => { setAsking(null); setReason(""); }}>Keep booking</Button>
-            <Button size="sm" className="h-11 px-4" disabled={pending != null} onClick={() => void move(asking, reason)}>
-              {pending ? "Saving…" : asking === "declined" ? "Decline booking" : "Cancel booking"}
-            </Button>
-          </div>
-        </div>
       ) : open ? (
-        <div className="mt-3 flex items-center justify-end gap-2">
-          {b.status === "requested" ? (
-            <>
-              <Button size="sm" variant="secondary" className="h-11 px-4" leadingIcon={<X size={16} strokeWidth={2} />} disabled={pending != null} onClick={() => setAsking("declined")}>Decline</Button>
-              <Button size="sm" pill className="h-11 px-5 text-[14px]" leadingIcon={<Check size={17} strokeWidth={2.2} />} disabled={pending != null} onClick={() => void move("accepted")}>
-                {pending === "accepted" ? "Accepting…" : "Accept"}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button size="sm" variant="ghost" className="h-11 text-muted" disabled={pending != null} onClick={() => setAsking("cancelled")}>Cancel</Button>
-              {canConvert ? (
-                <Button size="sm" pill className="h-11 px-5 text-[14px]" href={`/orders/new?booking=${encodeURIComponent(b.id)}`}>Convert to order</Button>
-              ) : b.status === "accepted" ? (
-                <Button size="sm" pill className="h-11 px-5 text-[14px]" disabled={pending != null} onClick={() => void move("received")}>
-                  {pending === "received" ? "Saving…" : "Laundry received"}
-                </Button>
-              ) : (
-                <Button size="sm" pill className="h-11 px-5 text-[14px]" leadingIcon={<Check size={17} strokeWidth={2.2} />} disabled={pending != null} onClick={() => void move("completed")}>
-                  {pending === "completed" ? "Saving…" : "Mark completed"}
-                </Button>
-              )}
-            </>
-          )}
-        </div>
+        <BookingActions className="mt-3" booking={b} canConvert={canConvert} onMove={onMove} split={compact} />
+      ) : null}
+
+      {compact && !footer ? (
+        <Link href={bookingHref(b.id)} className="mt-2.5 flex min-h-11 items-center justify-center gap-1 text-[13.5px] font-bold text-ink underline decoration-grey-300 underline-offset-[3px] hover:decoration-ink">
+          See details &amp; location
+        </Link>
       ) : null}
     </article>
+  );
+}
+
+export const isOpenBooking = (b: Pick<Booking, "status">) => b.status === "requested" || b.status === "accepted" || b.status === "received";
+
+/** Booking detail page (query param keeps the static export working). */
+export const bookingHref = (id: string) => `/bookings/view?id=${encodeURIComponent(id)}`;
+
+/**
+ * The owner's next actions on an open booking, with the inline decline / cancel reason step.
+ * `split`: full-width two-button row (each 50%), used on home cards and the detail page footer.
+ */
+export function BookingActions({ booking: b, canConvert, onMove, split = false, className }: {
+  booking: Booking;
+  canConvert: boolean;
+  onMove: (booking: Booking, to: BookingMove, reason?: string | null) => Promise<boolean>;
+  split?: boolean;
+  className?: string;
+}) {
+  const [asking, setAsking] = useState<null | "declined" | "cancelled">(null);
+  const [reason, setReason] = useState("");
+  const [pending, setPending] = useState<BookingMove | null>(null);
+  const reasonId = useId();
+
+  const move = async (to: BookingMove, why?: string | null) => {
+    setPending(to);
+    const ok = await onMove(b, to, why);
+    setPending(null);
+    if (ok) { setAsking(null); setReason(""); }
+  };
+
+  if (!isOpenBooking(b)) return null;
+
+  if (asking) {
+    return (
+      <div className={cn("rounded-tile bg-grey-50 p-3", className)}>
+        <p id={reasonId} className="text-[13.5px] font-bold">{asking === "declined" ? "Decline this booking?" : "Cancel this booking?"} <span className="font-semibold text-muted">Reason is optional.</span></p>
+        <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-labelledby={reasonId}>
+          {DECLINE_REASONS.map((r) => (
+            <button key={r} type="button" onClick={() => setReason(r)} aria-pressed={reason === r}
+              className={cn("min-h-9 rounded-pill px-3 text-[12.5px] font-semibold ring-1 ring-inset", reason === r ? "bg-ink text-on-ink ring-ink" : "bg-surface text-ink ring-grey-200 hover:bg-grey-100")}>
+              {r}
+            </button>
+          ))}
+        </div>
+        <Input containerClassName="mt-2" size="md" label="Reason" hideLabel placeholder="Add a short note for the customer" value={reason}
+          maxLength={BOOKING_LIMITS.reasonMax} onChange={(e) => setReason(e.target.value)} />
+        <div className={cn("mt-2.5 gap-2", split ? "grid grid-cols-2" : "flex justify-end")}>
+          <Button size="sm" variant={split ? "secondary" : "ghost"} className="h-11" onClick={() => { setAsking(null); setReason(""); }}>Keep booking</Button>
+          <Button size="sm" className="h-11 px-4" disabled={pending != null} onClick={() => void move(asking, reason)}>
+            {pending ? "Saving…" : asking === "declined" ? "Decline booking" : "Cancel booking"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const half = split ? "h-12 w-full justify-center px-3 text-[14.5px]" : "";
+  return (
+    <div className={cn(split ? "grid grid-cols-2 gap-2.5" : "flex items-center justify-end gap-2", className)}>
+      {b.status === "requested" ? (
+        <>
+          <Button size="sm" variant="secondary" pill={split} className={split ? half : "h-11 px-4"} leadingIcon={<X size={16} strokeWidth={2} />} disabled={pending != null} onClick={() => setAsking("declined")}>Decline</Button>
+          <Button size="sm" pill className={split ? half : "h-11 px-5 text-[14px]"} leadingIcon={<Check size={17} strokeWidth={2.2} />} disabled={pending != null} onClick={() => void move("accepted")}>
+            {pending === "accepted" ? "Accepting…" : "Accept"}
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button size="sm" variant={split ? "secondary" : "ghost"} pill={split} className={split ? half : "h-11 text-muted"} disabled={pending != null} onClick={() => setAsking("cancelled")}>Cancel</Button>
+          {canConvert ? (
+            <Button size="sm" pill className={split ? half : "h-11 px-5 text-[14px]"} href={`/orders/new?booking=${encodeURIComponent(b.id)}`}>Convert to order</Button>
+          ) : b.status === "accepted" ? (
+            <Button size="sm" pill className={split ? half : "h-11 px-5 text-[14px]"} disabled={pending != null} onClick={() => void move("received")}>
+              {pending === "received" ? "Saving…" : "Laundry received"}
+            </Button>
+          ) : (
+            <Button size="sm" pill className={split ? half : "h-11 px-5 text-[14px]"} leadingIcon={<Check size={17} strokeWidth={2.2} />} disabled={pending != null} onClick={() => void move("completed")}>
+              {pending === "completed" ? "Saving…" : "Mark completed"}
+            </Button>
+          )}
+        </>
+      )}
+    </div>
   );
 }

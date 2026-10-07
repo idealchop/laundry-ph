@@ -278,7 +278,10 @@ export interface Booking {
   slotAt: number;
   estKg: number | null;
   address: string | null;
+  /** Customer pin from River Mobile (optional; the app geocodes `address` when it's missing). */
   location: { lat: number; lng: number } | null;
+  /** Clothes type the customer picked, when not Regular clothes. */
+  clothesType: { id: string; name: string } | null;
   notes: string | null;
   declineReason: string | null;
   cancelReason: string | null;

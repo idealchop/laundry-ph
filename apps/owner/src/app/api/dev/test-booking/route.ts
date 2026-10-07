@@ -7,7 +7,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const NAMES = ["Maria Santos", "Paolo Reyes", "Ana Lim", "Carlo Mendoza", "Grace Villanueva", "Josh Cruz"];
-const STREETS = ["12 Mabini St., Kapitolyo, Pasig", "45 Shaw Blvd., Mandaluyong", "7 Katipunan Ave., Quezon City", "88 Pioneer St., Pasig"];
+/** Sample addresses with approximate pins, so the booking map has something to route to. */
+const STREETS: { address: string; lat: number; lng: number }[] = [
+  { address: "21 Brixton St., Kapitolyo, Pasig", lat: 14.5662, lng: 121.0612 },
+  { address: "45 Shaw Blvd., Mandaluyong", lat: 14.5814, lng: 121.0473 },
+  { address: "7 Katipunan Ave., Quezon City", lat: 14.6311, lng: 121.0745 },
+  { address: "88 Pioneer St., Pasig", lat: 14.5717, lng: 121.0475 },
+];
 
 /**
  * DEV ONLY (laundry-dev / local). A signed-in shop member creates a sample River Mobile booking for
@@ -39,6 +45,8 @@ export async function POST(req: Request) {
     const catalog = await db.collection("shops").doc(shopId).collection("meta").doc("catalog").get();
     const services: { id: string; unit?: string }[] = Array.isArray(catalog.data()?.services) ? catalog.data()!.services : [];
     const service = services.find((s) => s.unit !== "pc") ?? services[0];
+    const types: { id: string; enabled?: boolean }[] = Array.isArray(catalog.data()?.clothesTypes) ? catalog.data()!.clothesTypes : [];
+    const extraTypes = types.filter((t) => t.enabled && t.id !== "regular");
     if (!service) return apiError("shop_unavailable", "Add a price list first (Settings → Services).");
 
     const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)]!;
@@ -53,7 +61,8 @@ export async function POST(req: Request) {
       fulfillment,
       slot: { date: manilaDateKey(now + 86_400_000), time: `${String(hour).padStart(2, "0")}:${Math.random() < 0.5 ? "00" : "30"}` },
       estKg: 4 + Math.round(Math.random() * 6),
-      address: type === "pickup" || fulfillment === "delivery" ? pick(STREETS) : null,
+      ...(type === "pickup" || fulfillment === "delivery" ? (() => { const s = pick(STREETS); return { address: s.address, location: { lat: s.lat, lng: s.lng } }; })() : {}),
+      ...(extraTypes.length && Math.random() < 0.4 ? { clothesTypeId: extraTypes[Math.floor(Math.random() * extraTypes.length)]!.id } : {}),
       notes: Math.random() < 0.5 ? "Please call when you’re outside. (Test booking)" : "Test booking from the dev tools.",
     }, now);
     if (!parsed.ok) return apiError("invalid_request", "Could not build a test booking.", { fields: parsed.errors });

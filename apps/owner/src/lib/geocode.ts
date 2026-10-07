@@ -69,3 +69,33 @@ export function reverseGeocodePin(lat: number, lng: number): Promise<PinAddress 
   void p.then((r) => { if (!r) cache.delete(key); });
   return p;
 }
+
+const forwardCache = new Map<string, Promise<{ lat: number; lng: number } | null>>();
+
+/**
+ * Forward-geocode a free-text address with Nominatim (PH only). Used when a booking has an address but no pin.
+ * Cached per address; failures aren't cached. Resolves null when nothing is found.
+ */
+export function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  const q = address.trim();
+  if (!q) return Promise.resolve(null);
+  const hit = forwardCache.get(q);
+  if (hit) return hit;
+  const p = (async () => {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ph&accept-language=en&q=${encodeURIComponent(q)}`;
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      const res = await fetch(url, { headers: { Accept: "application/json" }, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+      if (!res.ok) return null;
+      const rows = (await res.json()) as { lat?: string; lon?: string }[];
+      const lat = Number(rows[0]?.lat), lng = Number(rows[0]?.lon);
+      return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+    } catch {
+      return null;
+    }
+  })();
+  forwardCache.set(q, p);
+  void p.then((r) => { if (!r) forwardCache.delete(q); });
+  return p;
+}

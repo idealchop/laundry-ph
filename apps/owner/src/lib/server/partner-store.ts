@@ -10,7 +10,7 @@ import { createHash, randomInt } from "node:crypto";
 import { FieldPath, FieldValue, Timestamp, type DocumentData, type DocumentSnapshot, type Firestore } from "firebase-admin/firestore";
 import { BOOKING_LIMITS, BOOKING_STATUSES, type BookingInput } from "@/lib/bookings";
 import type { BookingStatus, ClothesPricing } from "@/data/types";
-import { normalizeClothesTypes } from "@/lib/clothes";
+import { normalizeClothesTypes, REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import { adminDb, isDevEnv } from "./admin";
 
 const PUBLIC_BASE = process.env.PUBLIC_BASE_URL || "";
@@ -126,6 +126,8 @@ export interface PublicBooking {
   slot: { date: string; time: string; at: string | null };
   estKg: number | null;
   address: string | null;
+  location: { lat: number; lng: number } | null;
+  clothesType: { id: string; name: string } | null;
   notes: string | null;
   customer: { name: string; phone: string };
   declineReason: string | null;
@@ -156,6 +158,8 @@ function toPublicBooking(snap: DocumentSnapshot, shopName: string, order: { id: 
     slot: { date: String(d.slot?.date ?? ""), time: String(d.slot?.time ?? ""), at: iso(d.slotAt) },
     estKg: typeof d.estKg === "number" ? d.estKg : null,
     address: d.address ?? null,
+    location: d.location && Number.isFinite(d.location.lat) && Number.isFinite(d.location.lng) ? { lat: d.location.lat, lng: d.location.lng } : null,
+    clothesType: d.clothesType && typeof d.clothesType.id === "string" ? { id: d.clothesType.id, name: String(d.clothesType.name ?? d.clothesType.id) } : null,
     notes: d.notes ?? null,
     customer: { name: String(d.customer?.name ?? ""), phone: String(d.customer?.phone ?? "") },
     declineReason: d.declineReason ?? null,
@@ -207,6 +211,14 @@ export async function createBooking(shopId: string, input: BookingInput, meta: C
     const service = services.find((s) => s?.id === input.serviceId);
     if (!service) throw new BookingError("invalid_request", "Unknown serviceId for this shop.", { serviceId: `One of: ${services.map((s) => s.id).join(", ")}` });
 
+    let clothesType: { id: string; name: string } | null = null;
+    if (input.clothesTypeId && input.clothesTypeId !== REGULAR_CLOTHES_ID) {
+      const types = normalizeClothesTypes(catalogSnap?.data()?.clothesTypes).filter((t) => t.enabled);
+      const t = types.find((x) => x.id === input.clothesTypeId);
+      if (!t) throw new BookingError("invalid_request", "Unknown clothesTypeId for this shop.", { clothesTypeId: `One of: ${types.map((x) => x.id).join(", ")}` });
+      clothesType = { id: t.id, name: t.name };
+    }
+
     const open = await tx.get(
       shopRef.collection("bookings").where("customer.phone", "==", input.customer.phone).where("status", "==", "requested").limit(BOOKING_LIMITS.openPerPhone),
     );
@@ -231,6 +243,7 @@ export async function createBooking(shopId: string, input: BookingInput, meta: C
       estKg: input.estKg,
       address: input.address,
       location: input.location,
+      clothesType,
       notes: input.notes,
       externalRef: input.externalRef,
       declineReason: null,

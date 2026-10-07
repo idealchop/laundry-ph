@@ -101,6 +101,8 @@ export interface BookingInput {
   estKg: number | null;
   address: string | null;
   location: { lat: number; lng: number } | null;
+  /** Optional clothes type id from GET /api/v1/shops/{id} (checked against the catalog by the caller). */
+  clothesTypeId: string | null;
   notes: string | null;
   externalRef: string | null;
 }
@@ -160,6 +162,9 @@ export function validateBookingInput(body: unknown, now = Date.now()): { ok: tru
     else location = { lat, lng };
   }
 
+  const clothesTypeId = str(b.clothesTypeId) || null;
+  if (clothesTypeId && !/^[A-Za-z0-9_-]{1,40}$/.test(clothesTypeId)) errors.clothesTypeId = "A clothes type id from GET /api/v1/shops/{id}.";
+
   const notes = clean(str(b.notes), true) || null;
   if (notes && notes.length > L.notesMax) errors.notes = `At most ${L.notesMax} characters.`;
 
@@ -179,6 +184,7 @@ export function validateBookingInput(body: unknown, now = Date.now()): { ok: tru
       estKg,
       address,
       location,
+      clothesTypeId,
       notes,
       externalRef,
     },

@@ -48,6 +48,7 @@ export function OnlineOrderCard({ order: o, booking, now }: { order: Order; book
     slotAt: booking?.slotAt ?? o.createdAt,
     estKg: o.kg || booking?.estKg || null,
     address: booking?.address ?? null,
+    clothesType: booking?.clothesType ?? null,
     location: booking?.location ?? null,
     notes: null,
     declineReason: null,

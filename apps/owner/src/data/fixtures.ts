@@ -131,12 +131,12 @@ export function sampleBookings(now = Date.now()): Booking[] {
     return { date: s.slice(0, 10), time: s.slice(11, 16) };
   };
   const base = (b: Partial<Booking> & Pick<Booking, "id" | "ref" | "status" | "customer" | "serviceName" | "type" | "fulfillment" | "slotAt">): Booking => ({
-    shopId: SAMPLE_SHOP_ID, source: "river-mobile", serviceId: "wdf", slot: slot(b.slotAt), estKg: null, address: null, location: null, notes: null,
+    shopId: SAMPLE_SHOP_ID, source: "river-mobile", serviceId: "wdf", slot: slot(b.slotAt), estKg: null, address: null, location: null, clothesType: null, notes: null,
     declineReason: null, cancelReason: null, cancelledBy: null, orderId: null, statusTimes: { requested: now - 20 * 60_000 },
     createdAt: now - 20 * 60_000, updatedAt: now - 20 * 60_000, test: false, ...b,
   });
   return [
-    base({ id: "bk-sample-1", ref: "BK-7Q2M9X", status: "requested", customer: { name: "Maria Santos", phone: "+639171112233" }, serviceName: "Wash-Dry-Fold", type: "pickup", fulfillment: "delivery", slotAt: at(3), estKg: 6, address: "12 Mabini St., Kapitolyo, Pasig", notes: "Gate is green. Please call when outside." }),
+    base({ id: "bk-sample-1", ref: "BK-7Q2M9X", status: "requested", customer: { name: "Maria Santos", phone: "+639171112233" }, serviceName: "Wash-Dry-Fold", type: "pickup", fulfillment: "delivery", slotAt: at(3), estKg: 6, address: "21 Brixton St., Kapitolyo, Pasig", location: { lat: 14.5662, lng: 121.0612 }, clothesType: { id: "beddings", name: "Beddings / blankets / comforters" }, notes: "Gate is green. Please call when outside." }),
     base({ id: "bk-sample-2", ref: "BK-4KD8PW", status: "requested", customer: { name: "Paolo Reyes", phone: "+639184445566" }, serviceName: "Wash & Dry", serviceId: "wd", type: "dropoff", fulfillment: "pickup", slotAt: at(20), estKg: 8 }),
     base({ id: "bk-sample-3", ref: "BK-9HT3LC", status: "accepted", customer: { name: "Ana Lim", phone: "+639201234567" }, serviceName: "Wash-Dry-Fold", type: "pickup", fulfillment: "pickup", slotAt: at(26), estKg: 5, address: "7 Katipunan Ave., Quezon City", statusTimes: { requested: now - 5 * H, accepted: now - 4 * H } }),
     base({ id: "bk-sample-4", ref: "BK-2NX6RA", status: "completed", customer: { name: "Grace Villanueva", phone: "+639175550000" }, serviceName: "Wash-Dry-Fold", type: "dropoff", fulfillment: "pickup", slotAt: at(-30), estKg: 7, statusTimes: { requested: now - 52 * H, accepted: now - 50 * H, received: now - 30 * H, completed: now - 6 * H }, updatedAt: now - 6 * H }),

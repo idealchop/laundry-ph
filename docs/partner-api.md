@@ -124,6 +124,7 @@ Creates a booking with status `requested`. It shows up live in the shop's app (O
   "estKg": 6,
   "address": "12 Mabini St., Kapitolyo, Pasig",
   "location": { "lat": 14.5704, "lng": 121.0573 },
+  "clothesTypeId": "beddings",
   "notes": "Green gate. Please call when outside.",
   "externalRef": "rm_booking_8f3k2"
 }
@@ -139,7 +140,8 @@ Creates a booking with status `requested`. It shows up live in the shop's app (O
 | `slot` | Required, Manila time. Not in the past (30-minute grace), at most 30 days ahead. |
 | `estKg` | Optional, 0.5â€“200. The customer's estimate. The shop weighs at hand-over. |
 | `address` | Required when `type` is `pickup` or `fulfillment` is `delivery`. 5â€“300 characters. |
-| `location` | Optional `{ lat, lng }` |
+| `location` | Optional, recommended for pickup / delivery: the customer's pin as `{ lat, lng }` in degrees. The shop app shows it on a map with the route and ETA from the shop. Without it the app looks up `address` on OpenStreetMap, which is less precise. |
+| `clothesTypeId` | Optional. One of the shop's enabled `clothesTypes[].id`. Leave it out (or send `regular`) for regular clothes. Unknown ids get `400 invalid_request`. |
 | `notes` | Optional, at most 500 characters |
 | `externalRef` | Optional, recommended. Your own booking id (1â€“64 characters: `A-Z a-z 0-9 _ . : -`). Makes the call **idempotent**: sending the same `externalRef` to the same shop again returns the existing booking with `200` instead of creating a duplicate. |
 
@@ -166,6 +168,8 @@ The current status, for showing to the customer. Poll it, for example every 30â€
     "slot": { "date": "2026-10-07", "time": "10:00", "at": "2026-10-07T02:00:00.000Z" },
     "estKg": 6,
     "address": "12 Mabini St., Kapitolyo, Pasig",
+    "location": { "lat": 14.5704, "lng": 121.0573 },
+    "clothesType": { "id": "beddings", "name": "Beddings / blankets / comforters" },
     "notes": "Green gate. Please call when outside.",
     "customer": { "name": "Maria Santos", "phone": "+639171234567" },
     "declineReason": null,
@@ -180,7 +184,7 @@ The current status, for showing to the customer. Poll it, for example every 30â€
 }
 ```
 
-`ref` is the short code the shop sees. Show it to the customer.
+`ref` is the short code the shop sees. Show it to the customer. `location` and `clothesType` are `null` when they weren't sent.
 
 ### `POST /api/v1/bookings/{bookingId}/cancel`
 
