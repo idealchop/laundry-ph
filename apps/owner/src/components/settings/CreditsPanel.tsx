@@ -82,6 +82,7 @@ export function CreditsPanel() {
   const { busy, error, run, setError } = useAction();
   const [lines, setLines] = useState<CreditLine[]>(DEMO_CREDITS);
   const [note, setNote] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
 
   const liveExtras = useMemo(() => {
     const extras: CreditLine[] = [];
@@ -94,7 +95,7 @@ export function CreditsPanel() {
         label: `Scan · ${b.serviceName}`,
         customer: b.customer.name,
         amountCentavos: b.estimateCentavos + addOn + (b.pickup?.feeCentavos ?? 0),
-        at: Date.now() - 30 * 60_000,
+        at: now - 30 * 60_000,
         status: "pending",
       });
     }
@@ -106,12 +107,12 @@ export function CreditsPanel() {
         label: `${p.kind === "pickup" ? "Pickup" : "Drop-off"} · ${p.serviceName}`,
         customer: p.customer.name,
         amountCentavos: p.estimateCentavos,
-        at: Date.now() - 90 * 60_000,
+        at: now - 90 * 60_000,
         status: "pending",
       });
     }
     return extras;
-  }, [booking.data, pickups.data]);
+  }, [booking.data, pickups.data, now]);
 
   const all = useMemo(() => {
     const seen = new Set(lines.map((l) => l.id));
