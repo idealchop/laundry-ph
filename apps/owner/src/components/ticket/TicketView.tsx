@@ -18,7 +18,7 @@ const STAGE: Record<TicketStage, { label: string; title: string; icon: (size: nu
 };
 
 /** Public customer ticket (POS 2, no app): status, pay while waiting, SMS opt-in, feedback. */
-export function TicketView({ ticket }: { ticket: PublicTicket }) {
+export function TicketView({ ticket, payWhere }: { ticket: PublicTicket; payWhere?: "online" | "shop" }) {
   const current = TICKET_STAGES.indexOf(ticket.stage);
   const ready = ticket.stage === "ready";
   const title = ticket.cancelled ? "This order was cancelled" : ticket.done ? (ticket.done === "delivered" ? "Delivered. Salamat!" : "Picked up. Salamat!") : STAGE[ticket.stage].title;
@@ -65,7 +65,7 @@ export function TicketView({ ticket }: { ticket: PublicTicket }) {
           <StatusDot>Paid {money(ticket.totalCentavos)} · thank you</StatusDot>
         </Card>
       ) : (
-        <TicketPayment amount={money(ticket.amountDueCentavos)} />
+        <TicketPayment amount={money(ticket.amountDueCentavos)} initial={payWhere === "shop" ? "cash" : "gcash"} />
       )}
       <SmsOptIn />
       <FeedbackStars prompt={ready ? "Rate this order" : "Rate your last visit"} />

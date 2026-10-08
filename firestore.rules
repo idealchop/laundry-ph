@@ -256,7 +256,7 @@ service cloud.firestore {
             && request.resource.data.cancelledBy == 'shop'
             && (request.resource.data.cancelReason == null || shortString(request.resource.data.cancelReason, 200)))
           // Convert: the same batch creates shops/{shopId}/orders/{orderId} pointing back at this booking.
-          || (bookingMove(['accepted', 'received'], 'converted', ['orderId'])
+          || (bookingMove(['requested', 'accepted', 'received'], 'converted', ['orderId'])
             && request.resource.data.orderId is string
             && getAfter(/databases/$(database)/documents/shops/$(shopId)/orders/$(request.resource.data.orderId)).data.bookingId == bookingId)
         );

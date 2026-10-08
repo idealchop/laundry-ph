@@ -1,5 +1,5 @@
 import {
-  CircleHelp, History, House, List, MessageSquareText, MessagesSquare, Settings, Users,
+  House, List, MessagesSquare,
 } from "lucide-react";
 import type { IconName } from "@river-apps/icons";
 import type { NavItem } from "@river-apps/ui";
@@ -7,19 +7,11 @@ import type { NavItem } from "@river-apps/ui";
 const side = { size: 20, strokeWidth: 1.75 } as const;
 const tab = { size: 22, strokeWidth: 1.75 } as const;
 
-/** Paid desktop sidebar — Profile stays here; History + tools live under Profile hub. */
+/** Paid desktop sidebar. */
 export const PAID_NAV: NavItem[] = [
   { key: "home", label: "Home", href: "/home", icon: <House {...side} /> },
   { key: "orders", label: "Orders", href: "/orders", icon: <List {...side} /> },
   { key: "community", label: "Community", href: "/community", icon: <MessagesSquare {...side} /> },
-  { key: "profile", label: "Profile", href: "/profile", icon: <Settings {...side} /> },
-];
-
-/** Secondary desktop links (also on Profile hub). */
-export const PAID_SECONDARY_NAV: NavItem[] = [
-  { key: "history", label: "History", href: "/history", icon: <History {...side} /> },
-  { key: "customers", label: "Customers", href: "/customers", icon: <Users {...side} /> },
-  { key: "messages", label: "Messages", href: "/messages", icon: <MessageSquareText {...side} /> },
 ];
 
 /** Paid mobile tabs (3) — Profile is reached via the home avatar, not the bottom bar. */
@@ -48,8 +40,6 @@ export const PARTNER_TABS: NavItem[] = [
   { key: "orders", label: "Orders", href: "/partner/orders", icon: <List {...tab} /> },
   { key: "community", label: "Community", href: "/community", icon: <MessagesSquare {...tab} /> },
 ];
-
-export const HELP_ITEM: NavItem = { key: "help", label: "Help", href: "/settings#help", icon: <CircleHelp {...side} /> };
 
 /** Pick the nav item whose href is the longest prefix of the path ("/" only matches exactly). */
 export function activeKeyFor(items: NavItem[], pathname: string): string | undefined {

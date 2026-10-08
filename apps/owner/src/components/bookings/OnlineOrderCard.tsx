@@ -7,7 +7,7 @@ import type { Booking, Order } from "@/data";
 import { useBookings } from "@/lib/shop";
 import { qty } from "@/lib/format";
 import { StatusPill } from "../ui";
-import { BookingCard } from "./BookingCard";
+import { BookingCard, bookingHref } from "./BookingCard";
 
 const noop = async () => false;
 
@@ -33,6 +33,7 @@ export function OrderDetailsButton({ href, label }: { href: string; label: strin
  * `booking` (the converted booking, when loaded) supplies pickup vs drop-off, slot and address.
  */
 export function OnlineOrderCard({ order: o, booking, now }: { order: Order; booking?: Booking | null; now: number }) {
+  const walkIn = o.source !== "river-mobile";
   const card: Booking = {
     id: o.id,
     shopId: o.shopId,
@@ -42,7 +43,7 @@ export function OnlineOrderCard({ order: o, booking, now }: { order: Order; book
     customer: { name: o.customer.name, phone: booking?.customer.phone || o.customer.phone || "" },
     serviceId: o.serviceId,
     serviceName: o.clothesType ? `${o.serviceName} · ${o.clothesType.name.split(" /")[0]}` : o.serviceName,
-    type: booking?.type ?? "pickup",
+    type: walkIn ? "dropoff" : (booking?.type ?? "pickup"),
     fulfillment: o.fulfillment ?? booking?.fulfillment ?? "pickup",
     slot: booking?.slot ?? { date: "", time: "" },
     slotAt: booking?.slotAt ?? o.createdAt,
@@ -70,7 +71,10 @@ export function OnlineOrderCard({ order: o, booking, now }: { order: Order; book
       compact
       now={now}
       meta={meta || undefined}
+      heading={walkIn ? `Walk-in · ${o.serviceName}` : undefined}
+      hideRoute={walkIn && (o.fulfillment ?? "pickup") !== "delivery"}
       pill={<StatusPill status={o.status} />}
+      detailsHref={booking?.id || o.bookingId ? bookingHref(booking?.id ?? o.bookingId!) : undefined}
       footer={<OrderDetailsButton href={`/orders/view?id=${o.id}`} label={`Order details for ${o.ref}`} />}
     />
   );

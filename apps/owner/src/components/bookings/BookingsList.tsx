@@ -5,6 +5,7 @@ import { Button, EmptyState } from "@river-apps/ui";
 import { FlaskConical } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Booking, BookingMove, BookingScope } from "@/data";
+import { orderFromBooking } from "@/lib/bookings";
 import { isPaidShop } from "@/lib/plans";
 import { useAction, useBookings, useShop } from "@/lib/shop";
 import { ErrorNote, Spinner } from "../ui";
@@ -19,7 +20,16 @@ export function useBookingActions() {
     const r = await action.run(async (s) => { await s.setBookingStatus(b.id, to, reason ?? null); return true; });
     return r === true;
   };
-  return { onMove, error: action.error, clearError: () => action.setError(null) };
+  /** Paid: Accept creates the order immediately. The booking leaves this list and shows under orders. */
+  const acceptAsOrder = async (b: Booking) => {
+    const r = await action.run(async (s) => {
+      const catalog = await s.getCatalog();
+      await s.createWalkInOrder(orderFromBooking(catalog, b));
+      return true;
+    }, "Sign in to accept this booking.");
+    return r === true;
+  };
+  return { onMove, acceptAsOrder, error: action.error, clearError: () => action.setError(null) };
 }
 
 /** Dev / local builds only: drop a sample River Mobile booking into this shop (live, via the server). */
@@ -47,6 +57,7 @@ export function BookingsList({ scope, emptyAction }: { scope: BookingScope; empt
   const actions = useBookingActions();
   const [now] = useState(() => Date.now());
   const canConvert = isPaidShop(shop.tier);
+  const rows = canConvert && scope === "open" ? bookings.filter((b) => b.status === "requested") : bookings;
   // Home "Order details" links here as /partner/orders#<bookingId>: scroll to that card once the list is in.
   useEffect(() => {
     if (loading || typeof window === "undefined") return;
@@ -59,7 +70,7 @@ export function BookingsList({ scope, emptyAction }: { scope: BookingScope; empt
     <div className="flex flex-col gap-3">
       {error ? <ErrorNote>{error}</ErrorNote> : null}
       {actions.error ? <ErrorNote onRetry={actions.clearError}>{actions.error}</ErrorNote> : null}
-      {bookings.length === 0 && !error ? (
+      {rows.length === 0 && !error ? (
         scope === "open" ? (
           <EmptyState
             illustration={<Icon3D name="basket" size={84} />}
@@ -76,7 +87,7 @@ export function BookingsList({ scope, emptyAction }: { scope: BookingScope; empt
         )
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2">
-          {bookings.map((b) => <div key={b.id} id={b.id} className="min-w-0 scroll-mt-24"><BookingCard booking={b} canConvert={canConvert} onMove={actions.onMove} now={now} /></div>)}
+          {rows.map((b) => <div key={b.id} id={b.id} className="min-w-0 scroll-mt-24"><BookingCard booking={b} canConvert={canConvert} onMove={actions.onMove} acceptAsOrder={actions.acceptAsOrder} now={now} /></div>)}
         </div>
       )}
       {scope === "open" ? <TestBookingButton className="self-center" /> : null}

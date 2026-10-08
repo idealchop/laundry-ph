@@ -103,14 +103,16 @@ function AuthGateSheetOpen({
     <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-labelledby="laundry-auth-gate-title">
       <button type="button" className="absolute inset-0 bg-ink/45" aria-label="Dismiss" onClick={onClose} />
       <div className={cn("relative z-[1] flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-surface shadow-card sm:max-h-[90dvh] sm:rounded-[28px]")}>
-        <div className="flex items-center justify-between bg-ink px-5 py-4 text-on-ink">
-          <b className="text-[15px] tracking-[-0.01em]">Laundry.ph</b>
-          <button type="button" onClick={onClose} className="inline-flex size-9 items-center justify-center rounded-full bg-white/15" aria-label="Close">
-            <X size={16} strokeWidth={2.2} />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-[1] inline-flex size-9 items-center justify-center rounded-full bg-grey-100 text-ink hover:bg-grey-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          aria-label="Close"
+        >
+          <X size={16} strokeWidth={2.2} />
+        </button>
         <div className="max-h-[min(70dvh,560px)] overflow-y-auto px-5 pb-6 pt-5">
-          <h2 id="laundry-auth-gate-title" className="text-[24px] font-extrabold leading-[1.15] tracking-[-0.025em]">
+          <h2 id="laundry-auth-gate-title" className="pr-10 text-[24px] font-extrabold leading-[1.15] tracking-[-0.025em]">
             {step === "phone" ? "Your mobile number" : step === "code" ? "Enter the code" : "Sign up or log in"}
           </h2>
           <p className="mt-2 text-[14.5px] font-medium leading-snug text-muted">

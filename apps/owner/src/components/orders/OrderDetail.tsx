@@ -1,14 +1,15 @@
 "use client";
 
 import { pieceLabel } from "@/lib/clothes";
-import { ArrowLeft, Copy, ExternalLink, User } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, Phone, User } from "lucide-react";
 import { CoinIcon, EWalletIcon } from "@river-apps/icons";
 import { Avatar, Button, Card, CardHeader, EmptyState, MonoText, StatusDot } from "@river-apps/ui";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ORDER_FLOW, ORDER_STATUS_LABEL, type Order, type OrderStatus } from "@/data";
-import { money, timeLabel, whenLabel } from "@/lib/format";
+import { formatPhMobile } from "@/lib/bookings";
+import { money, relativeTime, timeLabel } from "@/lib/format";
 import { doneStatus, isDone, statusPath } from "@/lib/orders";
 import { useAction, useOrder, useShop } from "@/lib/shop";
 import { StepTracker } from "../kit-extensions";
@@ -38,6 +39,7 @@ export function OrderDetail({ order }: { order: Order }) {
   const { } = useShop();
   const action = useAction();
   const [copied, setCopied] = useState(false);
+  const [now] = useState(() => Date.now());
   /** Stepper: Received → Washing → Drying → Folding → Ready → Claimed (walk-in) / Delivered (River Mobile). */
   const flow: OrderStatus[] = [...ORDER_FLOW, doneStatus(order)];
   const cancelled = order.status === "cancelled";
@@ -95,19 +97,15 @@ export function OrderDetail({ order }: { order: Order }) {
         <div className="flex min-w-0 flex-1 flex-col leading-[1.25]">
           <h1 className="truncate text-[26px] font-extrabold leading-[1.15] tracking-[-0.03em]">{order.ref}</h1>
           <p className="mt-0.5 truncate text-[13.5px] font-semibold text-ink-2">
-            {anonymous ? "Walk-in customer" : order.customer.phone ? (
-              <a href={`tel:${order.customer.phone.replace(/[^\d+]/g, "")}`} aria-label={`Call ${order.customer.name}`} className="hover:underline">
-                {order.customer.name}
-              </a>
-            ) : order.customer.name}
-            {anonymous && order.source === "walk-in" ? null : <> · {order.source === "walk-in" ? "Walk-in" : "Online"}</>}
+            {order.source === "walk-in" ? "Walk-in" : "Online"}
           </p>
           <p className="mt-0.5 text-[12.5px] font-semibold text-muted">
-            Queue #{order.queueNo} · {whenLabel(order.createdAt)}
+            Came in {relativeTime(order.createdAt, now)} · Queue #{order.queueNo}
             <SampleNote className="ml-1 align-middle" />
           </p>
         </div>
       </header>
+      <CustomerCard order={order} anonymous={anonymous} />
       {action.error ? <ErrorNote className="mt-3">{action.error}</ErrorNote> : null}
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <div className="flex flex-col gap-4">
@@ -203,5 +201,43 @@ export function OrderDetail({ order }: { order: Order }) {
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** Name, number and call. Walk-ins with nothing recorded stay empty. */
+function CustomerCard({ order, anonymous }: { order: Order; anonymous: boolean }) {
+  const phone = order.customer.phone?.trim() ?? "";
+  const tel = phone.replace(/[^\d+]/g, "");
+  return (
+    <Card className="mt-4 px-4 py-3.5">
+      <h2 className="mb-2.5 text-[13px] font-bold text-muted">Customer</h2>
+      {anonymous && !phone ? (
+        <p className="text-[14px] font-semibold text-ink-2">No customer information</p>
+      ) : (
+        <div className="flex items-center gap-3">
+          {anonymous ? (
+            <span aria-hidden className="flex size-11 flex-none items-center justify-center rounded-full bg-grey-200 text-muted">
+              <User size={20} strokeWidth={1.75} />
+            </span>
+          ) : (
+            <Avatar name={order.customer.name} preset={order.customer.avatar} size={44} />
+          )}
+          <span className="flex min-w-0 flex-1 flex-col leading-[1.25]">
+            {anonymous ? null : <b className="truncate text-[15.5px]">{order.customer.name}</b>}
+            {phone ? (
+              <a href={`tel:${tel}`} className="text-[13.5px] font-semibold text-ink-2 underline decoration-grey-300 underline-offset-[3px]">{formatPhMobile(phone)}</a>
+            ) : (
+              <small className="text-[13px] font-semibold text-muted">No number</small>
+            )}
+          </span>
+          {phone ? (
+            <a href={`tel:${tel}`} aria-label={`Call ${order.customer.name}`}
+              className="inline-flex h-11 flex-none items-center gap-1.5 rounded-pill bg-ink px-4 text-[14px] font-bold text-on-ink hover:bg-ink/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+              <Phone size={16} strokeWidth={2} /> Call
+            </a>
+          ) : null}
+        </div>
+      )}
+    </Card>
   );
 }

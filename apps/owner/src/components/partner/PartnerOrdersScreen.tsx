@@ -16,7 +16,7 @@ const TABS: { id: PartnerOrdersTab; label: string }[] = [
 export function PartnerOrdersScreen({ initialTab = "bookings", title = "Orders", basePath = "/partner/orders" }: {
   initialTab?: PartnerOrdersTab;
   title?: string;
-  /** Route this screen lives on (Partner: /partner/orders, Paid: /online). */
+  /** Route this screen lives on (Partner: /partner/orders). */
   basePath?: string;
 }) {
   const { shop } = useShop();

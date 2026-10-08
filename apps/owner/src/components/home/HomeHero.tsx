@@ -82,7 +82,7 @@ export function HomeHeroDesktop({ today, showWalkIn = true, className }: HomeHer
 }
 
 /** Desktop header shared by Paid and Partner home: greeting title, date · shop, ticket search, Online Orders, avatar. */
-export function HomeTopbar({ shop, today, subtitleExtra, onlineHref = "/online" }: { shop: Shop; today: DaySummary; subtitleExtra?: ReactNode; onlineHref?: string }) {
+export function HomeTopbar({ shop, today, subtitleExtra, onlineHref = "/orders?channel=online" }: { shop: Shop; today: DaySummary; subtitleExtra?: ReactNode; onlineHref?: string }) {
   const greeting = useGreeting();
   const router = useRouter();
   const [search, setSearch] = useState("");

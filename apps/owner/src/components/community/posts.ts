@@ -141,16 +141,85 @@ export function compact(n: number): string {
 
 const KEY = "laundryph.community.v1";
 
-export type CommunityStore = { mine: CommunityPost[]; liked: string[]; reposted: string[]; replies: Record<string, PostReply[]>; hidden: string[] };
+export type CommunityStore = {
+  mine: CommunityPost[];
+  liked: string[];
+  reposted: string[];
+  replies: Record<string, PostReply[]>;
+  hidden: string[];
+  /** Profile handles this device follows. */
+  following: string[];
+};
 
-const EMPTY: CommunityStore = { mine: [], liked: [], reposted: [], replies: {}, hidden: [] };
+const EMPTY: CommunityStore = { mine: [], liked: [], reposted: [], replies: {}, hidden: [], following: [] };
+
+/** URL-safe handle for a community name. "Marites Laundry" → "mariteslaundry". */
+export function authorHandle(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 24) || "shop";
+}
+
+export function profileHref(name: string): string {
+  return `/community/profile?u=${encodeURIComponent(authorHandle(name))}`;
+}
+
+const PROFILE_COPY: Record<string, { bio: string; followers: number }> = {
+  mariteslaundry: { bio: "Neighborhood laundry in Pasig. Wash, dry, fold, and pickup.", followers: 1284 },
+  kapitolyowash: { bio: "Drop-off and River Mobile pickups around Kapitolyo and Shaw.", followers: 640 },
+  freshcycleco: { bio: "Quezon City shop. Pods, fold, and same-day when we can.", followers: 890 },
+  riverapps: { bio: "The Laundry.ph team. Product updates for shop owners.", followers: 4200 },
+  sudsycorner: { bio: "Marikina. Rain or shine, we still fold.", followers: 410 },
+  lavanderaexpress: { bio: "Makati. Comforters, barongs, and everyday loads.", followers: 530 },
+};
+
+export type CommunityProfile = PostAuthor & { handle: string; bio: string; followers: number };
+
+/** Profile for a handle, using seed shops plus the signed-in shop. */
+export function resolveProfile(handle: string, me: PostAuthor): CommunityProfile | null {
+  const key = handle.toLowerCase();
+  if (!key) return null;
+  if (authorHandle(me.name) === key) {
+    return {
+      ...me,
+      handle: key,
+      bio: me.meta ? `${me.meta}. Laundry shop on Laundry.ph.` : "Laundry shop on Laundry.ph.",
+      followers: 86,
+    };
+  }
+  const author = knownAuthors().find((a) => authorHandle(a.name) === key);
+  if (!author) return null;
+  const copy = PROFILE_COPY[key];
+  return {
+    ...author,
+    handle: key,
+    bio: copy?.bio ?? (author.meta ? `${author.meta}. On Laundry.ph Community.` : "On Laundry.ph Community."),
+    followers: copy?.followers ?? 120,
+  };
+}
+
+function knownAuthors(): PostAuthor[] {
+  const out: PostAuthor[] = [];
+  const seen = new Set<string>();
+  const add = (a: PostAuthor) => {
+    const k = authorHandle(a.name);
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push(a);
+  };
+  for (const p of SEED_POSTS) {
+    add(p.author);
+    for (const r of p.replies) add(r.author);
+  }
+  return out;
+}
 let current: CommunityStore | null = null;
 const listeners = new Set<() => void>();
 
 function read(): CommunityStore {
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw ? { ...EMPTY, ...(JSON.parse(raw) as Partial<CommunityStore>) } : EMPTY;
+    if (!raw) return EMPTY;
+    const parsed = JSON.parse(raw) as Partial<CommunityStore>;
+    return { ...EMPTY, ...parsed, following: parsed.following ?? [] };
   } catch {
     return EMPTY;
   }

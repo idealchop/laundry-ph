@@ -7,7 +7,7 @@ export const metadata = { title: "Walk-in" };
 /** Counter POS. `?booking=<id>` converts an accepted River Mobile booking into an order. */
 export default function NewOrderPage() {
   return (
-    <FocusSurface>
+    <FocusSurface className="lg:max-w-[1080px] lg:min-h-0">
       <Suspense fallback={null}>
         <NewOrderScreen />
       </Suspense>

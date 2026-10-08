@@ -28,7 +28,7 @@ export function Greeting({
   avatar,
   name,
   photoUrl,
-  onlineHref = "/online",
+  onlineHref = "/orders?channel=online",
 }: {
   /** Big greeting under the row (Partner home). Omit when the greeting lives in the hero card. */
   title?: string;

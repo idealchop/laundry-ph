@@ -7,34 +7,24 @@ import { useAuthGate } from "@/components/auth/AuthGateProvider";
 import { useAuth } from "@/lib/auth";
 import { useShop } from "@/lib/shop";
 import { PAID_PER_MONTH, planLabel } from "@/lib/plans";
-import { LaundryBrand, LaundryScene } from "../brand";
+import { LaundryBrand } from "../brand";
+import { ShopQrPromo } from "../qr/ShopQrPromo";
 import { PlanGate } from "../billing/PlanGate";
 import { WideSidebar } from "../kit-extensions";
 import { OwnerTabBar } from "./OwnerTabBar";
 import {
-  activeKeyFor, HELP_ITEM, PAID_NAV, PAID_SECONDARY_NAV, PAID_TABS, PARTNER_NAV, PARTNER_TABS,
+  activeKeyFor, PAID_NAV, PAID_TABS, PARTNER_NAV, PARTNER_TABS,
 } from "./nav";
 
 /** Routes that take over the phone screen (own back button and bottom action, no tab bar). */
 const FOCUS_ROUTES = ["/scan", "/orders/new", "/profile/edit", "/profile/services", "/profile/features", "/bookings"];
-
-function PickupsPromo() {
-  return (
-    <div className="relative rounded-[22px] bg-grey-100 px-4 pb-4 pt-[78px]">
-      <div className="absolute inset-x-0 -top-9 flex justify-center"><LaundryScene size={150} /></div>
-      <b className="block text-[14.5px]">River Mobile bookings</b>
-      <small className="mb-3 mt-0.5 block text-[12.5px] font-semibold text-ink/55">Accept pickups from customers nearby</small>
-      <Button size="sm" fullWidth href="/online">Open bookings</Button>
-    </div>
-  );
-}
 
 function PartnerTierCard({ label }: { label: string }) {
   return (
     <div className="rounded-[22px] bg-grey-100 p-4">
       <b className="block text-[14.5px]">You’re on {label}</b>
       <small className="mb-3 mt-0.5 block text-[12.5px] font-semibold text-ink/55">
-        Paid adds the walk-in POS, Sales Record and Customers — {PAID_PER_MONTH}.
+        Paid adds the walk-in POS and Sales Record — {PAID_PER_MONTH}.
       </small>
       <Button size="sm" variant="secondary" fullWidth href="/settings/billing">Upgrade</Button>
     </div>
@@ -47,11 +37,9 @@ export function OwnerShell({ children }: { children: ReactNode }) {
   const { shop } = useShop();
   /** Map legacy Paid routes onto the new IA for active highlighting. */
   const paidPath =
-    pathname === "/settings" || pathname.startsWith("/settings/")
-      || pathname === "/history" || pathname.startsWith("/history/")
+    pathname === "/history" || pathname.startsWith("/history/")
       || pathname === "/sales" || pathname.startsWith("/sales/")
-      || pathname === "/more"
-      ? "/profile"
+      ? "/orders"
       : pathname;
   const { user, loading } = useAuth();
   const { openAuthCta, isAuthenticated } = useAuthGate();
@@ -65,7 +53,6 @@ export function OwnerShell({ children }: { children: ReactNode }) {
   const pathForNav = usePartnerChrome ? pathname : paidPath;
   const tabKey = activeKeyFor(tabs, pathForNav) ?? (usePartnerChrome ? "home" : "");
   const homeHref = !isPaid ? "/partner" : "/home";
-  const secondary = usePartnerChrome ? [HELP_ITEM] : [...PAID_SECONDARY_NAV, HELP_ITEM];
 
   // Open sliding login sheet once per session when entering owner app without a Firebase user.
   useEffect(() => {
@@ -81,9 +68,8 @@ export function OwnerShell({ children }: { children: ReactNode }) {
           className="sticky top-0 h-dvh"
           brand={<Link href={homeHref} aria-label="Laundry.ph home"><LaundryBrand /></Link>}
           items={items}
-          activeKey={activeKeyFor([...items, ...secondary], pathForNav)}
-          footer={!isPaid ? <PartnerTierCard label={planLabel(shop.tier, shop.planSource)} /> : <PickupsPromo />}
-          secondaryItems={secondary}
+          activeKey={activeKeyFor(items, pathForNav)}
+          footer={!isPaid ? <PartnerTierCard label={planLabel(shop.tier, shop.planSource)} /> : <ShopQrPromo />}
         />
       }
       mobileTabBar={

@@ -2,7 +2,7 @@
  * Laundry.ph shop plans (money in integer centavos).
  *
  * - Partner: FREE — River Mobile listing, bookings, scan, history.
- * - Paid monthly: ₱499 / month — full owner app (walk-in POS, sales, customers).
+ * - Paid monthly: ₱499 / month — full owner app (walk-in POS, sales).
  * - Lifetime: ₱10,000 one-time — unlocks the Paid feature set forever
  *   (assumption: same entitlements as Paid; not a separate product tier).
  */
@@ -56,10 +56,10 @@ export const PLAN_OPTIONS: PlanOption[] = [
     priceCentavos: PAID_MONTHLY_CENTAVOS,
     priceLabel: PAID_PRICE_LABEL,
     period: "per month",
-    blurb: "Everything in Partner, plus walk-in POS, sales and customers.",
+    blurb: "Everything in Partner, plus walk-in POS and sales.",
     features: [
       "Walk-in POS and order board",
-      "Sales Record and Customers",
+      "Sales Record",
       "Public customer tickets",
     ],
     planSource: "subscription",
@@ -84,12 +84,10 @@ export const PLAN_OPTIONS: PlanOption[] = [
 export const PAID_ONLY_PREFIXES = [
   "/home",
   "/orders",
-  "/customers",
   "/sales",
   "/history",
   "/profile",
-  "/online",
-  "/messages",
+  "/qr",
   "/more",
 ] as const;
 

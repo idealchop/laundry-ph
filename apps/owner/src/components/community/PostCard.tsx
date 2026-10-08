@@ -1,10 +1,11 @@
 "use client";
 
 import { BadgeCheck, Copy, Ellipsis, EyeOff, Heart, MessageCircle, Repeat2, Send, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Avatar, cn } from "@river-apps/ui";
 import { PostMedia } from "./PostMedia";
-import { compact, shortAge, type CommunityPost, type PostAuthor, type PostReply } from "./posts";
+import { compact, profileHref, shortAge, type CommunityPost, type PostAuthor, type PostReply } from "./posts";
 
 export interface PostCardProps {
   post: CommunityPost;
@@ -40,15 +41,17 @@ export function PostCard({ post, now, me, onLike, onRepost, onShare, onReply, on
   return (
     <article className="px-1 pb-3 pt-4" aria-label={`Post by ${post.author.name}`}>
       <header className="flex items-start gap-2.5">
-        <Avatar name={post.author.name} preset={post.author.photoUrl ? undefined : post.author.avatar} src={post.author.photoUrl} size={40} className="flex-none" />
-        <div className="min-w-0 flex-1 leading-tight">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <b className="truncate text-[15px] font-extrabold tracking-[-0.01em] text-ink">{post.author.name}</b>
-            {post.author.verified ? <BadgeCheck size={16} strokeWidth={2.2} className="flex-none fill-[#0095F6] text-white" aria-label="Verified" /> : null}
-            <span className="flex-none text-[14px] font-medium text-muted">{shortAge(post.createdAt, post.ageMin, now)}</span>
-          </div>
-          {post.author.meta ? <p className="mt-0.5 truncate text-[12.5px] font-semibold text-muted">{post.author.meta}</p> : null}
-        </div>
+        <AuthorLink author={post.author} className="flex min-w-0 flex-1 items-start gap-2.5">
+          <Avatar name={post.author.name} preset={post.author.photoUrl ? undefined : post.author.avatar} src={post.author.photoUrl} size={40} className="flex-none" />
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <b className="truncate text-[15px] font-extrabold tracking-[-0.01em] text-ink">{post.author.name}</b>
+              {post.author.verified ? <BadgeCheck size={16} strokeWidth={2.2} className="flex-none fill-[#0095F6] text-white" aria-label="Verified" /> : null}
+              <span className="flex-none text-[14px] font-medium text-muted">{shortAge(post.createdAt, post.ageMin, now)}</span>
+            </span>
+            {post.author.meta ? <span className="mt-0.5 block truncate text-[12.5px] font-semibold text-muted">{post.author.meta}</span> : null}
+          </span>
+        </AuthorLink>
         <PostMenu mine={!!post.mine} onDelete={onDelete} onHide={onHide} onCopy={onCopy} />
       </header>
 
@@ -85,7 +88,9 @@ export function PostCard({ post, now, me, onLike, onRepost, onShare, onReply, on
           {repliers.length ? (
             <span className="flex -space-x-1.5">
               {repliers.map((a) => (
-                <Avatar key={a.name} name={a.name} preset={a.photoUrl ? undefined : a.avatar} src={a.photoUrl} size={18} className="ring-2 ring-canvas" />
+                <AuthorLink key={a.name} author={a} className="rounded-full">
+                  <Avatar name={a.name} preset={a.photoUrl ? undefined : a.avatar} src={a.photoUrl} size={18} className="ring-2 ring-canvas" />
+                </AuthorLink>
               ))}
             </span>
           ) : null}
@@ -183,15 +188,23 @@ function Replies({
 function ReplyRow({ reply, now }: { reply: PostReply; now: number | null }) {
   return (
     <li>
-      <div className="flex items-center gap-2.5">
+      <AuthorLink author={reply.author} className="flex items-center gap-2.5">
         <Avatar name={reply.author.name} preset={reply.author.photoUrl ? undefined : reply.author.avatar} src={reply.author.photoUrl} size={32} className="flex-none" />
-        <div className="flex min-w-0 items-center gap-1.5 leading-tight">
+        <span className="flex min-w-0 items-center gap-1.5 leading-tight">
           <b className="truncate text-[14px] font-extrabold text-ink">{reply.author.name}</b>
           <span className="flex-none text-[13px] font-medium text-muted">{shortAge(reply.createdAt, reply.ageMin, now)}</span>
-        </div>
-      </div>
+        </span>
+      </AuthorLink>
       <p className="mt-1.5 whitespace-pre-line break-words text-[14.5px] font-medium leading-snug text-ink">{reply.body}</p>
     </li>
+  );
+}
+
+function AuthorLink({ author, className, children }: { author: PostAuthor; className?: string; children: ReactNode }) {
+  return (
+    <Link href={profileHref(author.name)} className={cn("rounded-full focus-visible:outline-2 focus-visible:outline-ink", className)}>
+      {children}
+    </Link>
   );
 }
 

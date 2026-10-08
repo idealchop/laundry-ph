@@ -21,8 +21,6 @@ const PC_MAX = 200;
 const PC_FULL = 30;
 /** − / + press feedback: shrink + darker fill while held; colour-only when reduced motion is on. */
 const STEP_BTN = "[-webkit-tap-highlight-color:transparent] touch-manipulation select-none transition-[transform,background-color] duration-100 ease-out active:scale-90 active:bg-grey-300 disabled:opacity-40 disabled:active:scale-100 motion-reduce:transition-colors motion-reduce:active:scale-100";
-/** Shared horizontal snap row: same left edge (px-5) and snap padding as the page, no scrollbar. */
-const ROW = "-mx-5 grid grid-flow-col overflow-x-auto px-5 scroll-px-5 py-2 snap-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 const FULFILLMENT: { id: Fulfillment; label: string; hint: string; icon: ReactNode }[] = [
   { id: "pickup", label: "Pickup", hint: "At the shop", icon: <Store size={18} strokeWidth={1.9} /> },
   { id: "delivery", label: "Delivery", hint: "To the customer", icon: <Bike size={19} strokeWidth={1.9} /> },
@@ -106,8 +104,6 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   /** When false, order is anonymous walk-in (no name/mobile field). */
   const [addingCustomer, setAddingCustomer] = useState(Boolean(booking));
   const [showBreakdown, setShowBreakdown] = useState(false);
-  const [svcIndex, setSvcIndex] = useState(0);
-  const svcRow = useRef<HTMLDivElement>(null);
   const qtyField = useRef<HTMLDivElement>(null);
   const breakdownId = useId();
   const detId = useId();
@@ -307,40 +303,42 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
                 </div>
                 <span className="mt-1.5 max-w-[96px] text-center text-[12px] font-semibold leading-none text-muted">{basketLabel(basketFill, q.minimumApplied)}</span>
               </div>
-              <div ref={qtyField} className="flex min-w-0 flex-1 flex-col items-start gap-2">
-                <p id="qty-label" className="text-[13px] leading-none">
-                  <span className="font-semibold text-ink">{perKg ? "Weight" : "Pieces"}</span>
-                  <span className="font-semibold text-muted"> · {byPiece ? "Optional, priced per piece" : perKg ? `Min. ${catalog.minKg} kg` : "Per piece"}</span>
-                </p>
-                <label className="flex max-w-full cursor-text items-baseline gap-1">
-                  {/* Auto-width: an invisible copy of the text sizes the grid cell, so the input hugs the digits. */}
-                  <span className="inline-grid text-[36px] font-extrabold leading-[1.05] tracking-[-0.03em] tabular-nums min-[380px]:text-[40px]">
-                    <span className="invisible col-start-1 row-start-1 whitespace-pre border-b-2 border-transparent" aria-hidden>{qtyText || String(quantity) || "0"}</span>
-                    <input
-                      aria-label={perKg ? "Weight in kilos" : "Number of pieces"}
-                      inputMode="decimal"
-                      autoComplete="off"
-                      className="col-start-1 row-start-1 w-0 min-w-full origin-left rounded-none border-b-2 border-transparent bg-transparent p-0 text-left font-[inherit] tracking-[inherit] text-ink outline-none transition-colors focus:border-ink"
-                      value={qtyText ?? String(quantity)}
-                      onFocus={(e) => e.currentTarget.select()}
-                      onChange={(e) => {
-                        const t = e.target.value.replace(",", ".");
-                        if (!/^\d*\.?\d*$/.test(t)) return;
-                        setQtyText(t);
-                        const v = Number.parseFloat(t);
-                        if (!Number.isNaN(v)) { if (perKg) setKg(Math.min(max, v)); else setPieces(Math.min(max, Math.round(v))); }
-                        else if (t === "") { if (perKg) setKg(0); else setPieces(0); }
-                      }}
-                      onBlur={() => { setQtyText(null); setQuantity(quantity); }}
-                    />
-                  </span>
-                  <span className="flex-none text-[15px] font-bold text-muted" aria-hidden>{perKg ? "kg" : "pcs"}</span>
-                </label>
-                <div className="flex items-center gap-2">
+              <div ref={qtyField} className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-col items-start gap-1">
+                  <p id="qty-label" className="text-[13px] leading-none">
+                    <span className="font-semibold text-ink">{perKg ? "Weight" : "Pieces"}</span>
+                    <span className="font-semibold text-muted"> · {byPiece ? "Optional, priced per piece" : perKg ? `Min. ${catalog.minKg} kg` : "Per piece"}</span>
+                  </p>
+                  <label className="flex max-w-full cursor-text items-baseline gap-1">
+                    {/* Auto-width: an invisible copy of the text sizes the grid cell, so the input hugs the digits. */}
+                    <span className="inline-grid text-[36px] font-extrabold leading-[1.05] tracking-[-0.03em] tabular-nums min-[380px]:text-[40px] lg:text-[48px]">
+                      <span className="invisible col-start-1 row-start-1 whitespace-pre border-b-2 border-transparent" aria-hidden>{qtyText || String(quantity) || "0"}</span>
+                      <input
+                        aria-label={perKg ? "Weight in kilos" : "Number of pieces"}
+                        inputMode="decimal"
+                        autoComplete="off"
+                        className="col-start-1 row-start-1 w-0 min-w-full origin-left rounded-none border-b-2 border-transparent bg-transparent p-0 text-left font-[inherit] tracking-[inherit] text-ink outline-none transition-colors focus:border-ink"
+                        value={qtyText ?? String(quantity)}
+                        onFocus={(e) => e.currentTarget.select()}
+                        onChange={(e) => {
+                          const t = e.target.value.replace(",", ".");
+                          if (!/^\d*\.?\d*$/.test(t)) return;
+                          setQtyText(t);
+                          const v = Number.parseFloat(t);
+                          if (!Number.isNaN(v)) { if (perKg) setKg(Math.min(max, v)); else setPieces(Math.min(max, Math.round(v))); }
+                          else if (t === "") { if (perKg) setKg(0); else setPieces(0); }
+                        }}
+                        onBlur={() => { setQtyText(null); setQuantity(quantity); }}
+                      />
+                    </span>
+                    <span className="flex-none text-[15px] font-bold text-muted" aria-hidden>{perKg ? "kg" : "pcs"}</span>
+                  </label>
+                </div>
+                <div className="flex flex-none items-center gap-2">
                   <IconButton type="button" label={perKg ? "Less 0.5 kg" : "One piece less"} variant="soft" icon={<Minus size={18} strokeWidth={2.2} />}
-                    className={`${STEP_BTN} size-10 flex-none border border-line`} disabled={quantity <= 0} onClick={() => stepBy(-1)} />
+                    className={`${STEP_BTN} size-11 flex-none border border-line lg:size-12`} disabled={quantity <= 0} onClick={() => stepBy(-1)} />
                   <IconButton type="button" label={perKg ? "More 0.5 kg" : "One piece more"} variant="soft" icon={<Plus size={18} strokeWidth={2.2} />}
-                    className={`${STEP_BTN} size-10 flex-none border border-line`} disabled={quantity >= max} onClick={() => stepBy(1)} />
+                    className={`${STEP_BTN} size-11 flex-none border border-line lg:size-12`} disabled={quantity >= max} onClick={() => stepBy(1)} />
                 </div>
               </div>
             </div>
@@ -349,42 +347,23 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
 
           <div role="group" aria-labelledby="svc-label">
             <FieldLabel id="svc-label">Service</FieldLabel>
-            <div
-              ref={svcRow}
-              className={`${ROW} auto-cols-[calc(100%-2.75rem)] gap-2.5 snap-mandatory`}
-              onScroll={(e) => {
-                const el = e.currentTarget;
-                const first = el.firstElementChild as HTMLElement | null;
-                if (!first) return;
-                const i = Math.round(el.scrollLeft / (first.offsetWidth + 10));
-                setSvcIndex(Math.max(0, Math.min(catalog.services.length - 1, i)));
-              }}
-            >
+            <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
               {catalog.services.map((s) => (
                 <ChoiceTile
                   key={s.id}
                   layout="card"
                   selected={s.id === serviceId}
-                  onClick={(e) => {
-                    setServiceId(s.id); setQtyText(null);
-                    e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
-                  }}
-                  className="snap-start snap-always"
+                  onClick={() => { setServiceId(s.id); setQtyText(null); }}
+                  className="w-full"
                   icon={<Icon3D name={s.icon} size={40} />}
                   title={s.name}
                   subtitle={`${money(s.priceCentavos)} / ${s.unit}`}
                 />
               ))}
             </div>
-            {catalog.services.length > 1 ? (
-              <div className="mt-1 flex justify-center gap-1.5" aria-hidden>
-                {catalog.services.map((s, i) => (
-                  <span key={s.id} className={`h-1.5 rounded-full transition-all duration-300 ${i === svcIndex ? "w-4 bg-ink" : "w-1.5 bg-grey-300"}`} />
-                ))}
-              </div>
-            ) : null}
           </div>
 
+          <div className="grid items-start gap-3 lg:grid-cols-3">
           {clothesTypes.length > 1 ? (
             <div>
               <OptionDisclosure
@@ -470,7 +449,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
             ))}
           </OptionDisclosure>
 
-          <div>
+          <div className="lg:col-span-3">
             <FieldLabel id="ful-label">Fulfillment</FieldLabel>
             <div role="radiogroup" aria-labelledby="ful-label" className="grid grid-cols-2 gap-1 rounded-tile bg-grey-100 p-1">
               {FULFILLMENT.map((f) => {
@@ -509,10 +488,11 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
               </div>
             ) : null}
           </div>
+          </div>
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface lg:static lg:mt-auto">
-          <div className="mx-auto w-full max-w-[560px] px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-3">
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface lg:static">
+          <div className="mx-auto w-full max-w-[560px] px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-3 lg:max-w-none">
             <div
               id={breakdownId}
               className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${showBreakdown ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}

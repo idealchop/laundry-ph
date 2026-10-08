@@ -2,7 +2,8 @@
  * River Mobile bookings: shared, framework-free helpers used by the owner UI and the
  * Partner API (server). Times are Asia/Manila (UTC+8, no DST).
  */
-import type { Booking, BookingStatus, BookingType, Fulfillment } from "@/data/types";
+import type { Booking, BookingStatus, BookingType, Catalog, Fulfillment, NewWalkInOrder } from "@/data/types";
+import { REGULAR_CLOTHES_ID } from "@/lib/clothes";
 
 export const BOOKING_OPEN: BookingStatus[] = ["requested", "accepted", "received"];
 export const BOOKING_DONE: BookingStatus[] = ["completed", "converted", "declined", "cancelled"];
@@ -17,6 +18,36 @@ export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = {
   declined: "Declined",
   cancelled: "Cancelled",
 };
+
+/**
+ * Paid Accept: turn a River Mobile booking into an order with the shop's default detergent
+ * and return slot. Estimated kg (or the catalog default) is the quantity.
+ */
+export function orderFromBooking(catalog: Catalog, booking: Booking): NewWalkInOrder {
+  const service = catalog.services.find((s) => s.id === booking.serviceId)
+    ?? catalog.services.find((s) => s.id === catalog.defaults.serviceId)
+    ?? catalog.services[0];
+  if (!service) throw new Error("Add a service before accepting bookings.");
+  const perKg = service.unit === "kg";
+  const fallback = perKg ? catalog.defaults.kg : catalog.defaults.pieces;
+  const quantity = perKg && booking.estKg && booking.estKg > 0 ? booking.estKg : fallback;
+  const detergent = catalog.detergents.find((d) => d.id === catalog.defaults.detergentId) ?? catalog.detergents[0];
+  const clothesId = booking.clothesType?.id;
+  return {
+    customer: {
+      name: bookingCustomerLabel(booking.customer),
+      ...(booking.customer.phone ? { phone: booking.customer.phone } : {}),
+    },
+    serviceId: service.id,
+    quantity: quantity > 0 ? quantity : 1,
+    detergentId: detergent?.id ?? "",
+    addOnIds: [],
+    returnSlotId: catalog.defaults.returnSlotId || catalog.returnSlots[0]?.id || "",
+    fulfillment: booking.fulfillment,
+    ...(clothesId && clothesId !== REGULAR_CLOTHES_ID ? { clothesTypeId: clothesId } : {}),
+    bookingId: booking.id,
+  };
+}
 
 /** Owner-side steps for a booking that is not turned into an order (Partner). */
 export const BOOKING_STEPS: BookingStatus[] = ["requested", "accepted", "received", "completed"];
@@ -74,6 +105,16 @@ export function normalizePhMobile(raw: unknown): string | null {
   const digits = raw.replace(/[\s().-]/g, "");
   const m = /^(?:\+?63|0)?(9\d{9})$/.exec(digits);
   return m ? `+63${m[1]}` : null;
+}
+
+/** Name when the shop recorded one; otherwise the email or mobile from a QR booking. */
+export function bookingCustomerLabel(c: { name: string; phone?: string; email?: string | null }): string {
+  const name = c.name.trim();
+  if (name) return name;
+  const email = c.email?.trim();
+  if (email) return email;
+  if (c.phone?.trim()) return formatPhMobile(c.phone);
+  return "QR booking";
 }
 
 /** "+639171234567" → "0917 123 4567" for display. */

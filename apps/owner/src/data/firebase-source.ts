@@ -113,7 +113,11 @@ function toBooking(snap: DocumentSnapshot): Booking {
     ref: String(d.ref ?? snap.id.slice(0, 8).toUpperCase()),
     source: "river-mobile",
     status: (BOOKING_STATUSES as string[]).includes(d.status) ? (d.status as BookingStatus) : "requested",
-    customer: { name: String(d.customer?.name ?? "River Mobile customer"), phone: String(d.customer?.phone ?? "") },
+    customer: {
+      name: String(d.customer?.name ?? "River Mobile customer"),
+      phone: String(d.customer?.phone ?? ""),
+      ...(typeof d.customer?.email === "string" && d.customer.email.trim() ? { email: d.customer.email.trim() } : {}),
+    },
     serviceId: d.serviceId ?? null,
     serviceName: String(d.serviceName ?? "Laundry"),
     type: d.type === "dropoff" ? "dropoff" : "pickup",
@@ -126,6 +130,7 @@ function toBooking(snap: DocumentSnapshot): Booking {
     clothesType: d.clothesType && typeof d.clothesType === "object" && typeof d.clothesType.id === "string"
       ? { id: d.clothesType.id, name: String(d.clothesType.name ?? d.clothesType.id) } : null,
     notes: typeof d.notes === "string" ? d.notes : null,
+    ...(d.payWhere === "online" || d.payWhere === "shop" ? { payWhere: d.payWhere } : {}),
     declineReason: typeof d.declineReason === "string" ? d.declineReason : null,
     cancelReason: typeof d.cancelReason === "string" ? d.cancelReason : null,
     cancelledBy: d.cancelledBy === "customer" || d.cancelledBy === "shop" ? d.cancelledBy : null,
@@ -388,7 +393,7 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         if (bookingSnap) {
           if (!bookingSnap.exists()) throw new Error("That booking no longer exists.");
           const st = bookingSnap.data().status;
-          if (st !== "accepted" && st !== "received") throw new Error(st === "converted" ? "This booking is already an order." : "Accept the booking before turning it into an order.");
+          if (st !== "requested" && st !== "accepted" && st !== "received") throw new Error(st === "converted" ? "This booking is already an order." : "This booking can’t be turned into an order.");
         }
 
         const now = Date.now();

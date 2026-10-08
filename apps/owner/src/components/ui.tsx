@@ -68,10 +68,10 @@ export function StatusPill({ status, className }: { status: OrderStatus; classNa
   );
 }
 
-export function PaymentBadge({ order }: { order: Pick<Order, "paymentStatus" | "paymentMethod"> }) {
+export function PaymentBadge({ order, className }: { order: Pick<Order, "paymentStatus" | "paymentMethod">; className?: string }) {
   return order.paymentStatus === "paid"
-    ? <Badge variant="outline" size="sm">Paid{order.paymentMethod ? ` · ${order.paymentMethod === "gcash" ? "GCash" : "Cash"}` : ""}</Badge>
-    : <Badge variant="soft" size="sm">Unpaid</Badge>;
+    ? <Badge variant="outline" size="sm" className={className}>Paid{order.paymentMethod ? ` · ${order.paymentMethod === "gcash" ? "GCash" : "Cash"}` : ""}</Badge>
+    : <Badge variant="soft" size="sm" className={className}>Unpaid</Badge>;
 }
 
 /** Small "→ Washing" button that moves an order one step forward. */

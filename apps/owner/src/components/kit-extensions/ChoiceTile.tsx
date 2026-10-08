@@ -36,7 +36,7 @@ export function ChoiceTile({ selected = false, icon, title, subtitle, layout = "
         stacked && "flex flex-col items-start gap-1 rounded-panel p-3",
         compact && "flex flex-col items-stretch gap-1.5 rounded-panel p-2.5",
         layout === "inline" && "flex min-h-[60px] items-center gap-2.5 rounded-tile px-3",
-        card && "flex min-h-[84px] items-center gap-3.5 rounded-panel py-3.5 pl-3.5 pr-12",
+        card && "flex min-h-[84px] items-center gap-3 rounded-panel py-3 pl-3 pr-10",
         selected ? "bg-surface ring-2 ring-ink" : "bg-grey-100 hover:bg-grey-200",
         className,
       )}
@@ -46,7 +46,7 @@ export function ChoiceTile({ selected = false, icon, title, subtitle, layout = "
         <>
           <span className="flex size-14 flex-none items-center justify-center rounded-tile bg-surface">{icon}</span>
           <span className="flex min-w-0 flex-col gap-0.5">
-            <b className="truncate text-[16px] font-bold leading-tight tracking-[-0.015em] text-ink">{title}</b>
+            <b className="text-[15px] font-bold leading-tight tracking-[-0.02em] text-ink">{title}</b>
             {subtitle ? <small className="truncate text-[13.5px] font-semibold text-muted">{subtitle}</small> : null}
           </span>
         </>

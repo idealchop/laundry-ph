@@ -1,4 +1,5 @@
 import { ChevronLeft, X } from "lucide-react";
+import { cn } from "@river-apps/ui";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { SampleNote } from "./SampleNote";
@@ -27,7 +28,7 @@ export function FocusHeader({ title, backHref, variant = "back", trailing }: { t
 export function FocusSurface({ children, className = "", style }: { children: ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
     <div
-      className={`relative mx-auto flex min-h-dvh w-full max-w-[560px] flex-col bg-surface lg:my-8 lg:min-h-[calc(100dvh-4rem)] lg:overflow-hidden lg:rounded-banner lg:shadow-card ${className}`}
+      className={cn("relative mx-auto flex min-h-dvh w-full max-w-[560px] flex-col bg-surface lg:my-8 lg:min-h-[calc(100dvh-4rem)] lg:overflow-hidden lg:rounded-banner lg:shadow-card", className)}
       style={style}
     >
       {children}

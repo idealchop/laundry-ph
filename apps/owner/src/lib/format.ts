@@ -48,6 +48,16 @@ export function whenLabel(ms: number, now = Date.now()): string {
   return dayKey(ms) === dayKey(now) ? timeLabel(ms) : `${shortDate(ms)} · ${timeLabel(ms)}`;
 }
 
+/** "just now", "20 min ago", "3 hr ago", or "Oct 6" after a day. */
+export function relativeTime(ms: number, now = Date.now()): string {
+  const m = Math.max(0, Math.round((now - ms) / 60_000));
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} hr ago`;
+  return monthDayFmt.format(new Date(ms));
+}
+
 /** Epoch ms of 00:00 Manila time for the day containing `ms`, shifted by `offsetDays`. */
 export function startOfShopDay(ms: number, offsetDays = 0): number {
   const [y, m, d] = dayKey(ms).split("-").map(Number) as [number, number, number];

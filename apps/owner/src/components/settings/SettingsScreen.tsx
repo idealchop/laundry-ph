@@ -19,8 +19,9 @@ import {
   DEMO_PENDING_CENTAVOS,
   DEMO_WITHDRAWN_CENTAVOS,
 } from "./CreditsPanel";
+import { ShopQrPromo } from "../qr/ShopQrPromo";
 import { FeatureList } from "./FeaturesScreen";
-import { PAID_PER_MO, PAID_PER_MONTH } from "@/lib/plans";
+import { PAID_PER_MO } from "@/lib/plans";
 
 /** Soft @handle from shop name (Oceanus-style). */
 function shopHandle(name: string): string {
@@ -53,7 +54,6 @@ const SHOP_LISTING_LINK = { href: "/partner/shop", icon: Store, title: "Shop lis
 
 const HUB_LINKS = [
   { href: "/profile/services", icon: Package, title: "Services", subtitle: "Products, prices and POS catalog" },
-  { href: "/history", icon: History, title: "History", subtitle: "Sales totals and completed orders" },
   { href: "/settings/billing", icon: CreditCard, title: "Plan & billing", subtitle: `Partner free · Paid ${PAID_PER_MO} · Lifetime` },
 ] as const;
 
@@ -163,18 +163,19 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
           <Button size="md" fullWidth className="sm:flex-1" variant="secondary" onClick={() => openAuthCta("Sign in to sync your shop and save changes.")}>
             Sign up or log in
           </Button>
-        ) : (
-          <Button size="md" fullWidth className="sm:flex-1" variant="secondary" onClick={() => void signOut()} leadingIcon={<LogOut size={18} />}>
-            Log out
-          </Button>
-        )}
+        ) : null}
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card padding="none" className="px-3.5 py-1.5 lg:col-span-2">
           <b className="block px-1 pt-3 text-[16px]">Setup</b>
           <ul className="mt-1">
-            {(shop.tier === "partner" ? [SHOP_LISTING_LINK, ...HUB_LINKS] : HUB_LINKS).map((it) => {
+            {[
+              shop.tier === "partner"
+                ? { href: "/partner/orders?tab=history", icon: History, title: "History", subtitle: "Past bookings" }
+                : { href: "/history", icon: History, title: "History", subtitle: "Past orders and bookings" },
+              ...(shop.tier === "partner" ? [SHOP_LISTING_LINK, ...HUB_LINKS] : HUB_LINKS),
+            ].map((it) => {
               const Icon = it.icon;
               return (
                 <li key={it.href}>
@@ -194,26 +195,28 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
           </ul>
         </Card>
 
-        {/* Features — each row opens its destination; badges stay */}
-        <Card padding="none" className="px-2 py-1.5 lg:col-span-2">
-          <div className="flex items-center justify-between px-2.5 pt-3">
-            <b className="text-[16px]">Features</b>
-            <Link
-              href="/profile/features"
-              className="text-[13.5px] font-bold underline decoration-grey-300 underline-offset-[3px]"
-            >
-              See all
-            </Link>
-          </div>
+        {/* Features — QR card matches the desktop sidebar; Walk-in POS stays a row */}
+        <Card padding="none" className="overflow-visible px-2 py-1.5 lg:col-span-2">
+          <b className="block px-2.5 pt-3 text-[16px]">Features</b>
+          {shop.tier === "paid" ? (
+            <ShopQrPromo className="mx-1.5 mb-1 mt-11 lg:hidden" />
+          ) : null}
           <FeatureList tier={shop.tier} className="mt-1" />
         </Card>
 
-        <Card id="help" className="px-4 py-3.5 lg:col-span-2">
-          <b className="text-[16px]">Help</b>
-          <p className="mt-1.5 text-[13.5px] font-medium text-muted">
-            Partner free covers River Mobile bookings. Paid unlocks the walk-in POS, sales and customers for {PAID_PER_MONTH}.
-          </p>
-        </Card>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="flex min-h-14 items-center gap-3 rounded-card bg-surface px-4 py-3 text-left shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:col-span-2"
+        >
+          <span className="inline-flex size-10 items-center justify-center rounded-tile bg-grey-100">
+            <LogOut size={18} strokeWidth={1.75} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <b className="block text-[15px]">Log out</b>
+            <small className="text-[13px] font-medium text-muted">Leave this shop on this device</small>
+          </span>
+        </button>
       </div>
     </div>
   );

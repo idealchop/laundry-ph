@@ -34,7 +34,7 @@ export function HomeScreen() {
         bookingsLoading={live.loading}
         bookingsError={live.error}
         canConvert
-        onlineHref="/online"
+        onlineHref="/orders?channel=online"
       />
     </>
   );

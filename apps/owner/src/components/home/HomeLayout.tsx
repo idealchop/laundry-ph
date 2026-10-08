@@ -26,7 +26,7 @@ export interface HomeLayoutProps {
   bookingsError: string | null;
   /** Paid turns accepted bookings into orders; Partner tracks them on the booking. */
   canConvert: boolean;
-  /** Online Orders / all bookings: Paid /online, Partner /partner/orders. */
+  /** Online Orders / all bookings: Paid /orders?channel=online, Partner /partner/orders. */
   onlineHref: string;
   /** Extra subtitle bits after "date · shop" on desktop (e.g. " · Partner"). */
   subtitleExtra?: ReactNode;
@@ -40,8 +40,9 @@ function Pickups({ bookings, loading, error, canConvert, moreHref, max = 3, twoU
 }) {
   const actions = useBookingActions();
   const [now] = useState(() => Date.now());
-  const shown = bookings.slice(0, max);
-  const more = bookings.length - shown.length;
+  const queue = canConvert ? bookings.filter((b) => b.status === "requested") : bookings;
+  const shown = queue.slice(0, max);
+  const more = queue.length - shown.length;
   if (loading) return <p className="rounded-[18px] bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-muted">Loading bookings…</p>;
   return (
     <div className="flex flex-col gap-2.5">
@@ -54,7 +55,7 @@ function Pickups({ bookings, loading, error, canConvert, moreHref, max = 3, twoU
       ) : null}
       {shown.length ? (
         <div className={twoUp ? "grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2" : "flex flex-col gap-2.5"}>
-          {shown.map((b) => <BookingCard key={b.id} booking={b} canConvert={canConvert} onMove={actions.onMove} compact now={now} />)}
+          {shown.map((b) => <BookingCard key={b.id} booking={b} canConvert={canConvert} onMove={actions.onMove} acceptAsOrder={actions.acceptAsOrder} compact now={now} />)}
         </div>
       ) : null}
       {more > 0 ? <Link href={moreHref} className={`${linkCls} self-center py-2`}>See {more} more</Link> : null}
@@ -137,7 +138,7 @@ export function UpgradeCard() {
     <Card padding="none" className="flex items-center justify-between gap-3 px-4 py-3.5">
       <span className="flex min-w-0 flex-col leading-[1.3]">
         <b className="text-[14px]">You’re on Partner (free)</b>
-        <small className="text-[12.5px] font-semibold text-muted">Paid adds walk-ins, Sales and Customers · {PAID_PER_MO}</small>
+        <small className="text-[12.5px] font-semibold text-muted">Paid adds walk-ins and Sales · {PAID_PER_MO}</small>
       </span>
       <Button href="/settings/billing" variant="secondary" size="sm" className="flex-none">Plans</Button>
     </Card>

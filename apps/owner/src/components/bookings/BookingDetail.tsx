@@ -7,8 +7,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import type { Booking } from "@/data";
+import { relativeTime } from "@/lib/format";
 import { geocodeAddress } from "@/lib/geocode";
-import { bookingTitle, formatPhMobile, formatSlot, returnLabel } from "@/lib/bookings";
+import { bookingCustomerLabel, bookingTitle, formatPhMobile, formatSlot, returnLabel } from "@/lib/bookings";
 import { avatarFor } from "@/lib/orders";
 import { isPaidShop } from "@/lib/plans";
 import { fetchRoute, formatDistance, formatEta, googleDirectionsUrl, type LatLng, type RouteInfo } from "@/lib/route";
@@ -99,6 +100,8 @@ export function BookingDetail({ booking: b, backHref, onChanged }: { booking: Bo
   const [from, to] = useStable(shopPin, cust.pin);
   const route = useRoute(from, to);
   const needsTrip = b.type === "pickup" || b.fulfillment === "delivery";
+  const customerLabel = bookingCustomerLabel(b.customer);
+  const named = b.customer.name.trim().length > 0;
   const open = isOpenBooking(b);
   const outcome = outcomeText(b);
 
@@ -110,7 +113,7 @@ export function BookingDetail({ booking: b, backHref, onChanged }: { booking: Bo
           <IconTile size={52}><Icon3D name={b.type === "pickup" ? "basket" : "folded"} size={36} /></IconTile>
           <div className="flex min-w-0 flex-1 flex-col leading-[1.25]">
             <h1 className="truncate text-[20px] font-extrabold tracking-[-0.02em]">{bookingTitle(b)}</h1>
-            <span className="text-[13px] font-semibold text-muted">{formatSlot(b.slotAt, now)} · <span className="font-mono tracking-tight">{b.ref}</span></span>
+            <span className="text-[13px] font-semibold text-muted">{formatSlot(b.slotAt, now)} · <span className="font-mono tracking-tight">{b.ref}</span> · {relativeTime(b.createdAt, now)}</span>
           </div>
         </header>
 
@@ -168,15 +171,15 @@ export function BookingDetail({ booking: b, backHref, onChanged }: { booking: Bo
         <Card padding="none" className="px-4 py-3.5">
           <h2 className="mb-2.5 text-[13px] font-bold text-muted">Customer</h2>
           <div className="flex items-center gap-3">
-            <Avatar name={b.customer.name} preset={avatarFor(b.customer.name)} size={44} />
+            <Avatar name={customerLabel} preset={avatarFor(customerLabel)} size={44} />
             <span className="flex min-w-0 flex-1 flex-col leading-[1.25]">
-              <b className="truncate text-[15.5px]">{b.customer.name}</b>
-              {b.customer.phone ? (
+              <b className="truncate text-[15.5px]">{customerLabel}</b>
+              {named && b.customer.phone ? (
                 <a href={`tel:${b.customer.phone}`} className="text-[13.5px] font-semibold text-ink-2 underline decoration-grey-300 underline-offset-[3px]">{formatPhMobile(b.customer.phone)}</a>
-              ) : <small className="text-[13px] font-semibold text-muted">No number</small>}
+              ) : named ? <small className="text-[13px] font-semibold text-muted">No number</small> : null}
             </span>
             {b.customer.phone ? (
-              <a href={`tel:${b.customer.phone}`} aria-label={`Call ${b.customer.name}`}
+              <a href={`tel:${b.customer.phone}`} aria-label={`Call ${customerLabel}`}
                 className="inline-flex h-11 flex-none items-center gap-1.5 rounded-pill bg-ink px-4 text-[14px] font-bold text-on-ink hover:bg-ink/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
                 <Phone size={16} strokeWidth={2} /> Call
               </a>
@@ -218,6 +221,7 @@ export function BookingDetail({ booking: b, backHref, onChanged }: { booking: Bo
       {open ? (
         <div className="sticky bottom-0 z-10 mt-auto border-t border-line bg-surface/95 px-5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-3.5 backdrop-blur lg:rounded-b-banner">
           <BookingActions booking={b} canConvert={canConvert} split
+            acceptAsOrder={actions.acceptAsOrder}
             onMove={async (bk, to, reason) => { const ok = await actions.onMove(bk, to, reason); if (ok) onChanged(); return ok; }} />
         </div>
       ) : null}

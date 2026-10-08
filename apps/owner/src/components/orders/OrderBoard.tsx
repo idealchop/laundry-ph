@@ -2,15 +2,15 @@
 
 import { Plus } from "lucide-react";
 import { Icon3D } from "@river-apps/icons";
-import { Button, Card, EmptyState, SearchInput, SegmentedControl, Topbar, cn } from "@river-apps/ui";
-import Link from "next/link";
+import { Button, Card, EmptyState, SearchInput, StatCard, cn } from "@river-apps/ui";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Order } from "@/data";
-import { minimalDate, startOfShopDay } from "@/lib/format";
-import { isActive, isDone } from "@/lib/orders";
+import { minimalDate, money, startOfShopDay } from "@/lib/format";
+import { isActive, isDone, ordersBetween, salesTotals } from "@/lib/orders";
 import { useBoardOrders, useBookings } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
-import { BookingCard } from "../bookings/BookingCard";
+import { BookingCard, bookingHref } from "../bookings/BookingCard";
 import { OnlineOrderCard, useConvertedBookings } from "../bookings/OnlineOrderCard";
 import { TestBookingButton, useBookingActions } from "../bookings/BookingsList";
 import { ErrorNote, PaymentBadge, Spinner, StatusPill } from "../ui";
@@ -30,17 +30,22 @@ export function OrderBoard() {
   const live = useBookings("open");
   const bookingActions = useBookingActions();
   const converted = useConvertedBookings();
-  const [channel, setChannel] = useState<Channel>("walk-ins");
+  const router = useRouter();
+  const channel: Channel = useSearchParams().get("channel") === "online" ? "online" : "walk-ins";
+  const setChannel = (next: Channel) => {
+    router.replace(next === "online" ? "/orders?channel=online" : "/orders", { scroll: false });
+  };
   const [search, setSearch] = useState("");
 
   const walkIns = useMemo(() => orders.filter((o) => o.source !== "river-mobile"), [orders]);
   const onlineOrders = useMemo(() => orders.filter((o) => o.source === "river-mobile"), [orders]);
-  const pickupList = live.bookings;
+  const pickupList = live.bookings.filter((b) => b.status === "requested");
 
   const counts = useMemo(() => ({
     progress: walkIns.filter(isActive).length,
     ready: walkIns.filter((o) => o.status === "ready").length,
   }), [walkIns]);
+  const today = useMemo(() => salesTotals(ordersBetween(orders, startOfShopDay(now))), [orders, now]);
 
   const walkInList = useMemo(() => {
     const t = search.trim().toLowerCase();
@@ -73,33 +78,37 @@ export function OrderBoard() {
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
-      <Topbar
-        className="px-1"
-        title="Orders"
-        subtitle={
-          <>
-            {channel === "walk-ins"
-              ? <>{counts.progress} in progress · {counts.ready} ready</>
-              : <>{onlineNew} new {onlineNew === 1 ? "booking" : "bookings"} · {onlineOrders.length} online orders</>}
-            {" "}
-            <SampleNote className="ml-1 align-middle" />
-          </>
-        }
-        actions={<ChannelArt channel={channel} />}
-      />
+      <header className="flex flex-wrap items-end gap-x-6 border-b border-line px-1">
+        <div className="flex items-center gap-[11px] pb-3">
+          <ChannelArt />
+          <div className="flex flex-col leading-[1.2]">
+            <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">Orders</h1>
+            <p className="mt-0.5 text-[14px] font-semibold text-muted">
+              {channel === "walk-ins"
+                ? <>{counts.progress} in progress · {counts.ready} ready</>
+                : <>{onlineNew} new {onlineNew === 1 ? "booking" : "bookings"} · {onlineOrders.length} online orders</>}
+              {" "}
+              <SampleNote className="ml-1 align-middle" />
+            </p>
+          </div>
+        </div>
+        <ChannelSwitch
+          channel={channel}
+          onChange={setChannel}
+          walkIns={walkIns.length}
+          online={onlineTotal}
+        />
+      </header>
 
-      <SegmentedControl
-        className="mt-4 w-full sm:w-fit"
-        label="Order channel"
-        value={channel}
-        onChange={setChannel}
-        options={[
-          { value: "walk-ins", label: walkIns.length ? `Walk-ins ${walkIns.length}` : "Walk-ins" },
-          { value: "online", label: onlineTotal ? `Online ${onlineTotal}` : "Online" },
-        ]}
-      />
+      <p className="mt-4 px-1 text-[13px] font-bold text-muted">Today</p>
+      <div className="mt-2 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        <StatCard className="pb-3" label="Sales" value={money(today.salesCentavos)} caption={`${today.orders} orders`} />
+        <StatCard className="pb-3" label="Collected" value={money(today.collectedCentavos)} caption="Marked paid" />
+        <StatCard className="pb-3" label="Unpaid" value={money(today.unpaidCentavos)} caption="To collect" />
+        <StatCard className="pb-3" label="Average ticket" value={money(today.averageCentavos)} caption={`${today.kg} kg washed`} />
+      </div>
 
-      <div className="mt-3 flex flex-col gap-2.5">
+      <div className="mt-4 flex flex-col gap-2.5">
         <div className="flex items-center gap-2">
           <SearchInput
             className="min-w-0 flex-1"
@@ -163,7 +172,7 @@ export function OrderBoard() {
               </p>
               <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2">
                 {onlineFilteredPickups.map((b) => (
-                  <BookingCard key={b.id} booking={b} canConvert onMove={bookingActions.onMove} now={now} />
+                  <BookingCard key={b.id} booking={b} canConvert onMove={bookingActions.onMove} acceptAsOrder={bookingActions.acceptAsOrder} now={now} detailsHref={bookingHref(b.id)} />
                 ))}
               </div>
             </div>
@@ -186,40 +195,67 @@ export function OrderBoard() {
   );
 }
 
-/** Decorative top-right art that follows the channel tab, crossfading on switch. */
-function ChannelArt({ channel }: { channel: Channel }) {
+/** Laundry basket, kept beside the Orders title on both tabs. */
+function ChannelArt() {
   return (
-    <span aria-hidden className="relative inline-flex size-[52px] flex-none items-center justify-center rounded-[16px] bg-surface shadow-tile">
-      {(["walk-ins", "online"] as const).map((c) => (
-        <span
-          key={c}
-          className={cn(
-            "absolute inset-0 flex items-center justify-center transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none",
-            c === channel ? "scale-100 opacity-100" : "scale-75 opacity-0",
-          )}
-        >
-          <Icon3D name={c === "walk-ins" ? "basket" : "car"} size={38} />
-        </span>
-      ))}
+    <span aria-hidden className="inline-flex size-14 flex-none items-center justify-center">
+      <Icon3D name="basket" size={56} className="drop-shadow-[0_10px_14px_rgba(10,10,10,0.16)]" />
     </span>
   );
 }
 
-/** One order: name, detail · date and a status pill; the whole row opens the order page. */
+/** Walk-ins / Online as header tabs. The selected tab's rule sits on the header line. */
+function ChannelSwitch({ channel, onChange, walkIns, online, className }: {
+  channel: Channel;
+  onChange: (channel: Channel) => void;
+  walkIns: number;
+  online: number;
+  className?: string;
+}) {
+  const options: { value: Channel; label: string; count: number }[] = [
+    { value: "walk-ins", label: "Walk-ins", count: walkIns },
+    { value: "online", label: "Online", count: online },
+  ];
+  return (
+    <div role="tablist" aria-label="Order channel" className={cn("flex items-end gap-6", className)}>
+      {options.map((o) => {
+        const on = channel === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(o.value)}
+            className={cn(
+              "-mb-px min-h-11 border-b-2 px-0.5 pb-2.5 pt-2 text-[15px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+              on ? "border-ink font-bold text-ink" : "border-transparent font-semibold text-muted hover:text-ink",
+            )}
+          >
+            {o.label}
+            {o.count ? <span className={cn("ml-1.5 tabular-nums", on ? "text-ink" : "text-subtle")}>{o.count}</span> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** One order: name, detail · date, status beside payment, and a button to the order page. */
 function OrderRow({ order: o }: { order: Order }) {
   return (
-    <li className="border-b border-line last:border-b-0">
-      <Link
-        href={`/orders/view?id=${o.id}`}
-        className="-mx-4 flex items-start gap-3 px-4 py-3 transition-colors hover:bg-grey-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink active:bg-grey-100"
-      >
-        <span className="flex min-w-0 flex-1 flex-col leading-[1.3]">
-          <b className="truncate text-[14px] tracking-[-0.01em]">{o.customer.name}</b>
-          <span className="truncate text-[12.5px] font-medium text-muted">{o.detail} · {minimalDate(o.createdAt)}</span>
-          <StatusPill status={o.status} className="mt-1.5 self-start" />
+    <li className="-mx-4 flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
+      <span className="flex min-w-0 flex-1 flex-col leading-[1.3]">
+        <b className="truncate text-[14px] tracking-[-0.01em]">{o.customer.name}</b>
+        <span className="truncate text-[12.5px] font-medium text-muted">{o.detail} · {minimalDate(o.createdAt)}</span>
+        <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <StatusPill status={o.status} />
+          <PaymentBadge order={o} className="h-[22px] px-2 text-[11.5px]" />
         </span>
-        <span className="flex-none"><PaymentBadge order={o} /></span>
-      </Link>
+      </span>
+      <Button href={`/orders/view?id=${o.id}`} size="sm" variant="secondary" className="h-9 flex-none px-3.5">
+        View order
+      </Button>
     </li>
   );
 }

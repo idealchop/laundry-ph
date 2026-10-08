@@ -1,11 +1,13 @@
 /**
  * In-memory LaundryDataSource over the sample fixtures. Fully interactive (create orders,
- * move statuses, add customers) but nothing persists past a page reload. Only used when the
- * build is not pointed at Firestore (see dataMode()).
+ * move statuses, add customers). Shop data resets on reload; bookings sent from the public
+ * page are kept in localStorage so the owner tab can see them. Only used when the build is
+ * not pointed at Firestore (see dataMode()).
  */
 import { normalizeClothesTypes } from "@/lib/clothes";
 import { BOOKING_DONE, BOOKING_OPEN, sortOpenBookings } from "@/lib/bookings";
 import { avatarFor, buildWalkInOrder, formatRef, nextStatus, toPublicTicket } from "@/lib/orders";
+import { PUBLIC_BOOKINGS_KEY, readPublicBookings, writeBookingTicket, writePublicBooking } from "@/lib/public-bookings";
 import { ACTIVE_STATUSES, type Booking, type Customer, type Order, type PublicTicket } from "./types";
 import * as fx from "./fixtures";
 import { normalizeCode, refFromCode, type LaundryDataSource, type PublicTicketSource, type Unsubscribe } from "./index";
@@ -14,13 +16,43 @@ type Listener = () => void;
 
 const store = {
   orders: fx.sampleOrders(),
-  bookings: fx.sampleBookings(),
+  bookings: mergePublic(fx.sampleBookings()),
   customers: fx.customers.map((c) => ({ ...c })),
   shop: { ...fx.shop, address: fx.shop.address ? { ...fx.shop.address } : null, location: fx.shop.location ? { ...fx.shop.location } : null },
   catalog: structuredClone(fx.catalog),
   nextNo: 423,
   listeners: new Set<Listener>(),
 };
+function mergePublic(bookings: Booking[]): Booking[] {
+  const extra = readPublicBookings().filter((b) => !bookings.some((x) => x.id === b.id));
+  return extra.length ? [...extra, ...bookings] : bookings;
+}
+
+/** A customer booking from the public page. Same tab updates immediately; other tabs pick it up from storage. */
+export function addPublicBooking(booking: Booking) {
+  if (!store.bookings.some((b) => b.id === booking.id)) {
+    store.bookings = [booking, ...store.bookings];
+    emit();
+  }
+  writePublicBooking(booking);
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key !== PUBLIC_BOOKINGS_KEY) return;
+    const before = store.bookings.length;
+    store.bookings = mergePublic(store.bookings);
+    if (store.bookings.length !== before) emit();
+  });
+}
+
+/** Keep the customer's status page in step with this browser's other tab. */
+function publishPublic(booking: Booking | undefined, order?: Order | null) {
+  if (!booking?.id.startsWith("bk-public-")) return;
+  writePublicBooking(booking);
+  if (order) writeBookingTicket(booking.id, toPublicTicket(order, store.shop));
+}
+
 const emit = () => store.listeners.forEach((l) => l());
 const subscribe = (fn: Listener): Unsubscribe => {
   store.listeners.add(fn);
@@ -35,6 +67,8 @@ export function createFixtureDataSource(): LaundryDataSource {
   const patch = (id: string, fn: (o: Order) => Order) => {
     store.orders = store.orders.map((o) => (o.id === id ? fn(o) : o));
     emit();
+    const order = store.orders.find((o) => o.id === id);
+    if (order?.bookingId) publishPublic(store.bookings.find((b) => b.id === order.bookingId), order);
   };
   return {
     mode: "fixtures",
@@ -95,8 +129,8 @@ export function createFixtureDataSource(): LaundryDataSource {
     async createWalkInOrder(input) {
       const now = Date.now();
       const booking = input.bookingId ? store.bookings.find((b) => b.id === input.bookingId) : undefined;
-      if (input.bookingId && (!booking || (booking.status !== "accepted" && booking.status !== "received"))) {
-        throw new Error("Accept the booking before turning it into an order.");
+      if (input.bookingId && (!booking || (booking.status !== "requested" && booking.status !== "accepted" && booking.status !== "received"))) {
+        throw new Error(booking?.status === "converted" ? "This booking is already an order." : "This booking can’t be turned into an order.");
       }
       const ref = formatRef(store.nextNo++);
       let customerId = input.customer.id ?? null;
@@ -120,6 +154,7 @@ export function createFixtureDataSource(): LaundryDataSource {
       );
       store.orders = [order, ...store.orders];
       emit();
+      if (booking) publishPublic(store.bookings.find((b) => b.id === booking.id), order);
       return order;
     },
     async setOrderStatus(id, status) {
@@ -156,6 +191,7 @@ export function createFixtureDataSource(): LaundryDataSource {
           }
         : x));
       emit();
+      publishPublic(store.bookings.find((b) => b.id === id));
     },
     async createTestBooking() {
       const now = Date.now();

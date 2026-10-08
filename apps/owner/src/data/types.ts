@@ -252,7 +252,7 @@ export interface PickupRequest {
 
 /**
  * requested → accepted → received → completed   (Partner: the shop tracks the booking itself)
- * requested → accepted → converted               (Paid: becomes a normal order, `orderId` set)
+ * requested → converted                          (Paid: Accept creates the order, `orderId` set)
  * requested → declined (shop)  ·  requested | accepted → cancelled (customer via API, or shop)
  */
 export type BookingStatus = "requested" | "accepted" | "received" | "completed" | "converted" | "declined" | "cancelled";
@@ -266,7 +266,8 @@ export interface Booking {
   ref: string;
   source: "river-mobile";
   status: BookingStatus;
-  customer: { name: string; phone: string };
+  /** QR bookings may leave `name` empty and send only `phone` or `email`. */
+  customer: { name: string; phone: string; email?: string };
   serviceId: string | null;
   serviceName: string;
   type: BookingType;
@@ -283,6 +284,8 @@ export interface Booking {
   /** Clothes type the customer picked, when not Regular clothes. */
   clothesType: { id: string; name: string } | null;
   notes: string | null;
+  /** Chosen on the public booking page, before the live status view. */
+  payWhere?: "online" | "shop";
   declineReason: string | null;
   cancelReason: string | null;
   cancelledBy: "customer" | "shop" | null;

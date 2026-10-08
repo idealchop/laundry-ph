@@ -2,9 +2,10 @@
 
 /* eslint-disable @next/next/no-img-element -- local photo previews (data URLs). */
 import { ImagePlus, X } from "lucide-react";
+import Link from "next/link";
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Avatar, Button, cn } from "@river-apps/ui";
-import { fileToDataUrl, type PostAuthor } from "./posts";
+import { fileToDataUrl, profileHref, type PostAuthor } from "./posts";
 
 const MAX_IMAGES = 4;
 const MAX_CHARS = 1000;
@@ -71,10 +72,10 @@ export const Composer = forwardRef<ComposerHandle, { me: PostAuthor; onPost: (bo
 
     return (
       <section aria-label="New post" className={cn("px-1 pb-3.5 pt-3", className)}>
-        <div className="flex items-center gap-2.5">
+        <Link href={profileHref(me.name)} className="flex w-fit max-w-full items-center gap-2.5 rounded-full focus-visible:outline-2 focus-visible:outline-ink">
           <Avatar name={me.name} preset={me.photoUrl ? undefined : me.avatar} src={me.photoUrl} size={40} className="flex-none" />
           <b className="min-w-0 truncate text-[15px] font-extrabold leading-tight tracking-[-0.01em]">{me.name}</b>
-        </div>
+        </Link>
         <div className="mt-2.5">
             <label htmlFor="community-composer" className="sr-only">Write a post</label>
             <textarea

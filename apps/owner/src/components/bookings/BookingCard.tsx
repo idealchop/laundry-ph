@@ -7,8 +7,9 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import type { Booking, BookingMove, BookingStatus } from "@/data";
 import {
-  BOOKING_LIMITS, BOOKING_STATUS_LABEL, BOOKING_STEPS, DECLINE_REASONS, bookingTitle, formatPhMobile, formatSlot, returnLabel,
+  BOOKING_LIMITS, BOOKING_STATUS_LABEL, BOOKING_STEPS, DECLINE_REASONS, bookingCustomerLabel, bookingTitle, formatPhMobile, formatSlot, returnLabel,
 } from "@/lib/bookings";
+import { relativeTime } from "@/lib/format";
 import { avatarFor } from "@/lib/orders";
 
 const PILL: Record<BookingStatus, string> = {
@@ -29,14 +30,6 @@ export function BookingStatusPill({ status, className }: { status: BookingStatus
   );
 }
 
-function ago(ms: number, now: number): string {
-  const m = Math.max(0, Math.round((now - ms) / 60_000));
-  if (m < 1) return "just now";
-  if (m < 60) return `${m} min ago`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h} hr ago`;
-  return new Intl.DateTimeFormat("en-PH", { month: "short", day: "numeric", timeZone: "Asia/Manila" }).format(ms);
-}
 const when = (ms?: number) =>
   ms ? new Intl.DateTimeFormat("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" }).format(ms) : "";
 
@@ -62,9 +55,11 @@ function Steps({ status }: { status: BookingStatus }) {
 
 export interface BookingCardProps {
   booking: Booking;
-  /** Paid shops turn accepted bookings into orders; Partner shops track them here. */
+  /** Paid shops turn an accepted booking into an order; Partner shops track the booking itself. */
   canConvert: boolean;
   onMove: (booking: Booking, to: BookingMove, reason?: string | null) => Promise<boolean>;
+  /** Paid: Accept creates the order. Omit on Partner, which uses onMove("accepted"). */
+  acceptAsOrder?: (booking: Booking) => Promise<boolean>;
   /** Shorter card for the home screen (no notes / steps). */
   compact?: boolean;
   /** Render-stable "now" (epoch ms) for relative times. */
@@ -75,11 +70,18 @@ export interface BookingCardProps {
   meta?: string;
   /** Replaces the action row (e.g. a single "Order details" button). */
   footer?: React.ReactNode;
+  /** Replaces "Pickup · service" (walk-in history uses "Walk-in · service"). */
+  heading?: string;
+  /** Hides the pickup / drop-off line. Address still shows when present. */
+  hideRoute?: boolean;
+  /** "See details & location" link. Home compact cards get this automatically. */
+  detailsHref?: string;
 }
 
 /** One River Mobile booking with the owner's next actions. */
-export function BookingCard({ booking: b, canConvert, onMove, compact = false, now, pill, meta: metaOverride, footer }: BookingCardProps) {
+export function BookingCard({ booking: b, canConvert, onMove, acceptAsOrder, compact = false, now, pill, meta: metaOverride, footer, heading, hideRoute = false, detailsHref }: BookingCardProps) {
   const open = isOpenBooking(b);
+  const locationHref = detailsHref ?? (compact && !footer ? bookingHref(b.id) : undefined);
   const slot = formatSlot(b.slotAt, now);
   const meta = metaOverride ?? [slot, b.estKg ? `about ${b.estKg} kg` : null].filter(Boolean).join(" · ");
 
@@ -91,13 +93,16 @@ export function BookingCard({ booking: b, canConvert, onMove, compact = false, n
     outcome = <>Turned into an order{b.orderId ? <> · <Link className="font-bold text-ink underline decoration-grey-300 underline-offset-[3px]" href={`/orders/view?id=${b.orderId}`}>View order</Link></> : null}</>;
   }
 
+  const customerLabel = bookingCustomerLabel(b.customer);
+  const named = b.customer.name.trim().length > 0;
+
   return (
-    <article aria-label={`${bookingTitle(b)} for ${b.customer.name}`} className="min-w-0 rounded-card bg-surface px-3.5 pb-3.5 pt-3 shadow-card">
+    <article aria-label={`${heading ?? bookingTitle(b)} for ${customerLabel}`} className="min-w-0 rounded-card bg-surface px-3.5 pb-3.5 pt-3 shadow-card">
       <div className="flex items-start gap-3">
         <IconTile size={48}><Icon3D name={b.type === "pickup" ? "basket" : "folded"} size={34} /></IconTile>
         <div className="flex min-w-0 flex-1 flex-col leading-[1.3]">
           <span className="flex items-center gap-2">
-            <b className="min-w-0 truncate text-[15.5px] tracking-[-0.01em]">{bookingTitle(b)}</b>
+            <b className="min-w-0 truncate text-[15.5px] tracking-[-0.01em]">{heading ?? bookingTitle(b)}</b>
           </span>
           <span className="mt-0.5 text-[13px] font-semibold text-ink-2">{meta}</span>
         </div>
@@ -108,34 +113,39 @@ export function BookingCard({ booking: b, canConvert, onMove, compact = false, n
       </div>
 
       <div className="mt-3 flex items-center gap-[11px] border-t border-dashed border-[#E8E8EC] pt-3">
-        <Avatar name={b.customer.name} preset={avatarFor(b.customer.name)} size={34} />
+        <Avatar name={customerLabel} preset={avatarFor(customerLabel)} size={34} />
         <span className="flex min-w-0 flex-1 flex-col leading-[1.25]">
-          <b className="truncate text-[14px]">{b.customer.name}</b>
+          <b className="truncate text-[14px]">{customerLabel}</b>
           <small className="truncate text-[12.5px] font-semibold text-muted">
-            {b.customer.phone ? formatPhMobile(b.customer.phone) : "No number"} · <span className="font-mono tracking-tight">{b.ref}</span>
-            {b.status === "requested" ? <> · {ago(b.createdAt, now)}</> : null}
+            {named ? <>{b.customer.phone ? formatPhMobile(b.customer.phone) : "No number"} · </> : null}
+            <span className="font-mono tracking-tight">{b.ref}</span>
+            {b.status === "requested" ? <> · {relativeTime(b.createdAt, now)}</> : null}
           </small>
         </span>
         {b.customer.phone && !compact && (open || footer) ? (
-          <a href={`tel:${b.customer.phone}`} aria-label={`Call ${b.customer.name}`}
+          <a href={`tel:${b.customer.phone}`} aria-label={`Call ${customerLabel}`}
             className="inline-flex size-11 flex-none items-center justify-center rounded-full bg-grey-100 text-ink hover:bg-grey-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
             <Phone size={18} strokeWidth={1.9} />
           </a>
         ) : null}
       </div>
 
-      <ul className="mt-2.5 flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
-        {b.address ? (
-          <li className="flex gap-2"><MapPin aria-hidden size={16} className="mt-px flex-none text-muted" /><span className="min-w-0">{b.address}</span></li>
-        ) : null}
-        <li className="flex gap-2">
-          {b.fulfillment === "delivery" ? <Bike aria-hidden size={16} className="mt-px flex-none text-muted" /> : <Store aria-hidden size={16} className="mt-px flex-none text-muted" />}
-          <span>{b.type === "pickup" ? "You pick up" : "Customer drops off"} · {returnLabel(b.fulfillment)}</span>
-        </li>
-        {b.notes && !compact ? (
-          <li className="flex gap-2"><MessageSquareText aria-hidden size={16} className="mt-px flex-none text-muted" /><span className="min-w-0 whitespace-pre-line">{b.notes}</span></li>
-        ) : null}
-      </ul>
+      {b.address || !hideRoute || (b.notes && !compact) ? (
+        <ul className="mt-2.5 flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+          {b.address ? (
+            <li className="flex gap-2"><MapPin aria-hidden size={16} className="mt-px flex-none text-muted" /><span className="min-w-0">{b.address}</span></li>
+          ) : null}
+          {hideRoute ? null : (
+            <li className="flex gap-2">
+              {b.fulfillment === "delivery" ? <Bike aria-hidden size={16} className="mt-px flex-none text-muted" /> : <Store aria-hidden size={16} className="mt-px flex-none text-muted" />}
+              <span>{b.type === "pickup" ? "You pick up" : "Customer drops off"} · {returnLabel(b.fulfillment)}</span>
+            </li>
+          )}
+          {b.notes && !compact ? (
+            <li className="flex gap-2"><MessageSquareText aria-hidden size={16} className="mt-px flex-none text-muted" /><span className="min-w-0 whitespace-pre-line">{b.notes}</span></li>
+          ) : null}
+        </ul>
+      ) : null}
 
       {!compact && !canConvert && (b.status === "accepted" || b.status === "received") ? <div className="mt-3"><Steps status={b.status} /></div> : null}
 
@@ -144,11 +154,11 @@ export function BookingCard({ booking: b, canConvert, onMove, compact = false, n
       {footer ? (
         <div className="mt-3 flex items-center justify-end gap-2">{footer}</div>
       ) : open ? (
-        <BookingActions className="mt-3" booking={b} canConvert={canConvert} onMove={onMove} split={compact} />
+        <BookingActions className="mt-3" booking={b} canConvert={canConvert} onMove={onMove} acceptAsOrder={acceptAsOrder} split />
       ) : null}
 
-      {compact && !footer ? (
-        <Link href={bookingHref(b.id)} className="mt-2.5 flex min-h-11 items-center justify-center gap-1 text-[13.5px] font-bold text-ink underline decoration-grey-300 underline-offset-[3px] hover:decoration-ink">
+      {locationHref ? (
+        <Link href={locationHref} className="mt-2.5 flex min-h-11 items-center justify-center gap-1 text-[13.5px] font-bold text-ink underline decoration-grey-300 underline-offset-[3px] hover:decoration-ink">
           See details &amp; location
         </Link>
       ) : null}
@@ -165,10 +175,11 @@ export const bookingHref = (id: string) => `/bookings/view?id=${encodeURICompone
  * The owner's next actions on an open booking, with the inline decline / cancel reason step.
  * `split`: full-width two-button row (each 50%), used on home cards and the detail page footer.
  */
-export function BookingActions({ booking: b, canConvert, onMove, split = false, className }: {
+export function BookingActions({ booking: b, canConvert, onMove, acceptAsOrder, split = false, className }: {
   booking: Booking;
   canConvert: boolean;
   onMove: (booking: Booking, to: BookingMove, reason?: string | null) => Promise<boolean>;
+  acceptAsOrder?: (booking: Booking) => Promise<boolean>;
   split?: boolean;
   className?: string;
 }) {
@@ -183,8 +194,15 @@ export function BookingActions({ booking: b, canConvert, onMove, split = false, 
     setPending(null);
     if (ok) { setAsking(null); setReason(""); }
   };
+  const accept = async () => {
+    if (!canConvert || !acceptAsOrder) return move("accepted");
+    setPending("accepted");
+    await acceptAsOrder(b);
+    setPending(null);
+  };
 
   if (!isOpenBooking(b)) return null;
+  if (canConvert && b.status !== "requested") return null;
 
   if (asking) {
     return (
@@ -216,16 +234,14 @@ export function BookingActions({ booking: b, canConvert, onMove, split = false, 
       {b.status === "requested" ? (
         <>
           <Button size="sm" variant="secondary" pill={split} className={split ? half : "h-11 px-4"} leadingIcon={<X size={16} strokeWidth={2} />} disabled={pending != null} onClick={() => setAsking("declined")}>Decline</Button>
-          <Button size="sm" pill className={split ? half : "h-11 px-5 text-[14px]"} leadingIcon={<Check size={17} strokeWidth={2.2} />} disabled={pending != null} onClick={() => void move("accepted")}>
+          <Button size="sm" pill className={split ? half : "h-11 px-5 text-[14px]"} leadingIcon={<Check size={17} strokeWidth={2.2} />} disabled={pending != null} onClick={() => void accept()}>
             {pending === "accepted" ? "Accepting…" : "Accept"}
           </Button>
         </>
       ) : (
         <>
           <Button size="sm" variant={split ? "secondary" : "ghost"} pill={split} className={split ? half : "h-11 text-muted"} disabled={pending != null} onClick={() => setAsking("cancelled")}>Cancel</Button>
-          {canConvert ? (
-            <Button size="sm" pill className={split ? half : "h-11 px-5 text-[14px]"} href={`/orders/new?booking=${encodeURIComponent(b.id)}`}>Convert to order</Button>
-          ) : b.status === "accepted" ? (
+          {b.status === "accepted" ? (
             <Button size="sm" pill className={split ? half : "h-11 px-5 text-[14px]"} disabled={pending != null} onClick={() => void move("received")}>
               {pending === "received" ? "Saving…" : "Laundry received"}
             </Button>

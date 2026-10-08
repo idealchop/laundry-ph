@@ -7,8 +7,8 @@ import { ChoiceTile } from "../kit-extensions";
 type Method = "gcash" | "cash";
 
 /** Pay while you wait: GCash (online) or cash at pickup. UI-only; no payment is made (GCash checkout is Phase 2). */
-export function TicketPayment({ amount }: { amount: string }) {
-  const [method, setMethod] = useState<Method>("gcash");
+export function TicketPayment({ amount, initial = "gcash" }: { amount: string; initial?: Method }) {
+  const [method, setMethod] = useState<Method>(initial);
   const [done, setDone] = useState(false);
   return (
     <Card className="mx-4 mt-2.5 px-4 pb-4 pt-3.5">
