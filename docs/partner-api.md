@@ -5,7 +5,7 @@ The Partner API is how **River Mobile** lists Laundry.ph shops and books them. I
 | | |
 | --- | --- |
 | Base URL (dev) | `https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1` (Firestore `laundrydb-dev`) |
-| Base URL (prod) | `https://laundry-prod--mylaundryph.asia-southeast1.hosted.app/api/v1` (not live yet) |
+| Base URL (prod) | `https://laundry-prod--mylaundryph.asia-southeast1.hosted.app/api/v1` (Firestore `laundrydb`) |
 | Format | JSON over HTTPS, UTF-8 |
 | Money | Integer **centavos** (`3500` = ₱35.00) |
 | Times | Slots are **Asia/Manila** wall-clock (`date` `YYYY-MM-DD`, `time` `HH:mm`). Timestamps in responses are ISO 8601 UTC. |
@@ -21,8 +21,9 @@ X-River-Key: <api key>
 
 - Keys are server-to-server secrets. **Call the API from the River Mobile backend, never from the mobile app binary**, where a key can be extracted.
 - Dev key: stored as the App Hosting secret `river-api-key-dev` (Secret Manager, project `mylaundryph`) and mounted as `RIVER_API_KEYS` on `laundry-dev`. People with project access can read it with `firebase apphosting:secrets:access river-api-key-dev --project mylaundryph`. Share it through a password manager, never in chat or git.
+- Prod key: stored as the App Hosting secret `river-api-key-prod` (Secret Manager, project `mylaundryph`) and mounted as `RIVER_API_KEYS` on `laundry-prod`. Read it with `firebase apphosting:secrets:access river-api-key-prod --project mylaundryph`. Same sharing rules as the dev key.
 - Rotation: the secret can hold several comma-separated keys. Add the new key, redeploy, move River Mobile over, then remove the old key and redeploy.
-- A missing or wrong key gets `401 unauthorized`. If a server has no key configured, every call gets `503 not_configured` (this is the state of prod until its secret exists).
+- A missing or wrong key gets `401 unauthorized`. If a server has no key configured, every call gets `503 not_configured`.
 
 ## Rate limits and validation
 
