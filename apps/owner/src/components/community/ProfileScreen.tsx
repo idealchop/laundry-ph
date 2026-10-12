@@ -1,13 +1,17 @@
 "use client";
 
-import { BadgeCheck, ChevronLeft } from "lucide-react";
-import Link from "next/link";
+import { BadgeCheck, Star } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Avatar, cn } from "@river-apps/ui";
 import { PostCard } from "./PostCard";
 import { useCommunityFeed } from "./feed";
-import { authorHandle, resolveProfile, type CommunityPost } from "./posts";
+import { locationCount, locationCountLabel } from "@/lib/format";
+import { useShop } from "@/lib/shop";
+import { useShopMark } from "@/lib/shop-mark";
+import { useShopLocations } from "@/lib/shop-locations";
+import { ShellBack } from "../shell/PageBack";
+import { authorHandle, resolveProfile, type CommunityPost, type CommunityProfile } from "./posts";
 
 type Tab = "threads" | "replies" | "media" | "reposts";
 
@@ -22,7 +26,10 @@ const TABS: { id: Tab; label: string }[] = [
 export function ProfileScreen() {
   const handle = (useSearchParams().get("u") ?? "").toLowerCase();
   const feed = useCommunityFeed();
-  const profile = resolveProfile(handle, feed.me);
+  const { shop } = useShop();
+  const shops = useShopLocations();
+  const mark = useShopMark(shop.id, Math.max(1, locationCount(shop.area, Boolean(shop.location))));
+  const profile = resolveProfile(handle, feed.me, { hasPin: feed.hasPin });
   const [tab, setTab] = useState<Tab>("threads");
   const isMe = !!profile && authorHandle(feed.me.name) === profile.handle;
   const following = !!profile && feed.following.includes(profile.handle);
@@ -36,36 +43,36 @@ export function ProfileScreen() {
   const reposts = isMe ? feed.posts.filter((p) => p.reposted) : [];
 
   return (
-    <div className="mx-auto w-full max-w-[560px] px-4 pb-8 pt-[max(0.5rem,env(safe-area-inset-top))] lg:max-w-[640px] lg:px-[30px] lg:pt-6">
-      <Link
-        href="/community"
-        aria-label="Back to community"
-        className="inline-flex size-10 items-center justify-center rounded-full text-ink hover:bg-grey-100 focus-visible:outline-2 focus-visible:outline-ink"
-      >
-        <ChevronLeft size={24} strokeWidth={1.75} />
-      </Link>
-
+    <div className="mx-auto w-full max-w-[560px] px-4 pb-8 pt-2 lg:max-w-[640px] lg:px-[30px] lg:pt-2">
       {!profile ? (
-        <p className="px-1 py-16 text-center text-[15px] font-semibold text-muted">That profile isn’t in the community.</p>
+        <div className="px-1 py-6">
+          <ShellBack />
+          <p className="py-10 text-center text-[15px] font-semibold text-muted">That profile isn’t in the community.</p>
+        </div>
       ) : (
         <>
-          <header className="mt-2 px-1">
-            <Avatar
-              name={profile.name}
-              preset={profile.photoUrl ? undefined : profile.avatar}
-              src={profile.photoUrl}
-              size={86}
-              decorative={false}
-            />
-            <h1 className="mt-3 flex items-center gap-1.5 text-[24px] font-extrabold leading-tight tracking-[-0.03em]">
-              <span className="min-w-0 truncate">{profile.name}</span>
-              {profile.verified ? <BadgeCheck size={20} strokeWidth={2.2} className="flex-none fill-[#0095F6] text-white" aria-label="Verified" /> : null}
+          <header className="mt-3 px-1">
+            <div className="flex items-center gap-3">
+              <ShellBack />
+              <Avatar
+                name={profile.name}
+                preset={(isMe && mark.logoUrl) || profile.photoUrl ? undefined : profile.avatar}
+                src={isMe && mark.logoUrl ? mark.logoUrl : profile.photoUrl}
+                size={84}
+                decorative={false}
+              />
+            </div>
+            <h1 className="mt-4 text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em] text-ink">
+              {profile.name}
+              {profile.verified ? <BadgeCheck size={20} strokeWidth={2.2} className="ml-1.5 inline-block -translate-y-0.5 fill-[#0095F6] text-white" aria-label="Verified" /> : null}
             </h1>
-            <p className="mt-0.5 text-[15px] font-medium text-muted">{profile.handle}</p>
-            <p className="mt-3 max-w-[440px] text-[15px] font-medium leading-snug text-ink">{profile.bio}</p>
-            <p className="mt-3 text-[15px] text-muted">
-              <b className="font-bold text-ink">{groupDigits(profile.followers + (following ? 1 : 0))}</b> followers
-            </p>
+            <p className="mt-1 text-[15px] font-medium text-muted">@{profile.handle}</p>
+            <p className="mt-4 max-w-[440px] text-[16px] font-medium leading-snug text-ink">{profile.bio}</p>
+            <ProfileFacts
+              profile={profile}
+              followers={profile.followers + (following ? 1 : 0)}
+              locations={isMe ? (shops.enabled ? Math.max(1, shops.branches.length) : mark.locations) : undefined}
+            />
             {isMe ? null : (
               <button
                 type="button"
@@ -157,6 +164,33 @@ export function ProfileScreen() {
 
 function groupDigits(n: number): string {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+/** Rating and location count, then followers. Same stack as the community profile header. */
+function ProfileFacts({ profile, followers, locations: locationsOverride }: { profile: CommunityProfile; followers: number; locations?: number }) {
+  const locations = locationsOverride ?? locationCount(profile.meta, profile.hasPin);
+  const rating = profile.rating != null ? profile.rating.toFixed(1) : null;
+  return (
+    <>
+      {rating || locations > 0 ? (
+        <p
+          className="mt-4 flex items-center text-[15px] leading-none"
+          aria-label={[rating ? `Rated ${rating} out of 5` : "", locations > 0 ? locationCountLabel(locations) : ""].filter(Boolean).join(", ")}
+        >
+          {rating ? (
+            <>
+              <Star size={15} strokeWidth={2.25} className="mr-1.5 fill-ink text-ink" aria-hidden />
+              <span className="font-extrabold tracking-[-0.02em] text-ink">{rating}</span>
+            </>
+          ) : null}
+          {locations > 0 ? <span className="font-medium text-muted">{rating ? " · " : ""}{locationCountLabel(locations)}</span> : null}
+        </p>
+      ) : null}
+      <p className="mt-4 text-[15px] leading-none text-muted">
+        <b className="font-extrabold text-ink">{groupDigits(followers)}</b> followers
+      </p>
+    </>
+  );
 }
 
 function Empty({ label }: { label: string }) {

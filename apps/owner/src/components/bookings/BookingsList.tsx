@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import type { Booking, BookingMove, BookingScope } from "@/data";
 import { orderFromBooking } from "@/lib/bookings";
 import { isPaidShop } from "@/lib/plans";
+import { useLocationFilter } from "@/lib/shop-locations";
 import { useAction, useBookings, useShop } from "@/lib/shop";
 import { ErrorNote, Spinner } from "../ui";
 import { BookingCard } from "./BookingCard";
@@ -56,8 +57,9 @@ export function BookingsList({ scope, emptyAction }: { scope: BookingScope; empt
   const { bookings, error, loading } = useBookings(scope);
   const actions = useBookingActions();
   const [now] = useState(() => Date.now());
+  const loc = useLocationFilter();
   const canConvert = isPaidShop(shop.tier);
-  const rows = canConvert && scope === "open" ? bookings.filter((b) => b.status === "requested") : bookings;
+  const rows = (canConvert && scope === "open" ? bookings.filter((b) => b.status === "requested") : bookings).filter((b) => loc.keep(b.branchId));
   // Home "Order details" links here as /partner/orders#<bookingId>: scroll to that card once the list is in.
   useEffect(() => {
     if (loading || typeof window === "undefined") return;

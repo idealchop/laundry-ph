@@ -45,7 +45,7 @@ function Pickups({ bookings, loading, error, canConvert, moreHref, max = 3, twoU
   const more = queue.length - shown.length;
   if (loading) return <p className="rounded-[18px] bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-muted">Loading bookings…</p>;
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-3">
       {error ? <ErrorNote>{error}</ErrorNote> : null}
       {actions.error ? <ErrorNote onRetry={actions.clearError}>{actions.error}</ErrorNote> : null}
       {shown.length === 0 && !error ? (
@@ -54,7 +54,7 @@ function Pickups({ bookings, loading, error, canConvert, moreHref, max = 3, twoU
         </p>
       ) : null}
       {shown.length ? (
-        <div className={twoUp ? "grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2" : "flex flex-col gap-2.5"}>
+        <div className={twoUp ? "grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2" : "flex flex-col gap-3"}>
           {shown.map((b) => <BookingCard key={b.id} booking={b} canConvert={canConvert} onMove={actions.onMove} acceptAsOrder={actions.acceptAsOrder} compact now={now} />)}
         </div>
       ) : null}
@@ -106,17 +106,17 @@ export function HomeLayout(p: HomeLayoutProps) {
     <>
       {/* Phone and tablet (below lg). */}
       <div className="mx-auto w-full max-w-[560px] pb-4 lg:hidden">
-        <Greeting name={ownerFirstName(shop.ownerName) || shop.name} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} onlineHref={p.onlineHref} />
+        <Greeting name={ownerFirstName(shop.ownerName) || shop.name} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} />
         <HomeHeroMobile shop={shop} today={today} showWalkIn={canWalkIn} />
-        <Stats today={today} className="mx-4 mt-2.5" />
-        <SectionHeader className="px-5 pb-1 pt-4" title="Pickups to accept" aside={pickupsAside} />
+        <Stats today={today} className="mx-4 mt-3" />
+        <SectionHeader className="px-4 pb-1 pt-4" title="Pickups to accept" aside={pickupsAside} />
         <div className="mx-4">{pickups(3, false)}</div>
-        {p.footer ? <div className="mx-4 mt-2.5">{p.footer}</div> : null}
+        {p.footer ? <div className="mx-4 mt-3">{p.footer}</div> : null}
       </div>
 
       {/* Desktop (lg and up). */}
       <div className="mx-auto hidden w-full max-w-[1120px] px-4 pb-6 pt-4 lg:block lg:px-[30px] lg:pt-6">
-        <HomeTopbar shop={shop} today={today} onlineHref={p.onlineHref} subtitleExtra={<>{p.subtitleExtra} <SampleNote className="ml-1 align-middle" /></>} />
+        <HomeTopbar shop={shop} today={today} subtitleExtra={<>{p.subtitleExtra} <SampleNote className="ml-1 align-middle" /></>} />
         <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_286px]">
           <HomeHeroDesktop shop={shop} today={today} showWalkIn={canWalkIn} />
           <DailyTarget today={today} />

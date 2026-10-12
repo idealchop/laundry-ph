@@ -28,6 +28,15 @@ export function writePublicBooking(booking: Booking) {
   window.localStorage.setItem(KEY, JSON.stringify(next));
 }
 
+/** Update a booking the customer sent, including from a shop link in another tab. */
+export function updatePublicBooking(id: string, patch: Partial<Booking>): Booking | null {
+  const cur = readPublicBookings().find((b) => b.id === id);
+  if (!cur) return null;
+  const next = { ...cur, ...patch, id: cur.id };
+  writePublicBooking(next);
+  return next;
+}
+
 export function readPublicBooking(id: string): Booking | null {
   return readPublicBookings().find((b) => b.id === id) ?? null;
 }

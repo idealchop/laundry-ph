@@ -146,6 +146,7 @@ export function buildWalkInOrder(catalog: Catalog, input: NewWalkInOrder, ctx: O
     updatedAt: ctx.now,
     ...(ctx.uid ? { createdBy: ctx.uid } : {}),
     ...(ctx.sample ? { sample: true } : {}),
+    ...(input.branchId ? { branchId: input.branchId } : {}),
   };
   return order;
 }

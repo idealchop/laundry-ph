@@ -3,6 +3,7 @@
 import { Button, Topbar } from "@river-apps/ui";
 import { useId, useState, type KeyboardEvent } from "react";
 import { SampleNote } from "@/components/SampleNote";
+import { ShellBack } from "@/components/shell/PageBack";
 import { useBookings, useShop } from "@/lib/shop";
 import { BookingsList } from "../bookings/BookingsList";
 
@@ -39,7 +40,7 @@ export function PartnerOrdersScreen({ initialTab = "bookings", title = "Orders",
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
-      <Topbar className="px-1" title={title} subtitle={<>{fresh ? `${fresh} new ${fresh === 1 ? "request" : "requests"} · ` : ""}River Mobile bookings for {shop.name} <SampleNote className="ml-1 align-middle" /></>} />
+      <Topbar className="px-1" leading={<ShellBack />} title={title} subtitle={<>{fresh ? `${fresh} new ${fresh === 1 ? "request" : "requests"} · ` : ""}River Mobile bookings for {shop.name} <SampleNote className="ml-1 align-middle" /></>} />
       <div role="tablist" aria-label={title} className="mt-3 flex gap-6 border-b border-line px-1">
         {TABS.map((t) => {
           const on = t.id === tab;

@@ -77,6 +77,7 @@ export function useCommunityFeed() {
 
   return {
     me,
+    hasPin: Boolean(shop.location),
     now,
     posts,
     toast,

@@ -162,27 +162,37 @@ export function profileHref(name: string): string {
   return `/community/profile?u=${encodeURIComponent(authorHandle(name))}`;
 }
 
-const PROFILE_COPY: Record<string, { bio: string; followers: number }> = {
-  mariteslaundry: { bio: "Neighborhood laundry in Pasig. Wash, dry, fold, and pickup.", followers: 1284 },
-  kapitolyowash: { bio: "Drop-off and River Mobile pickups around Kapitolyo and Shaw.", followers: 640 },
-  freshcycleco: { bio: "Quezon City shop. Pods, fold, and same-day when we can.", followers: 890 },
-  riverapps: { bio: "The Laundry.ph team. Product updates for shop owners.", followers: 4200 },
-  sudsycorner: { bio: "Marikina. Rain or shine, we still fold.", followers: 410 },
-  lavanderaexpress: { bio: "Makati. Comforters, barongs, and everyday loads.", followers: 530 },
+const PROFILE_COPY: Record<string, { bio: string; followers: number; rating: number }> = {
+  mariteslaundry: { bio: "Neighborhood laundry in Pasig. Wash, dry, fold, and pickup.", followers: 1284, rating: 4.9 },
+  kapitolyowash: { bio: "Drop-off and River Mobile pickups around Kapitolyo and Shaw.", followers: 640, rating: 4.7 },
+  freshcycleco: { bio: "Quezon City shop. Pods, fold, and same-day when we can.", followers: 890, rating: 4.6 },
+  riverapps: { bio: "The Laundry.ph team. Product updates for shop owners.", followers: 4200, rating: 0 },
+  sudsycorner: { bio: "Laundry shop in Marikina. Rain or shine, we still fold.", followers: 410, rating: 4.8 },
+  lavanderaexpress: { bio: "Laundry shop in Makati. Comforters, barongs, and everyday loads.", followers: 530, rating: 4.5 },
 };
 
-export type CommunityProfile = PostAuthor & { handle: string; bio: string; followers: number };
+export type CommunityProfile = PostAuthor & {
+  handle: string;
+  bio: string;
+  followers: number;
+  /** Shop rating out of 5. Absent for a team account. */
+  rating: number | null;
+  /** Map pin counts as a location when the area line does not name one. */
+  hasPin?: boolean;
+};
 
 /** Profile for a handle, using seed shops plus the signed-in shop. */
-export function resolveProfile(handle: string, me: PostAuthor): CommunityProfile | null {
+export function resolveProfile(handle: string, me: PostAuthor, opts?: { hasPin?: boolean; rating?: number | null }): CommunityProfile | null {
   const key = handle.toLowerCase();
   if (!key) return null;
   if (authorHandle(me.name) === key) {
     return {
       ...me,
       handle: key,
-      bio: me.meta ? `${me.meta}. Laundry shop on Laundry.ph.` : "Laundry shop on Laundry.ph.",
+      bio: me.meta ? `Laundry shop in ${me.meta}.` : "Laundry shop on Laundry.ph.",
       followers: 86,
+      rating: opts?.rating ?? 4.8,
+      hasPin: opts?.hasPin,
     };
   }
   const author = knownAuthors().find((a) => authorHandle(a.name) === key);
@@ -191,19 +201,26 @@ export function resolveProfile(handle: string, me: PostAuthor): CommunityProfile
   return {
     ...author,
     handle: key,
-    bio: copy?.bio ?? (author.meta ? `${author.meta}. On Laundry.ph Community.` : "On Laundry.ph Community."),
+    bio: copy?.bio ?? (author.meta ? `Laundry shop in ${author.meta}.` : "On Laundry.ph Community."),
     followers: copy?.followers ?? 120,
+    rating: copy && copy.rating > 0 ? copy.rating : null,
   };
 }
 
 function knownAuthors(): PostAuthor[] {
   const out: PostAuthor[] = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, number>();
   const add = (a: PostAuthor) => {
     const k = authorHandle(a.name);
-    if (seen.has(k)) return;
-    seen.add(k);
-    out.push(a);
+    const at = seen.get(k);
+    if (at == null) {
+      seen.set(k, out.length);
+      out.push(a);
+      return;
+    }
+    // A reply can appear before the shop's own post. Keep the record that names its locations.
+    const prev = out[at];
+    if (a.meta && prev && !prev.meta) out[at] = { ...prev, meta: a.meta };
   };
   for (const p of SEED_POSTS) {
     add(p.author);

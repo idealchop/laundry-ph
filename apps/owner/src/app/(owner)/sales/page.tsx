@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation";
+import { SalesScreen } from "@/components/sales/SalesScreen";
 
-export const metadata = { title: "Sales Record" };
+export const metadata = { title: "Sales" };
 
-/** Soft-link: Sales Record now lives under History. */
+/** Shop sales: overview, services, payments, and how the laundry ran. */
 export default function SalesPage() {
-  redirect("/history");
+  return <SalesScreen />;
 }

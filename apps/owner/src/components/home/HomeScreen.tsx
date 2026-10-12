@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { startOfShopDay } from "@/lib/format";
 import { summarizeToday } from "@/lib/orders";
+import { useLocationFilter } from "@/lib/shop-locations";
 import { useBoardOrders, useBookings, useCustomers, useShop } from "@/lib/shop";
 import { ErrorNote, Spinner } from "../ui";
 import { HomeLayout } from "./HomeLayout";
@@ -13,13 +14,16 @@ export function HomeScreen() {
   const [now] = useState(() => Date.now());
   const since = useMemo(() => startOfShopDay(now, -13), [now]);
   const { orders, error, loading } = useBoardOrders(since);
+  const loc = useLocationFilter();
+  const scopedOrders = orders.filter((o) => loc.keep(o.branchId));
   const { customers } = useCustomers();
   const live = useBookings("open");
-  const newBookings = live.bookings.filter((b) => b.status === "requested").length;
+  const scopedBookings = live.bookings.filter((b) => loc.keep(b.branchId));
+  const newBookings = scopedBookings.filter((b) => b.status === "requested").length;
 
   const today = useMemo(
-    () => summarizeToday(orders, { dailyTargetCentavos: shop.dailyTargetCentavos, newPickups: newBookings, customers }),
-    [orders, shop.dailyTargetCentavos, newBookings, customers],
+    () => summarizeToday(scopedOrders, { dailyTargetCentavos: shop.dailyTargetCentavos, newPickups: newBookings, customers }),
+    [scopedOrders, shop.dailyTargetCentavos, newBookings, customers],
   );
 
   if (loading && orders.length === 0) return <Spinner label="Loading orders" />;
@@ -30,7 +34,7 @@ export function HomeScreen() {
         shop={shop}
         today={today}
         canWalkIn
-        bookings={live.bookings}
+        bookings={scopedBookings}
         bookingsLoading={live.loading}
         bookingsError={live.error}
         canConvert

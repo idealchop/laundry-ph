@@ -100,6 +100,7 @@ function toOrder(snap: DocumentSnapshot): Order {
     createdBy: d.createdBy,
     sample: d.sample === true,
     ...(typeof d.bookingId === "string" ? { bookingId: d.bookingId } : {}),
+    ...(typeof d.branchId === "string" && d.branchId ? { branchId: d.branchId } : {}),
   };
 }
 
@@ -139,6 +140,7 @@ function toBooking(snap: DocumentSnapshot): Booking {
     createdAt,
     updatedAt: ms(d.updatedAt) ?? createdAt,
     test: d.test === true,
+    ...(typeof d.branchId === "string" && d.branchId ? { branchId: d.branchId } : {}),
   };
 }
 
@@ -409,7 +411,11 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         const newCustomerRef = !customerId && name ? doc(customersCol()) : null;
         if (newCustomerRef) customerId = newCustomerRef.id;
 
-        const built = buildWalkInOrder(catalog, { ...input, customer: { ...input.customer, id: customerId } }, {
+        const built = buildWalkInOrder(catalog, {
+          ...input,
+          branchId: input.branchId || (bookingSnap?.data()?.branchId as string | undefined) || undefined,
+          customer: { ...input.customer, id: customerId },
+        }, {
           shopId, ref, queueNo, ticketId, uid, now, sample: shop.sample,
         });
         const base: Omit<Order, "id"> = bookingRef ? { ...built, source: "river-mobile", bookingId: bookingRef.id } : built;

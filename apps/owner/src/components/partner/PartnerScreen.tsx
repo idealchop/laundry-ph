@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { startOfShopDay } from "@/lib/format";
 import { summarizeToday } from "@/lib/orders";
+import { useLocationFilter } from "@/lib/shop-locations";
 import { useBookings, useOrders, useShop } from "@/lib/shop";
 import { HomeLayout, UpgradeCard } from "../home/HomeLayout";
 
@@ -15,14 +16,17 @@ export function PartnerScreen() {
   const [now] = useState(() => Date.now());
   const since = useMemo(() => startOfShopDay(now), [now]);
   const { orders } = useOrders({ sinceMs: since });
+  const loc = useLocationFilter();
+  const scopedOrders = orders.filter((o) => loc.keep(o.branchId));
   const live = useBookings("open");
+  const scoped = live.bookings.filter((b) => loc.keep(b.branchId));
 
-  const requested = useMemo(() => live.bookings.filter((b) => b.status === "requested"), [live.bookings]);
-  const inProgress = useMemo(() => live.bookings.filter((b) => b.status === "accepted" || b.status === "received").length, [live.bookings]);
+  const requested = useMemo(() => scoped.filter((b) => b.status === "requested"), [scoped]);
+  const inProgress = useMemo(() => scoped.filter((b) => b.status === "accepted" || b.status === "received").length, [scoped]);
   const today = useMemo(() => {
-    const t = summarizeToday(orders, { dailyTargetCentavos: shop.dailyTargetCentavos, newPickups: requested.length });
+    const t = summarizeToday(scopedOrders, { dailyTargetCentavos: shop.dailyTargetCentavos, newPickups: requested.length });
     return { ...t, inQueue: t.inQueue + inProgress };
-  }, [orders, shop.dailyTargetCentavos, requested.length, inProgress]);
+  }, [scopedOrders, shop.dailyTargetCentavos, requested.length, inProgress]);
 
   return (
     <HomeLayout

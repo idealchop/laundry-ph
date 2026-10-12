@@ -65,6 +65,40 @@ export function startOfShopDay(ms: number, offsetDays = 0): number {
   return Date.UTC(y, m - 1, d + offsetDays) - 8 * 3600_000;
 }
 
+/**
+ * Places a shop serves. "Pasig · Mandaluyong" is two locations.
+ * "Kapitolyo, Pasig" stays one: the comma is neighbourhood, city.
+ */
+export function namedPlaces(area: string | null | undefined): string[] {
+  return (area ?? "").split(/\s*·\s*/).map((part) => part.trim()).filter(Boolean);
+}
+
+/** "1 location" or "2 locations". */
+export function locationCountLabel(count: number): string {
+  return `${count} location${count === 1 ? "" : "s"}`;
+}
+
+/**
+ * How many locations to show. Several named places win; otherwise one pin or one area is a single location.
+ * A non-place line such as "Laundry.ph team" is not a location.
+ */
+export function locationCount(area: string | null | undefined, hasPin = false): number {
+  const places = namedPlaces(area).filter((place) => !/team/i.test(place));
+  if (places.length > 1) return places.length;
+  if (places.length === 1 || hasPin) return 1;
+  return 0;
+}
+
+/** "Pasig · 1 location" or "Pasig · Mandaluyong · 2 locations". A team line is left as written. */
+export function placeWithCount(area: string | null | undefined, hasPin = false): string {
+  const raw = (area ?? "").trim();
+  const count = locationCount(raw, hasPin);
+  if (!count) return raw;
+  const places = namedPlaces(raw).filter((place) => !/team/i.test(place));
+  const label = places.join(" · ");
+  return label ? `${label} · ${locationCountLabel(count)}` : locationCountLabel(count);
+}
+
 /** "Joy Pascual" → "Joy P." (public-safe). */
 export function maskName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);

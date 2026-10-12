@@ -213,6 +213,8 @@ export interface Order {
   sample?: boolean;
   /** River Mobile booking this order came from. */
   bookingId?: string;
+  /** Shop this order belongs to when the owner runs more than one. Missing means the first shop. */
+  branchId?: string;
 }
 
 export interface NewWalkInOrder {
@@ -230,6 +232,8 @@ export interface NewWalkInOrder {
   fulfillment?: Fulfillment;
   /** River Mobile booking this order converts (marks the booking "converted" in the same write). */
   bookingId?: string;
+  /** Shop this walk-in belongs to. Missing means the first shop. */
+  branchId?: string;
 }
 
 export interface PickupRequest {
@@ -296,6 +300,8 @@ export interface Booking {
   updatedAt: number;
   /** Created by the dev-only test booking tools. */
   test: boolean;
+  /** Shop this booking was sent to. Missing means the first shop. */
+  branchId?: string;
 }
 
 export interface PricedLine {

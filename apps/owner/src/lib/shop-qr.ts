@@ -1,7 +1,8 @@
 /** The one customer link encoded in the shop QR. */
 
-export function bookingUrl(origin: string, shopId: string): string {
-  return `${origin}/book?shop=${encodeURIComponent(shopId)}`;
+export function bookingUrl(origin: string, shopId: string, locationId?: string): string {
+  const loc = locationId ? `&loc=${encodeURIComponent(locationId)}` : "";
+  return `${origin}/book?shop=${encodeURIComponent(shopId)}${loc}`;
 }
 
 /** Shown on the shop QR page. The public booking page does not repeat these steps. */

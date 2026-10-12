@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Avatar, cn } from "@river-apps/ui";
 import { PostMedia } from "./PostMedia";
+import { placeWithCount } from "@/lib/format";
 import { compact, profileHref, shortAge, type CommunityPost, type PostAuthor, type PostReply } from "./posts";
 
 export interface PostCardProps {
@@ -49,7 +50,7 @@ export function PostCard({ post, now, me, onLike, onRepost, onShare, onReply, on
               {post.author.verified ? <BadgeCheck size={16} strokeWidth={2.2} className="flex-none fill-[#0095F6] text-white" aria-label="Verified" /> : null}
               <span className="flex-none text-[14px] font-medium text-muted">{shortAge(post.createdAt, post.ageMin, now)}</span>
             </span>
-            {post.author.meta ? <span className="mt-0.5 block truncate text-[12.5px] font-semibold text-muted">{post.author.meta}</span> : null}
+            {post.author.meta ? <span className="mt-0.5 block truncate text-[12.5px] font-semibold text-muted">{placeWithCount(post.author.meta)}</span> : null}
           </span>
         </AuthorLink>
         <PostMenu mine={!!post.mine} onDelete={onDelete} onHide={onHide} onCopy={onCopy} />

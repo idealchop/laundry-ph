@@ -1,8 +1,8 @@
 # laundry-ph
 
-**Laundry.ph** is the River Apps owner app for neighbourhood wash-dry-fold shops in the Philippines: counter POS, machines and order queue, River Mobile pickups, customer tickets, and a Growth Dashboard.
+**Laundry.ph** is the River Apps owner app for neighbourhood wash-dry-fold shops in the Philippines: counter POS, the order queue, a shop QR for customer bookings, public tickets, history, and the owner community.
 
-**Phase 1 Paid MVP:** the owner app reads and writes to **Firestore** (project **`mylaundryph`**, named DB `laundrydb-dev` / `laundrydb`). It is standalone, with no Smart Refill / `riverdb`. Walk-in POS orders, the live order board with status changes, customers, sales totals, public tickets and ticket scan lookup all work against real data. If Firebase isn't configured, or `NEXT_PUBLIC_DEMO_FIXTURES=1` is set, the app runs on an in-memory sample store that saves nothing. Screens and tickets from the seeded `sample-laundry` shop carry a "Sample data" tag.
+**Phase 1 Paid MVP:** the owner app reads and writes to **Firestore** (project **`mylaundryph`**, named DB `laundrydb-dev` / `laundrydb`). It is standalone, with no Smart Refill / `riverdb`. Walk-in POS orders, the live order board, Online bookings, public tickets, ticket lookup and history all work against real data. If Firebase isn't configured, or `NEXT_PUBLIC_DEMO_FIXTURES=1` is set, the app runs on an in-memory sample store that saves nothing. Screens and tickets from the seeded `sample-laundry` shop carry a "Sample data" tag.
 
 ## Setup
 
@@ -36,22 +36,27 @@ CI (`.github/workflows/ci.yml`) runs install, typecheck, lint and build on every
 
 | Route | Screen |
 | --- | --- |
-| `/` | Welcome / sign in (phone OTP or Google) |
-| `/home` | Paid home on phones (live queue with one-tap status advance); **Growth Dashboard** from the `lg` breakpoint (≥1024px). Data comes from Firestore |
-| `/orders` | Order board: Active / Ready / Done / All, search, advance or undo a status, mark paid |
-| `/orders/view?id=<orderId>` | Order detail: status timeline, payment, ticket link |
-| `/partner` | Partner home: today’s summary, live pickups to accept, plan upgrade |
-| `/scan/result?code=<ticket URL or LDY-####>` | Look up a real ticket by scanned or typed code and open the order. The River Mobile booking card is demo only (Partner API comes in Phase 2) |
-| `/orders/new` | Walk-in counter POS: kg stepper, service, detergent, add-ons, optional customer (search or new), return date, live total. **Record Sale** writes the order + public ticket, then shows the ticket link |
-| `/t/[ticketId]` | Public customer ticket (no login, no app shell). Live status from `public_tickets` with a masked name. GCash / SMS / feedback are UI only for now. Seeded sample: `/t/LDY-0418-SAMPLE08` |
-| `/customers` | Customer list (search, visits, spend) and add customer, from Firestore |
-| `/sales` | Sales from orders: today / 7 / 30 days, gross, collected, unpaid, kg, daily chart, CSV export |
-| `/settings` | Shop profile (name, area, address, Google Maps / OSM map pin), role, sign out |
-| `/settings/billing` | Plan selection: Partner FREE · Paid ₱950/mo · Lifetime ₱10,000 one-time |
-| `/online`, `/messages` | Honest “coming soon” (Paid). SMS/AI are not faked as working |
-| `/partner/bookings`, `/partner/history` | Empty states until Partner API (Phase 2) |
-| `/partner/shop` | Listing preview from saved address + map pin |
-| `/more` | Phone overflow menu (customers, scan, messages, settings, billing) |
+| `/` | Welcome / sign in (phone OTP or Google). Guests can browse first |
+| `/home` | Paid home: today’s total, pickups to accept, Walk-in and Scan QR |
+| `/orders` | Order board. **Walk-ins** and **Online** are underline tabs (`/orders?channel=online`). Walk-ins: search, status, payment. Online: new bookings to accept or decline, plus orders that came from a booking |
+| `/orders/view?id=<orderId>` | Order detail: status timeline, cash / GCash, ticket link |
+| `/bookings/view?id=<bookingId>` | Booking detail: map, address, Accept / Decline |
+| `/orders/new` | Walk-in counter POS: service, clothes type, detergent, add-ons, weight or pieces, pickup or delivery, live total. **Record Sale** writes the order and the public ticket. Guests are asked to sign in first |
+| `/history` | Past walk-ins and online bookings. Today / 7 days / 30 days, plus a calendar. `/sales` redirects here |
+| `/qr` | One shop QR. Customers scan it to open the booking page |
+| `/book?shop=<shopId>` | Public booking page (no login, no app shell). Email or a Philippine mobile, no name. After **Send request**, they choose **Pay online** (GCash) or **Pay at the shop**, then a live status page |
+| `/walk-in` | Older QR codes. Redirects to `/book?shop=` |
+| `/t/[ticketId]` | Public customer ticket (no login). Live status from `public_tickets`. GCash checkout, SMS and the star rating are UI only for now. Seeded sample: `/t/LDY-0418-SAMPLE08` |
+| `/community` | Owner feed. `/community/profile?u=` is a shop’s profile |
+| `/profile` | My account: shop photo, credits, edit shop, history, services, plan, Walk-in POS, shop QR (on a phone), and **Log out**. `/settings` is the same screen. `/more` redirects here |
+| `/profile/edit` | Shop name, area, address and map pin |
+| `/profile/services` | Services, clothes types, detergent, add-ons and the minimum kilos |
+| `/settings/billing` | Partner FREE · Paid ₱499/mo · Lifetime ₱10,000 one-time |
+| `/scan/result?code=<ticket URL or LDY-####>` | Look up a ticket and open the order |
+| `/partner` | Partner home: today’s summary, pickups to accept, upgrade |
+| `/partner/orders` | Partner bookings. `/partner/bookings` redirects here |
+| `/partner/shop` | Listing preview from the saved address and map pin |
+| `/partner/history` | Partner booking history |
 
 ## Structure
 
@@ -59,10 +64,11 @@ CI (`.github/workflows/ci.yml`) runs install, typecheck, lint and build on every
 apps/
   owner/                         Next.js 16 (App Router) + TypeScript + Tailwind 4
     src/app/(owner)/             routes inside AppShell (WideSidebar on desktop, MobileTabBar on phones)
+    src/app/book/                public QR booking, no shell
     src/app/t/[ticketId]/        public ticket, no shell
     src/components/
       kit-extensions/            Chip, ChoiceTile, StepTracker, WideSidebar, FieldLabel (to upstream to the kit)
-      shell/  home/  partner/  scan/  pos/  ticket/   screen components
+      shell/  home/  partner/  scan/  pos/  ticket/  qr/  history/  community/   screen components
     src/data/                    types, fixtures, firebase-source, index (LaundryDataSource)
     src/lib/                     pricing.ts (POS quote), format.ts (₱ formatting)
 packages/                        vendored River Apps UI Kit (see packages/VENDORED.md)
@@ -104,7 +110,7 @@ Status flow (UI labels): **Received → Washing → Drying → Folding → Ready
 - Counters move by exactly +1. Only owners can edit the catalog or the shop profile. A sample shop's profile can't be edited at all.
 - Joining: you can create a shop only as its owner (`sample: false`). You can join a `sample: true` shop as staff (demo only).
 - `public_tickets`: anyone can **get** one ticket by ID. **list** is denied. Only members of that shop can create or update its tickets.
-- `bookings` (River Mobile): created only by the Partner API (Admin SDK). Members may only accept / decline (optional reason) / mark received / complete / cancel / convert (convert must create the linked order in the same write). `booking_refs` is server-only.
+- `bookings` (River Mobile): created by the Partner API (Admin SDK). On a Paid shop, **Accept** converts a `requested` booking into an order in the same write (`orderId` set, status `converted`). Members may also decline (optional reason), mark received, complete or cancel. `booking_refs` is server-only. The public `/book` page stores a booking in this browser when the app is on fixtures; a signed-in shop still has to accept it before an order exists.
 
 ## Partner API (River Mobile)
 
@@ -119,8 +125,8 @@ Mycarwash-style welcome at `/` with **Continue as guest**, phone OTP, or Google.
 
 | Browse without login | Actions that open the login sheet |
 | --- | --- |
-| `/home`, `/orders`, `/customers`, `/sales`, `/online`, `/messages`, `/partner/*`, `/settings` (view), `/more`, `/scan` | Create order, status change, mark paid, add customer, save settings/address/map, plan upgrade, “Sign up or log in” CTA |
-| `/t/[ticketId]` public tickets | — |
+| `/home`, `/orders`, `/history`, `/qr`, `/profile`, `/community`, `/partner/*`, `/scan` | Record Sale, accept or decline a booking, status change, mark paid, save the price list, save settings, plan upgrade, “Sign up or log in” |
+| `/book?shop=` and `/t/[ticketId]` | — (no owner login) |
 
 `/settings/billing` may prompt guests on mount (commit screen). Settings profile does **not** (`promptOnMount: false`) — sheet only from the CTA or Save.
 
@@ -138,9 +144,9 @@ After sign-in, the app finds your shop in this order: `users/{uid}.shopId`, then
 3. **New order** (`/orders/new`): set kg, service, add-ons and optionally a customer, then tap **Record Sale**. The success screen shows `LDY-####` and the ticket link.
 4. Open the ticket link in a private window (no login). It shows *Received*, a masked name and the amount due.
 5. Back on `/home` or `/orders`, tap the advance button: Washing → Drying → Folding → Ready → Claimed. The public ticket updates live. Try **Undo** and **Mark paid**.
-6. `/customers`: the walk-in customer shows with visits and spend. Add one manually.
-7. `/sales`: today's gross, collected and unpaid totals match the orders.
-8. `/scan/result?code=<paste ticket URL or LDY-####>` opens the matching order.
+6. `/history`: Today, 7 days, 30 days, and the calendar filter past orders and bookings.
+7. `/scan/result?code=<paste ticket URL or LDY-####>` opens the matching order.
+8. `/qr` shows one booking QR. Open `/book?shop=sample-laundry`, send an email or a `09` mobile, choose **Pay online** or **Pay at the shop**, and confirm. The status page stays on **Request sent** until the shop accepts. On `/orders?channel=online`, **Accept** (after sign-in) creates the order and that same page follows Received → Washing → Drying → Folding → Ready.
 
 Automated check: `pnpm test:emulator` (rules + data layer, 45 checks). After editing rules: `pnpm firebase:deploy:rules:dev`. Re-seed the sample shop: `pnpm seed:dev` (optionally `SEED_OWNER_UID=<uid> pnpm seed:dev` to link a user as staff).
 
@@ -149,7 +155,7 @@ Automated check: `pnpm test:emulator` (rules + data layer, 45 checks). After edi
 1. Sign in and **Create my shop** (not the demo shop). New shops start on **Partner**.
 2. `/settings`: enter street / barangay / city, tap **Use my location** or set lat/lng, then **Save shop profile**. Reload — pin and address should stick.
 3. `/partner/shop`: listing preview shows the saved address and OSM map.
-4. Open `/home` or `/orders` as Partner → upgrade wall. `/settings/billing`: choose **Paid ₱950** or **Lifetime ₱10,000** (demo unlock). Paid nav unlocks.
+4. Open `/home` or `/orders` as Partner → upgrade wall. `/settings/billing`: choose **Paid ₱499/mo** or **Lifetime ₱10,000** (demo unlock). Paid nav unlocks.
 5. Demo shop (`sample-laundry`) stays Paid sample data and refuses profile/plan edits on Firestore.
 
 
@@ -205,17 +211,17 @@ Once `Chip`, `ChoiceTile`, `StepTracker` and a `Sidebar` size option land in the
 
 ## Future phases (short)
 
-- **Done in Phase 1:** standalone Firebase project, Firestore `shops/{shopId}` model, owner/staff roles, walk-in POS, order board, customers, sales, public tickets, scan lookup.
-- **Phase 2 gaps:** Partner API + River Mobile accept/decline (the scan booking card is demo only); SMS automations and "text me" opt-in; live AI growth tip (UI slot only); vouchers; live PayMongo Checkout (UI + webhook stub shipped; needs secrets); QR code printing and camera scanning; catalog editor; staff invites; machine tracking; saving ticket feedback; Cloud Functions to write the ticket projection server-side; deploying prod `laundrydb` rules + `laundry-prod`; composite indexes as data grows.
+- **Done in Phase 1:** standalone Firebase project, Firestore `shops/{shopId}` model, owner/staff roles, walk-in POS, Walk-ins / Online order board, history, shop QR booking (email or mobile, pay online or at the shop, live status), Accept creates the order, public tickets, scan lookup, services editor, community feed.
+- **Phase 2 gaps:** SMS automations and a stored "text me" number; live GCash / PayMongo Checkout (the pay button is UI only until secrets are set); live AI growth tip; vouchers; camera scanning; staff invites; machine tracking; saving ticket ratings; Cloud Functions to write the ticket projection server-side; deploying prod `laundrydb` rules + `laundry-prod`; composite indexes as data grows.
 - **`/partner/v1` API for River Mobile:** a versioned Partner API so River Mobile can create pickup and drop-off bookings, verify customers by QR scan, and receive status webhooks (accepted, weighed, ready). It uses scoped API clients, idempotency keys and a consented customer link instead of a shared user table.
-- **Partner vs Paid tiers (enforced in UI):** Partner (FREE) covers River Mobile listing, bookings, scan and history (`/partner`). Paid (₱950/month or ₱10,000 lifetime unlock) adds counter POS, Sales Record, Customers, Message Automations, Growth Dashboard and tickets. New shops start on Partner. `/settings/billing` can demo-upgrade a non-sample shop when PayMongo keys are absent.
+- **Partner vs Paid tiers (enforced in UI):** Partner (FREE) covers the River Mobile listing, bookings, scan and history (`/partner`). Paid (₱499/month or ₱10,000 lifetime) adds the counter POS, the order board, history, the shop QR and public tickets. New shops start on Partner. `/settings/billing` can demo-upgrade a non-sample shop when PayMongo keys are absent.
 
 ### Billing assumptions (Oct 5, 2026)
 
 | Option | Price (centavos) | Effect |
 | --- | --- | --- |
 | Partner | `0` | Free tier — Partner nav only |
-| Paid monthly | `95000` (₱950) | `tier: paid`, `planSource: subscription` (demo uses `demo` + ~30 day `planExpiresAt`) |
+| Paid monthly | `49900` (₱499) | `tier: paid`, `planSource: subscription` (demo uses `demo` + ~30 day `planExpiresAt`) |
 | Lifetime unlock | `1000000` (₱10,000) | **Assumption:** one-time unlock of the **same Paid feature set forever** (`planSource: lifetime`, `planExpiresAt: null`). Not a separate product. |
 
 PayMongo: prefer the River ecosystem pattern. Until `PAYMONGO_SECRET_KEY` / `PAYMONGO_WEBHOOK_SECRET` are set, checkout uses the **demo/test path** (client writes plan fields; `POST /api/billing/checkout` returns `mode: "demo"`; `POST /api/billing/webhook` is a stub). Map pin: OpenStreetMap + geolocation work without keys; set `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` for Places autocomplete.

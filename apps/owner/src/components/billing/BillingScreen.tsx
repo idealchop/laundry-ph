@@ -13,6 +13,7 @@ import { PLAN_OPTIONS, monthlyExpiryFrom, planLabel, type PlanOptionId } from "@
 import { useAuthGatePrompt } from "@/components/auth/AuthGateProvider";
 import { useAction, useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
+import { ShellBack } from "../shell/PageBack";
 import { ErrorNote } from "../ui";
 
 export function BillingScreen() {
@@ -78,6 +79,7 @@ export function BillingScreen() {
     <div className="mx-auto w-full max-w-[560px] px-4 pb-8 pt-4 lg:max-w-[960px] lg:px-[30px] lg:pt-6">
       <Topbar
         className="px-1"
+        leading={<ShellBack />}
         title="Plan & billing"
         subtitle={<>How you get paid access to Laundry.ph <SampleNote className="ml-1 align-middle" /></>}
       />

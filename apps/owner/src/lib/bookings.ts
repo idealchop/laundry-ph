@@ -46,6 +46,7 @@ export function orderFromBooking(catalog: Catalog, booking: Booking): NewWalkInO
     fulfillment: booking.fulfillment,
     ...(clothesId && clothesId !== REGULAR_CLOTHES_ID ? { clothesTypeId: clothesId } : {}),
     bookingId: booking.id,
+    ...(booking.branchId ? { branchId: booking.branchId } : {}),
   };
 }
 

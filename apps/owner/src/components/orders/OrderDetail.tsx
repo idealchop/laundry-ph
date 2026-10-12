@@ -1,10 +1,9 @@
 "use client";
 
 import { pieceLabel } from "@/lib/clothes";
-import { ArrowLeft, Copy, ExternalLink, Phone, User } from "lucide-react";
+import { Copy, ExternalLink, Phone, User } from "lucide-react";
 import { CoinIcon, EWalletIcon } from "@river-apps/icons";
 import { Avatar, Button, Card, CardHeader, EmptyState, MonoText, StatusDot } from "@river-apps/ui";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ORDER_FLOW, ORDER_STATUS_LABEL, type Order, type OrderStatus } from "@/data";
@@ -14,6 +13,7 @@ import { doneStatus, isDone, statusPath } from "@/lib/orders";
 import { useAction, useOrder, useShop } from "@/lib/shop";
 import { StepTracker } from "../kit-extensions";
 import { SampleNote } from "../SampleNote";
+import { ShellBack } from "../shell/PageBack";
 import { ErrorNote, PaymentBadge, Spinner, statusIcon } from "../ui";
 
 const UNDO_MS = 5000;
@@ -84,9 +84,9 @@ export function OrderDetail({ order }: { order: Order }) {
   const anonymous = !order.customer.name.trim() || order.customer.name.trim().toLowerCase() === "walk-in customer";
 
   return (
-    <div className="mx-auto w-full max-w-[560px] px-4 pb-8 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
-      <Link href="/orders" className="mb-2 inline-flex h-11 items-center gap-1.5 px-1 text-[14px] font-bold"><ArrowLeft size={18} /> Orders</Link>
+    <div className="mx-auto w-full max-w-[560px] px-4 pb-8 pt-2 lg:max-w-[880px] lg:px-[30px] lg:pt-2">
       <header className="flex items-center gap-3 px-1">
+        <ShellBack />
         {anonymous ? (
           <span aria-hidden className="flex size-14 flex-none items-center justify-center rounded-full bg-grey-200 text-muted">
             <User size={26} strokeWidth={1.75} />

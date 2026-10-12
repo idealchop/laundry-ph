@@ -38,9 +38,10 @@ export function OwnerShell({ children }: { children: ReactNode }) {
   /** Map legacy Paid routes onto the new IA for active highlighting. */
   const paidPath =
     pathname === "/history" || pathname.startsWith("/history/")
-      || pathname === "/sales" || pathname.startsWith("/sales/")
       ? "/orders"
-      : pathname;
+      : pathname === "/sales" || pathname.startsWith("/sales/")
+        ? "/home"
+        : pathname;
   const { user, loading } = useAuth();
   const { openAuthCta, isAuthenticated } = useAuthGate();
   const authPrompted = useRef(false);
@@ -79,7 +80,9 @@ export function OwnerShell({ children }: { children: ReactNode }) {
       }
       mainClassName={focus ? "pb-0" : "pb-[6.75rem]"}
     >
-      <PlanGate>{children}</PlanGate>
+      <PlanGate>
+        {children}
+      </PlanGate>
     </AppShell>
   );
 }

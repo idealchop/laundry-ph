@@ -8,8 +8,10 @@ import { useMemo, useState } from "react";
 import type { Order } from "@/data";
 import { minimalDate, money, startOfShopDay } from "@/lib/format";
 import { isActive, isDone, ordersBetween, salesTotals } from "@/lib/orders";
+import { useLocationFilter } from "@/lib/shop-locations";
 import { useBoardOrders, useBookings } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
+import { ShellBack } from "../shell/PageBack";
 import { BookingCard, bookingHref } from "../bookings/BookingCard";
 import { OnlineOrderCard, useConvertedBookings } from "../bookings/OnlineOrderCard";
 import { TestBookingButton, useBookingActions } from "../bookings/BookingsList";
@@ -27,6 +29,8 @@ export function OrderBoard() {
   const [now] = useState(() => Date.now());
   const since = useMemo(() => startOfShopDay(now, -29), [now]);
   const { orders, error, loading } = useBoardOrders(since);
+  const loc = useLocationFilter();
+  const here = orders.filter((o) => loc.keep(o.branchId));
   const live = useBookings("open");
   const bookingActions = useBookingActions();
   const converted = useConvertedBookings();
@@ -37,15 +41,15 @@ export function OrderBoard() {
   };
   const [search, setSearch] = useState("");
 
-  const walkIns = useMemo(() => orders.filter((o) => o.source !== "river-mobile"), [orders]);
-  const onlineOrders = useMemo(() => orders.filter((o) => o.source === "river-mobile"), [orders]);
-  const pickupList = live.bookings.filter((b) => b.status === "requested");
+  const walkIns = useMemo(() => here.filter((o) => o.source !== "river-mobile"), [here]);
+  const onlineOrders = useMemo(() => here.filter((o) => o.source === "river-mobile"), [here]);
+  const pickupList = live.bookings.filter((b) => b.status === "requested" && loc.keep(b.branchId));
 
   const counts = useMemo(() => ({
     progress: walkIns.filter(isActive).length,
     ready: walkIns.filter((o) => o.status === "ready").length,
   }), [walkIns]);
-  const today = useMemo(() => salesTotals(ordersBetween(orders, startOfShopDay(now))), [orders, now]);
+  const today = useMemo(() => salesTotals(ordersBetween(here, startOfShopDay(now))), [here, now]);
 
   const walkInList = useMemo(() => {
     const t = search.trim().toLowerCase();
@@ -80,6 +84,7 @@ export function OrderBoard() {
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
       <header className="flex flex-wrap items-end gap-x-6 border-b border-line px-1">
         <div className="flex items-center gap-[11px] pb-3">
+          <ShellBack />
           <ChannelArt />
           <div className="flex flex-col leading-[1.2]">
             <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">Orders</h1>
@@ -166,7 +171,7 @@ export function OrderBoard() {
           ) : null}
 
           {onlineFilteredPickups.length > 0 ? (
-            <div className="mt-4 flex flex-col gap-2.5">
+            <div className="mt-3 flex flex-col gap-3">
               <p className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">
                 Bookings to handle
               </p>
@@ -179,7 +184,7 @@ export function OrderBoard() {
           ) : null}
 
           {onlineFilteredOrders.length > 0 ? (
-            <div className="mt-4 flex flex-col gap-2.5">
+            <div className="mt-3 flex flex-col gap-3">
               <p className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">Online orders</p>
               <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2" aria-label="Online orders">
                 {onlineFilteredOrders.map((o) => (

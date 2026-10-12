@@ -5,6 +5,7 @@ import { Badge, Button, Card, EmptyState, ListItem, Topbar } from "@river-apps/u
 import { Icon3D } from "@river-apps/icons";
 import { useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
+import { ShellBack } from "../shell/PageBack";
 
 function formatAddress(shop: ReturnType<typeof useShop>["shop"]): string | null {
   const a = shop.address;
@@ -20,7 +21,7 @@ export function PartnerShopScreen() {
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
-      <Topbar className="px-1" title="Shop listing" subtitle={<>What River Mobile customers will see <SampleNote className="ml-1 align-middle" /></>} />
+      <Topbar className="px-1" leading={<ShellBack />} title="Shop listing" subtitle={<>What River Mobile customers will see <SampleNote className="ml-1 align-middle" /></>} />
 
       <Card className="mt-4 px-4 py-3.5">
         <div className="flex items-start justify-between gap-3">

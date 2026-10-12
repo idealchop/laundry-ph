@@ -28,8 +28,10 @@ export function PlanGate({ children }: { children: ReactNode }) {
     const feature =
       pathname.startsWith("/orders")
         ? "Orders & POS"
-        : pathname.startsWith("/sales") || pathname.startsWith("/history")
-          ? "History & Sales"
+        : pathname.startsWith("/sales")
+          ? "Sales"
+          : pathname.startsWith("/history")
+            ? "History"
           : pathname.startsWith("/community")
             ? "Community"
             : pathname.startsWith("/profile")

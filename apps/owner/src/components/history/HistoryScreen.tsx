@@ -5,8 +5,10 @@ import { useMemo, useState } from "react";
 import type { Booking, Order } from "@/data";
 import { dayKey, startOfShopDay } from "@/lib/format";
 import { ordersBetween } from "@/lib/orders";
+import { useLocationFilter } from "@/lib/shop-locations";
 import { useBookings, useOrders } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
+import { ShellBack } from "../shell/PageBack";
 import { BookingCard } from "../bookings/BookingCard";
 import { OnlineOrderCard } from "../bookings/OnlineOrderCard";
 import { ErrorNote, Spinner } from "../ui";
@@ -42,19 +44,21 @@ export function HistoryScreen() {
   const from = picked != null ? startOfShopDay(picked) : startOfShopDay(now, -(days - 1));
   const to = picked != null ? startOfShopDay(picked, 1) : Number.POSITIVE_INFINITY;
   const { orders: loaded, error, loading } = useOrders({ sinceMs: from });
+  const loc = useLocationFilter();
   const past = useBookings("history");
   const converted = useMemo(
     () => new Map(past.bookings.filter((b) => b.status === "converted").map((b) => [b.id, b])),
     [past.bookings],
   );
-  const orders = useMemo(() => ordersBetween(loaded, from, to), [loaded, from, to]);
+  const orders = useMemo(() => ordersBetween(loaded, from, to).filter((o) => loc.keep(o.branchId)), [loaded, from, to, loc]);
   const bookings = useMemo(
     () => past.bookings.filter((b) => {
+      if (!loc.keep(b.branchId)) return false;
       if (b.status === "converted") return false;
       const at = b.updatedAt || b.createdAt;
       return at >= from && at < to;
     }),
-    [past.bookings, from, to],
+    [past.bookings, from, to, loc],
   );
 
   const cards = useMemo(() => {
@@ -72,6 +76,7 @@ export function HistoryScreen() {
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[980px] lg:px-[30px] lg:pt-6">
       <Topbar
         className="px-1"
+        leading={<ShellBack />}
         title="History"
         subtitle={<>Walk-ins and online <SampleNote className="ml-1 align-middle" /></>}
       />

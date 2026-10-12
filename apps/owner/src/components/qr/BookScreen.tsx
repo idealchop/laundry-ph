@@ -41,7 +41,9 @@ function parseContact(raw: string): { email: string; phone: string } | null {
 
 /** Public page opened by the shop QR. Contact is an email or a mobile number, not a name. */
 export function BookScreen() {
-  const shopId = useSearchParams().get("shop")?.trim() ?? "";
+  const search = useSearchParams();
+  const shopId = search.get("shop")?.trim() ?? "";
+  const branchId = search.get("loc")?.trim() ?? "";
   const known = shopId === SAMPLE_SHOP_ID;
   const shopName = known ? sampleShop.name : shopId;
 
@@ -116,6 +118,7 @@ export function BookScreen() {
       createdAt: now,
       updatedAt: now,
       test: false,
+      ...(branchId ? { branchId } : {}),
     };
     setPayWhere(null);
     setDraft(booking);

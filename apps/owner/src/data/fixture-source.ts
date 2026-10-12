@@ -8,6 +8,7 @@ import { normalizeClothesTypes } from "@/lib/clothes";
 import { BOOKING_DONE, BOOKING_OPEN, sortOpenBookings } from "@/lib/bookings";
 import { avatarFor, buildWalkInOrder, formatRef, nextStatus, toPublicTicket } from "@/lib/orders";
 import { PUBLIC_BOOKINGS_KEY, readPublicBookings, writeBookingTicket, writePublicBooking } from "@/lib/public-bookings";
+import { currentBranchId } from "@/lib/shop-locations";
 import { ACTIVE_STATUSES, type Booking, type Customer, type Order, type PublicTicket } from "./types";
 import * as fx from "./fixtures";
 import { normalizeCode, refFromCode, type LaundryDataSource, type PublicTicketSource, type Unsubscribe } from "./index";
@@ -24,8 +25,12 @@ const store = {
   listeners: new Set<Listener>(),
 };
 function mergePublic(bookings: Booking[]): Booking[] {
-  const extra = readPublicBookings().filter((b) => !bookings.some((x) => x.id === b.id));
-  return extra.length ? [...extra, ...bookings] : bookings;
+  const pub = readPublicBookings();
+  if (!pub.length) return bookings;
+  const byId = new Map(pub.map((b) => [b.id, b]));
+  const kept = bookings.map((b) => byId.get(b.id) ?? b);
+  const extra = pub.filter((b) => !bookings.some((x) => x.id === b.id));
+  return extra.length ? [...extra, ...kept] : kept;
 }
 
 /** A customer booking from the public page. Same tab updates immediately; other tabs pick it up from storage. */
@@ -40,9 +45,8 @@ export function addPublicBooking(booking: Booking) {
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => {
     if (e.key !== PUBLIC_BOOKINGS_KEY) return;
-    const before = store.bookings.length;
     store.bookings = mergePublic(store.bookings);
-    if (store.bookings.length !== before) emit();
+    emit();
   });
 }
 
@@ -140,7 +144,8 @@ export function createFixtureDataSource(): LaundryDataSource {
         store.customers = [c, ...store.customers];
         customerId = c.id;
       }
-      const base = buildWalkInOrder(store.catalog, { ...input, customer: { ...input.customer, id: customerId } }, {
+      const branchId = input.branchId || booking?.branchId || currentBranchId();
+      const base = buildWalkInOrder(store.catalog, { ...input, branchId, customer: { ...input.customer, id: customerId } }, {
         shopId: fx.SAMPLE_SHOP_ID, ref, queueNo: store.nextNo - 400, ticketId: ref, now, sample: true,
       });
       const order: Order = { ...base, id: `local-${ref}`, ...(booking ? { source: "river-mobile" as const, bookingId: booking.id } : {}) };

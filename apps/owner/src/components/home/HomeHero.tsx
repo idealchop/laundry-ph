@@ -1,9 +1,10 @@
 "use client";
 import { Plus, ScanLine } from "lucide-react";
-import { Avatar, Button, HeroBanner, SearchInput, Topbar } from "@river-apps/ui";
-import Link from "next/link";
+import { Button, HeroBanner, SearchInput, Topbar } from "@river-apps/ui";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { useShopLocations } from "@/lib/shop-locations";
+import { MyAccountLink, SalesLink } from "../Greeting";
 import type { DaySummary, Shop } from "@/data";
 import { money } from "@/lib/format";
 import { homeTitle, useGreeting } from "@/lib/greeting";
@@ -26,20 +27,20 @@ export interface HomeHeroProps {
  */
 export function HomeHeroMobile({ shop, today, showWalkIn = true, className }: HomeHeroProps) {
   const greeting = useGreeting();
+  const shops = useShopLocations();
+  const place = shops.placeLabel ? `${shop.name} · ${shops.placeLabel}` : shop.name;
   return (
     <section className={`relative isolate mx-4 mt-1 overflow-hidden rounded-banner bg-ink px-4 py-4 text-on-ink min-[380px]:px-5 ${className ?? ""}`}>
       <i aria-hidden className="pointer-events-none absolute -right-20 -top-[120px] size-[260px] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,.16),rgba(255,255,255,0)_65%)]" />
       <i aria-hidden className="pointer-events-none absolute -bottom-[140px] right-10 size-[220px] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,.08),rgba(255,255,255,0)_65%)]" />
       <p className="relative z-10 truncate text-[12.5px] leading-4">
         {greeting ? <span className="font-medium text-on-ink-muted">{greeting}, </span> : null}
-        <span className="font-semibold text-on-ink/90">{shop.name}</span>
+        <span className="font-semibold text-on-ink/90">{place}</span>
       </p>
       <div className="flex items-center gap-1.5 min-[380px]:gap-2">
         <div className="relative z-10 min-w-0 flex-1">
-          {/* Two no-wrap halves so a narrow phone breaks after the "·", never before it. */}
-          <h2 className="mt-2 text-[20px] font-extrabold leading-[1.12] tracking-[-0.025em]">
-            <span className="whitespace-nowrap">Today: {money(today.salesCentavos)} ·</span>{" "}
-            <span className="whitespace-nowrap">{today.orders} orders</span>
+          <h2 className="mt-2 text-[20px] font-extrabold leading-[1.12] tracking-[-0.025em] whitespace-nowrap">
+            Today: {money(today.salesCentavos)}
           </h2>
           <p className="mt-1.5 text-[13px] font-medium text-on-ink-muted">{today.kgWashed} kg washed</p>
           <div className="mt-3 flex flex-nowrap items-center gap-1.5">
@@ -65,7 +66,7 @@ export function HomeHeroDesktop({ today, showWalkIn = true, className }: HomeHer
       className={className}
       size="lg"
       eyebrow={`Today · ${today.dateLabel}`}
-      title={`Today: ${money(today.salesCentavos)} · ${today.orders} orders`}
+      title={`Today: ${money(today.salesCentavos)}`}
       titleSize="lg"
       description={`${today.kgWashed} kg washed`}
       contentWidth={460}
@@ -81,8 +82,8 @@ export function HomeHeroDesktop({ today, showWalkIn = true, className }: HomeHer
   );
 }
 
-/** Desktop header shared by Paid and Partner home: greeting title, date · shop, ticket search, Online Orders, avatar. */
-export function HomeTopbar({ shop, today, subtitleExtra, onlineHref = "/orders?channel=online" }: { shop: Shop; today: DaySummary; subtitleExtra?: ReactNode; onlineHref?: string }) {
+/** Desktop header shared by Paid and Partner home: greeting title, date · shop, ticket search, My Account, Sales. */
+export function HomeTopbar({ shop, today, subtitleExtra }: { shop: Shop; today: DaySummary; subtitleExtra?: ReactNode }) {
   const greeting = useGreeting();
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -95,12 +96,8 @@ export function HomeTopbar({ shop, today, subtitleExtra, onlineHref = "/orders?c
         <form className="hidden xl:flex" onSubmit={(e) => { e.preventDefault(); if (search.trim()) router.push(`/scan/result?code=${encodeURIComponent(search.trim())}`); }}>
           <SearchInput className="w-[300px]" placeholder="Find ticket, e.g. LDY-0423" label="Find order by ticket" value={search} onChange={(e) => setSearch(e.target.value)} />
         </form>
-        <Button href={onlineHref} variant="secondary" size="xs" pill>
-          Online Orders
-        </Button>
-        <Link href="/profile" aria-label="Profile" className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
-          <Avatar name={shop.name} preset={shop.photoUrls?.[0] ? undefined : shop.ownerAvatar} src={shop.photoUrls?.[0]} size={44} decorative={false} />
-        </Link>
+        <MyAccountLink name={shop.name} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} />
+        <SalesLink />
       </>}
     />
   );
