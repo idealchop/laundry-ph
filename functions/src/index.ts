@@ -14,9 +14,10 @@ import { db, DAY } from "./db.js";
 
 setGlobalOptions({ region: "asia-southeast1", maxInstances: 5, memory: "512MiB", timeoutSeconds: 120 });
 
-export const companionChat = onCall(chat);
+// Callables must be publicly invokable at the Cloud Run level; auth + owner checks happen in code.
+export const companionChat = onCall({ invoker: "public" }, chat);
 
-export const companionRefreshTips = onCall(async (req) => {
+export const companionRefreshTips = onCall({ invoker: "public" }, async (req) => {
   const { shopId } = await ownerShop(req);
   const ref = db().doc(`shops/${shopId}/companion/refresh`);
   await db().runTransaction(async (tx) => {
