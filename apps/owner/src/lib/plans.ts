@@ -1,29 +1,40 @@
 /**
- * Laundry.ph shop plans (money in integer centavos).
+ * Laundry.ph shop plans — standard River Apps pricing (money in integer centavos).
  *
- * - Partner: FREE — River Mobile listing, bookings, scan, history.
- * - Paid monthly: ₱499 / month — full owner app (walk-in POS, sales).
- * - Lifetime: ₱10,000 one-time — unlocks the Paid feature set forever
- *   (assumption: same entitlements as Paid; not a separate product tier).
+ * - Partner: entry tier — River Mobile listing, bookings, scan, history.
+ * - Pro: ~~₱950~~ ₱499 / month — all features, 1 shop (internal tier value stays "paid").
+ * - Lifetime (1–5 locations): ~~₱18,000~~ ₱10,000 one-time.
+ * - Lifetime (5+ locations): ~~₱35,000~~ ₱20,000 one-time.
+ * Lifetime unlocks the Pro feature set (planSource "lifetime").
  */
 import type { Centavos, PlanSource, Tier } from "@/data";
 
+const peso = (c: number) => `₱${(c / 100).toLocaleString("en-PH")}`;
+
 export const PARTNER_PRICE_CENTAVOS = 0 as Centavos;
 export const PAID_MONTHLY_CENTAVOS = 49_900 as Centavos; // ₱499
-/** "₱499" — single source for every Paid price label. */
-export const PAID_PRICE_LABEL = `₱${(PAID_MONTHLY_CENTAVOS / 100).toLocaleString("en-PH")}`;
+export const PAID_MONTHLY_WAS_CENTAVOS = 95_000 as Centavos; // ₱950 (struck through)
+/** "₱499" — single source for every Pro price label. */
+export const PAID_PRICE_LABEL = peso(PAID_MONTHLY_CENTAVOS);
 /** "₱499/mo" (compact) and "₱499/month" (sentences). */
 export const PAID_PER_MO = `${PAID_PRICE_LABEL}/mo`;
 export const PAID_PER_MONTH = `${PAID_PRICE_LABEL}/month`;
-export const LIFETIME_UNLOCK_CENTAVOS = 1_000_000 as Centavos; // ₱10,000
+export const LIFETIME_UNLOCK_CENTAVOS = 1_000_000 as Centavos; // ₱10,000 (1–5 locations)
+export const LIFETIME_UNLOCK_WAS_CENTAVOS = 1_800_000 as Centavos; // ₱18,000
+export const LIFETIME_MULTI_CENTAVOS = 2_000_000 as Centavos; // ₱20,000 (5+ locations)
+export const LIFETIME_MULTI_WAS_CENTAVOS = 3_500_000 as Centavos; // ₱35,000
+/** UI name for the internal "paid" tier. */
+export const PRO_NAME = "Pro";
 
-export type PlanOptionId = "partner" | "paid_monthly" | "lifetime";
+export type PlanOptionId = "partner" | "paid_monthly" | "lifetime" | "lifetime_multi";
 
 export interface PlanOption {
   id: PlanOptionId;
   tier: Tier;
   title: string;
   priceCentavos: Centavos;
+  /** Original price shown struck through next to priceLabel. */
+  wasLabel?: string;
   priceLabel: string;
   period: string;
   blurb: string;
@@ -32,50 +43,56 @@ export interface PlanOption {
   planSource: PlanSource;
 }
 
+export function isLifetimeOption(id: PlanOptionId): boolean {
+  return id === "lifetime" || id === "lifetime_multi";
+}
+
 export const PLAN_OPTIONS: PlanOption[] = [
   {
     id: "partner",
     tier: "partner",
     title: "Partner",
     priceCentavos: PARTNER_PRICE_CENTAVOS,
-    priceLabel: "FREE",
-    period: "forever",
+    priceLabel: "",
+    period: "Entry plan",
     blurb: "List on River Mobile, accept pickups, and scan customers.",
-    features: [
-      "Shop listing for River Mobile",
-      "Incoming bookings · accept / decline",
-      "Scan to verify customers",
-      "Booking history",
-    ],
+    features: ["Shop listing for River Mobile", "Bookings · accept / decline", "Scan customers · history"],
     planSource: null,
   },
   {
     id: "paid_monthly",
     tier: "paid",
-    title: "Paid",
+    title: "Pro",
     priceCentavos: PAID_MONTHLY_CENTAVOS,
+    wasLabel: peso(PAID_MONTHLY_WAS_CENTAVOS),
     priceLabel: PAID_PRICE_LABEL,
     period: "per month",
-    blurb: "Everything in Partner, plus walk-in POS and sales.",
-    features: [
-      "Walk-in POS and order board",
-      "Sales Record",
-      "Public customer tickets",
-    ],
+    blurb: "All features, 1 shop.",
+    features: ["Walk-in POS and order board", "Sales Record", "Public customer tickets"],
     planSource: "subscription",
   },
   {
     id: "lifetime",
     tier: "paid",
-    title: "Lifetime unlock",
+    title: "Lifetime · 1–5 locations",
     priceCentavos: LIFETIME_UNLOCK_CENTAVOS,
-    priceLabel: "₱10,000",
+    wasLabel: peso(LIFETIME_UNLOCK_WAS_CENTAVOS),
+    priceLabel: peso(LIFETIME_UNLOCK_CENTAVOS),
     period: "one-time",
-    blurb: "Pay once — unlock the full Paid app forever. Same features as Paid.",
-    features: [
-      "All Paid features, no monthly bill",
-      "Keeps working if we raise the monthly price later",
-    ],
+    blurb: "Pay once. All Pro features, no monthly bill.",
+    features: ["All Pro features", "Up to 5 locations"],
+    planSource: "lifetime",
+  },
+  {
+    id: "lifetime_multi",
+    tier: "paid",
+    title: "Lifetime · 5+ locations",
+    priceCentavos: LIFETIME_MULTI_CENTAVOS,
+    wasLabel: peso(LIFETIME_MULTI_WAS_CENTAVOS),
+    priceLabel: peso(LIFETIME_MULTI_CENTAVOS),
+    period: "one-time",
+    blurb: "Pay once. All Pro features, no monthly bill.",
+    features: ["All Pro features", "More than 5 locations"],
     planSource: "lifetime",
   },
 ];
@@ -105,10 +122,10 @@ export function isPaidShop(tier: Tier): boolean {
 
 export function planLabel(tier: Tier, planSource?: PlanSource): string {
   if (tier !== "paid") return "Partner";
-  if (planSource === "lifetime") return "Paid · Lifetime";
-  if (planSource === "demo") return "Paid · Demo";
-  if (planSource === "subscription") return "Paid · Monthly";
-  return "Paid";
+  if (planSource === "lifetime") return "Pro · Lifetime";
+  if (planSource === "demo") return "Pro · Demo";
+  if (planSource === "subscription") return "Pro · Monthly";
+  return "Pro";
 }
 
 /** Calendar month from now (Manila-ish: +30 days is fine for demo expiry). */

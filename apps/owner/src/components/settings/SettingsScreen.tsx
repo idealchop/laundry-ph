@@ -58,7 +58,7 @@ const SHOP_LISTING_LINK = { href: "/partner/shop", icon: Store, title: "Shop lis
 
 const HUB_LINKS = [
   { href: "/profile/services", icon: Package, title: "Services", subtitle: "Products, prices and POS catalog" },
-  { href: "/settings/billing", icon: CreditCard, title: "Plan & billing", subtitle: `Partner free · Paid ${PAID_PER_MO} · Lifetime` },
+  { href: "/settings/billing", icon: CreditCard, title: "Plan & billing", subtitle: `Partner · Pro ${PAID_PER_MO} · Lifetime` },
 ] as const;
 
 /** Shop profile hub: Oceanus header, Credits, Features, Edit shop, setup links, logout. */

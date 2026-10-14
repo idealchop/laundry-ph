@@ -105,11 +105,11 @@ export const TERMS: LegalDoc = {
       title: "7. Plans, billing, cancellation and refunds",
       blocks: [
         { list: [
-          `<b>Partner (free):</b> a shop listing for ${E.marketplace}, incoming bookings, scanning customers and booking history.`,
-          "<b>Paid (₱499/month):</b> everything in Partner plus the walk-in POS and order board, sales records and public customer tickets. Billed monthly in advance and renews automatically until you cancel.",
-          "<b>One-time unlock (₱10,000):</b> a single payment that unlocks the Paid features for as long as the Services are offered, without a monthly bill.",
+          `<b>Partner:</b> the entry plan: a shop listing for ${E.marketplace}, incoming bookings, scanning customers and booking history.`,
+          "<b>Pro (₱499/month, regularly ₱950):</b> all features for 1 shop: everything in Partner plus the walk-in POS and order board, sales records and public customer tickets. Billed monthly in advance and renews automatically until you cancel.",
+          "<b>Lifetime (₱10,000 one-time for 1–5 locations, regularly ₱18,000; ₱20,000 one-time for 5+ locations, regularly ₱35,000):</b> a single payment that unlocks the Pro features for as long as the Services are offered, without a monthly bill.",
           "Payments are processed by PayMongo (cards, GCash, Maya and other methods offered). River does not store your full card number. Prices include VAT where applicable and are shown before you pay.",
-          "You can cancel the Paid plan anytime in Settings → Plans. Cancellation takes effect at the end of the current billing period; your shop then returns to Partner and your records stay available.",
+          "You can cancel the Pro plan anytime in Settings → Plans. Cancellation takes effect at the end of the current billing period; your shop then returns to Partner and your records stay available.",
           "Fees already paid are not pro-rated or refunded, except where the law requires it or a charge was made in error. Contact us within 7 days about a billing error.",
           "We may change plan prices or features with at least 30 days' notice in the app. A price change applies from your next billing period.",
         ] },

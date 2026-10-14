@@ -16,7 +16,7 @@ const PILL = "relative h-8 gap-1 rounded-pill px-2.5 text-[12px] after:absolute 
 export interface HomeHeroProps {
   shop: Shop;
   today: DaySummary;
-  /** Paid shops record walk-ins at the counter; Partner (free) shops don't. Default true. */
+  /** Paid shops record walk-ins at the counter; Partner shops don't. Default true. */
   showWalkIn?: boolean;
   className?: string;
 }

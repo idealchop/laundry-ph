@@ -29,7 +29,7 @@ export function PartnerShopScreen() {
             <b className="text-[18px]">{shop.name}</b>
             <p className="mt-0.5 text-[13.5px] font-medium text-muted">{shop.area || "Area not set"}</p>
           </div>
-          <Badge variant={shop.tier === "paid" ? "solid" : "soft"}>{shop.tier === "paid" ? "Paid shop" : "Partner"}</Badge>
+          <Badge variant={shop.tier === "paid" ? "solid" : "soft"}>{shop.tier === "paid" ? "Pro shop" : "Partner"}</Badge>
         </div>
 
         {address ? (

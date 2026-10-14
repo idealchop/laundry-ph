@@ -9,7 +9,7 @@ import { Check, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Badge, Button, Card, Topbar } from "@river-apps/ui";
 import { money } from "@/lib/format";
-import { PLAN_OPTIONS, monthlyExpiryFrom, planLabel, type PlanOptionId } from "@/lib/plans";
+import { PLAN_OPTIONS, monthlyExpiryFrom, planLabel, type PlanOptionId, isLifetimeOption } from "@/lib/plans";
 import { useAuthGatePrompt } from "@/components/auth/AuthGateProvider";
 import { useAction, useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
@@ -17,7 +17,7 @@ import { ShellBack } from "../shell/PageBack";
 import { ErrorNote } from "../ui";
 
 export function BillingScreen() {
-  useAuthGatePrompt({ promptOnMount: true, subtitle: "Sign in to choose a plan and unlock Paid features." });
+  useAuthGatePrompt({ promptOnMount: true, subtitle: "Sign in to choose a plan and unlock Pro features." });
   const { shop, member, source, reload } = useShop();
   const { busy, error, run, setError } = useAction();
   const [note, setNote] = useState<string | null>(null);
@@ -36,7 +36,7 @@ export function BillingScreen() {
         return true;
       }, "Sign in to change your plan.");
       if (ok) {
-        setNote("Switched to Partner (free). Paid screens are locked until you upgrade again.");
+        setNote("Switched to Partner. Pro screens are locked until you upgrade again.");
         reload();
       }
       return;
@@ -60,16 +60,16 @@ export function BillingScreen() {
       }
       await s.setShopPlan({
         tier: "paid",
-        planSource: id === "lifetime" ? "lifetime" : "demo",
-        planExpiresAt: id === "lifetime" ? null : monthlyExpiryFrom(),
+        planSource: isLifetimeOption(id) ? "lifetime" : "demo",
+        planExpiresAt: isLifetimeOption(id) ? null : monthlyExpiryFrom(),
       });
       return true;
     }, "Sign in to upgrade your plan.");
     if (ok) {
       setNote(
-        id === "lifetime"
-          ? "Demo unlock: Lifetime Paid is active on this shop (₱10,000 one-time assumption)."
-          : "Demo unlock: Paid monthly is active for ~30 days. Wire PayMongo to charge for real.",
+        isLifetimeOption(id)
+          ? `Demo unlock: ${opt.title} is active on this shop (${opt.priceLabel} one-time).`
+          : "Demo unlock: Pro monthly is active for ~30 days. Wire PayMongo to charge for real.",
       );
       reload();
     }
@@ -81,7 +81,7 @@ export function BillingScreen() {
         className="px-1"
         leading={<ShellBack />}
         title="Plan & billing"
-        subtitle={<>How you get paid access to Laundry.ph <SampleNote className="ml-1 align-middle" /></>}
+        subtitle={<>Partner, Pro or Lifetime <SampleNote className="ml-1 align-middle" /></>}
       />
 
       <Card className="mt-4 px-4 py-3.5">
@@ -95,21 +95,21 @@ export function BillingScreen() {
                   ? "Lifetime unlock — no renewal date"
                   : shop.planExpiresAt
                     ? `Demo/monthly access until ${new Date(shop.planExpiresAt).toLocaleDateString("en-PH", { timeZone: "Asia/Manila" })}`
-                    : "Paid features unlocked"
-                : "Partner (free) — River Mobile bookings and scan only"}
+                    : "Pro features unlocked"
+                : "Partner — River Mobile bookings and scan"}
             </p>
           </div>
-          <Badge variant={shop.tier === "paid" ? "solid" : "soft"}>{shop.tier === "paid" ? "Paid" : "Partner"}</Badge>
+          <Badge variant={shop.tier === "paid" ? "solid" : "soft"}>{shop.tier === "paid" ? "Pro" : "Partner"}</Badge>
         </div>
       </Card>
 
       {readOnlySample ? (
         <p className="mt-3 rounded-tile bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-muted">
-          The shared demo shop stays on Paid sample data. Create your own shop to try Partner ↔ Paid upgrades.
+          The shared demo shop stays on Pro sample data. Create your own shop to try Partner ↔ Pro upgrades.
         </p>
       ) : null}
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {PLAN_OPTIONS.map((opt) => {
           const active =
             (opt.id === "partner" && shop.tier === "partner") ||
@@ -121,9 +121,12 @@ export function BillingScreen() {
                 <b className="text-[17px]">{opt.title}</b>
                 {opt.id === "paid_monthly" ? <Sparkles size={18} className="text-ink" /> : null}
               </div>
-              <p className="mt-2 text-[28px] font-extrabold tracking-[-0.03em] leading-none">
-                {opt.priceCentavos === 0 ? "FREE" : money(opt.priceCentavos)}
-              </p>
+              {opt.priceLabel ? (
+                <p className="mt-2 flex items-baseline gap-2 leading-none">
+                  {opt.wasLabel ? <s className="text-[15px] font-semibold text-muted">{opt.wasLabel}</s> : null}
+                  <span className="text-[28px] font-extrabold tracking-[-0.03em]">{opt.priceLabel}</span>
+                </p>
+              ) : null}
               <p className="mt-1 text-[13px] font-semibold text-muted">{opt.period}</p>
               <p className="mt-2 text-[13.5px] font-medium text-ink-2">{opt.blurb}</p>
               <ul className="mt-3 flex flex-1 flex-col gap-1.5">
@@ -152,13 +155,7 @@ export function BillingScreen() {
       <Card className="mt-4 px-4 py-3.5">
         <b className="text-[15px]">Payments</b>
         <p className="mt-1 text-[13.5px] font-medium text-muted">
-          Live PayMongo checkout is not configured in this build (no secret keys). Choosing Paid or Lifetime uses the{" "}
-          <b>demo/test upgrade</b> path: it writes <code className="font-mono text-[12.5px]">tier</code> on your shop in
-          Firestore so you can QA gating. The webhook stub is at <code className="font-mono text-[12.5px]">POST /api/billing/webhook</code>.
-        </p>
-        <p className="mt-2 text-[13px] font-medium text-muted">
-          Assumption: the ₱10,000 one-time payment unlocks the full Paid feature set forever (same entitlements as monthly
-          Paid; not a separate product). Documented in README.
+          PayMongo checkout isn’t live yet. Choosing Pro or Lifetime applies a demo upgrade so you can try it.
         </p>
       </Card>
 

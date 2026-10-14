@@ -40,7 +40,7 @@ export function FeatureList({ tier, className }: { tier: Tier; className?: strin
                 {row(<Badge variant="soft" size="sm">Included</Badge>)}
               </Link>
             ) : (
-              row(<Button href="/settings/billing" size="xs" pill className="whitespace-nowrap" aria-label={`Upgrade to Paid for ${f.title}, ${PAID_PER_MO}`}>Upgrade · {PAID_PER_MO}</Button>)
+              row(<Button href="/settings/billing" size="xs" pill className="whitespace-nowrap" aria-label={`Upgrade to Pro for ${f.title}, ${PAID_PER_MO}`}>Upgrade · {PAID_PER_MO}</Button>)
             )}
           </li>
         );
@@ -62,7 +62,7 @@ export function FeaturesScreen() {
         <p className="px-1 text-[13px] font-medium leading-snug text-muted">
           {isPaidShop(shop.tier)
             ? "Walk-in POS is included in your plan."
-            : `Partner is free for River Mobile bookings. Paid adds the walk-in POS for ${PAID_PER_MONTH}.`}
+            : `Partner covers River Mobile bookings. Pro adds the walk-in POS for ${PAID_PER_MONTH}.`}
         </p>
       </div>
     </>
