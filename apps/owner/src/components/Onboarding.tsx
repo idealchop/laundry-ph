@@ -5,7 +5,7 @@ import { useState, type FormEvent } from "react";
 import { createShop, joinDemoShop } from "@/data/membership";
 import type { Shop } from "@/data";
 import { signOut, useAuth } from "@/lib/auth";
-import { useAction } from "@/lib/shop";
+import { firestoreErrorMessage } from "@/data/firebase-source";
 import { AuthScreen } from "./AuthScreen";
 import { LaundryBrand, LaundryScene } from "./brand";
 import { ErrorNote } from "./ui";
@@ -13,7 +13,24 @@ import { ErrorNote } from "./ui";
 /** First sign-in: create your shop, or (dev only) open the seeded demo shop. */
 export function Onboarding({ demoShop, onDone }: { demoShop: Pick<Shop, "id" | "name" | "area"> | null; onDone: () => void }) {
   const { user } = useAuth();
-  const { busy, error, run } = useAction();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // The user is already signed in here and has no shop yet, so there is no shop data source to wait for
+  // (useAction would time out with "your shop is still opening"). Write directly.
+  async function run(fn: () => Promise<unknown>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+      return true;
+    } catch (err) {
+      setError(firestoreErrorMessage(err));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
   const [name, setName] = useState("");
   const [area, setArea] = useState("");
   const [ownerName, setOwnerName] = useState(user?.displayName?.split(" ")[0] ?? "");
@@ -21,20 +38,12 @@ export function Onboarding({ demoShop, onDone }: { demoShop: Pick<Shop, "id" | "
   async function create(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
-    const ok = await run(async (source) => {
-      void source;
-      await createShop(user!, { name, area, ownerName });
-      return true;
-    }, "Sign in to create your shop.");
+    const ok = await run(() => createShop(user, { name, area, ownerName }));
     if (ok) onDone();
   }
   async function joinDemo() {
     if (!user || !demoShop) return;
-    const ok = await run(async (source) => {
-      void source;
-      await joinDemoShop(user!, demoShop.id);
-      return true;
-    }, "Sign in to open the demo shop.");
+    const ok = await run(() => joinDemoShop(user, demoShop.id));
     if (ok) onDone();
   }
 
