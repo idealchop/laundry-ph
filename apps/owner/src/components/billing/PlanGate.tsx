@@ -33,7 +33,7 @@ export function PlanGate({ children }: { children: ReactNode }) {
           : pathname.startsWith("/history")
             ? "History"
           : pathname.startsWith("/community")
-            ? "Community"
+            ? "Moments"
             : pathname.startsWith("/profile")
               ? "Profile"
               : pathname.startsWith("/qr")

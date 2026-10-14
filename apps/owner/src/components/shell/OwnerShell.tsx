@@ -11,7 +11,7 @@ import { PlanGate } from "../billing/PlanGate";
 import { WideSidebar } from "../kit-extensions";
 import { OwnerTabBar } from "./OwnerTabBar";
 import {
-  activeKeyFor, PAID_NAV, PAID_TABS, PARTNER_NAV, PARTNER_TABS,
+  activeKeyFor, PAID_NAV, PAID_TABS, PAID_TAB_ICONS, PARTNER_NAV, PARTNER_TABS,
 } from "./nav";
 
 /** Routes that take over the phone screen (own back button and bottom action, no tab bar). */
@@ -53,7 +53,7 @@ export function OwnerShell({ children }: { children: ReactNode }) {
   return (
     <AppShell
       sidebar={
-        <WideSidebar
+        <WideSidebar icons3d={PAID_TAB_ICONS}
           className="sticky top-0 h-dvh"
           brand={<Link href={homeHref} aria-label="Laundry.ph home"><LaundryBrand /></Link>}
           items={items}

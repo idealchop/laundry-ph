@@ -124,7 +124,7 @@ export const TERMS: LegalDoc = {
           "Do not create fake shops, bookings, orders or reviews, and do not misrepresent your services or prices.",
           "Do not misuse, copy, reverse-engineer, scrape or interfere with the Services, or try to get around security, plans or payments.",
           "Do not use customer contact details for spam or for anything other than serving that customer, and do not harass customers, riders or other users.",
-          "Community posts must be honest and respectful. Do not post illegal, hateful, misleading or sexual content, personal data of others, or spam.",
+          "Posts in Moments must be honest and respectful. Do not post illegal, hateful, misleading or sexual content, personal data of others, or spam.",
         ] },
       ],
     },
@@ -270,7 +270,7 @@ export const PRIVACY: LegalDoc = {
         { list: [
           "Account and shop data: while your account is active.",
           "Orders, bookings, sales and payment records: 10 years, as required for tax and accounting records under the National Internal Revenue Code (NIRC), then deleted or anonymised.",
-          "Community posts: until you delete them or your account.",
+          "Posts in Moments: until you delete them or your account.",
           "After your account is closed we remove or anonymise personal data within 30 days, except records we must keep by law.",
         ] },
       ],

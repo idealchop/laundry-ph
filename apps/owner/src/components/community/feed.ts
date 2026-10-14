@@ -65,7 +65,7 @@ export function useCommunityFeed() {
     const text = p.body ? `${p.author.name}: ${p.body.slice(0, 140)}` : `Post by ${p.author.name}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: "Laundry.ph Community", text, url });
+        await navigator.share({ title: "Laundry.ph Moments", text, url });
         return;
       }
       await navigator.clipboard.writeText(url);

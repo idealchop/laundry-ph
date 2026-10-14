@@ -201,7 +201,7 @@ export function resolveProfile(handle: string, me: PostAuthor, opts?: { hasPin?:
   return {
     ...author,
     handle: key,
-    bio: copy?.bio ?? (author.meta ? `Laundry shop in ${author.meta}.` : "On Laundry.ph Community."),
+    bio: copy?.bio ?? (author.meta ? `Laundry shop in ${author.meta}.` : "On Laundry.ph Moments."),
     followers: copy?.followers ?? 120,
     rating: copy && copy.rating > 0 ? copy.rating : null,
   };

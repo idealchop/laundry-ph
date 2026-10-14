@@ -1,6 +1,16 @@
 import { BubbleGraphic, FoldedClothesIcon, LaundryBasketIcon, WasherIcon } from "@river-apps/icons";
 import { LogoMark } from "@river-apps/ui";
 
+/** River icon (vector, brand file river-mark-white.svg) on the app's black tile. Crisp at any DPR. */
+export function RiverMark({ size = 34 }: { size?: number }) {
+  return (
+    <LogoMark size={size}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- static SVG asset, no optimisation needed */}
+      <img src="/brand/river-mark-white.svg" alt="" width={Math.round(size * 0.68)} height={Math.round(size * 0.36)} style={{ width: "68%", height: "auto" }} />
+    </LogoMark>
+  );
+}
+
 /** White washer-door glyph for the kit LogoMark. */
 export function DoorGlyph() {
   return (
@@ -16,7 +26,7 @@ export function DoorGlyph() {
 export function LaundryBrand({ size = 34, className = "" }: { size?: number; className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
-      <LogoMark size={size}><DoorGlyph /></LogoMark>
+      <RiverMark size={size} />
       <span className="text-[19px] font-extrabold tracking-[-0.02em] text-ink">
         Laundry<span className="font-semibold text-subtle">.ph</span>
       </span>

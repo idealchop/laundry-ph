@@ -14,13 +14,13 @@ export function CommunityScreen() {
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-[max(0.75rem,env(safe-area-inset-top))] lg:max-w-[640px] lg:px-[30px] lg:pt-6">
-      <h1 className="sr-only">Community</h1>
+      <h1 className="sr-only">Moments</h1>
       <div className="border-b border-line">
         <Composer me={feed.me} onPost={feed.post} leading={<ShellBack />} />
       </div>
 
       <div>
-        <ul className="divide-y divide-line" aria-label="Community posts">
+        <ul className="divide-y divide-line" aria-label="Moments posts">
           {feed.posts.map((p) => (
             <li key={p.id} id={p.id} className="scroll-mt-20">
               <PostCard

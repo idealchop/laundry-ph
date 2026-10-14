@@ -14,7 +14,7 @@ type Props = {
 };
 
 /**
- * Mobile tab bar — icon-only (Home · Orders · Community).
+ * Mobile tab bar — icon-only (Home · Orders · Moments).
  * Active/inactive is icon opacity/contrast only; no label, no grey pill.
  */
 export function OwnerTabBar({ items, activeKey, use3d = true, label = "Main" }: Props) {

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LaundryBrand } from "@/components/brand";
 /**
  * Bottom sheet sign-in — mirrors River Mobile AuthGateSheet.
  * Two-step: method list → chosen method (phone form / OTP). Guest can dismiss.
@@ -113,6 +114,7 @@ function AuthGateSheetOpen({
           <X size={16} strokeWidth={2.2} />
         </button>
         <div className="max-h-[min(70dvh,560px)] overflow-y-auto px-5 pb-6 pt-5">
+          <LaundryBrand size={28} className="mb-4" />
           <h2 id="laundry-auth-gate-title" className="pr-10 text-[24px] font-extrabold leading-[1.15] tracking-[-0.025em]">
             {step === "phone" ? "Your mobile number" : step === "code" ? "Enter the code" : "Sign up or log in"}
           </h2>
