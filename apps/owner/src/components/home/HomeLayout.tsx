@@ -6,6 +6,7 @@ import type { Booking, DaySummary, Shop } from "@/data";
 import { money } from "@/lib/format";
 import { ownerFirstName } from "@/lib/greeting";
 import { PAID_PER_MO } from "@/lib/plans";
+import { CompanionCard } from "../companion/CompanionCard";
 import { BookingCard } from "../bookings/BookingCard";
 import { TestBookingButton, useBookingActions } from "../bookings/BookingsList";
 import { Greeting } from "../Greeting";
@@ -109,6 +110,7 @@ export function HomeLayout(p: HomeLayoutProps) {
         <Greeting name={ownerFirstName(shop.ownerName) || shop.name} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} />
         <HomeHeroMobile shop={shop} today={today} showWalkIn={canWalkIn} />
         <Stats today={today} className="mx-4 mt-3" />
+        <CompanionCard className="mx-4 mt-3" />
         <SectionHeader className="px-4 pb-1 pt-4" title="Pickups to accept" aside={pickupsAside} />
         <div className="mx-4">{pickups(3, false)}</div>
         {p.footer ? <div className="mx-4 mt-3">{p.footer}</div> : null}
@@ -122,6 +124,7 @@ export function HomeLayout(p: HomeLayoutProps) {
           <DailyTarget today={today} />
         </div>
         <Stats today={today} className="mt-5" />
+        <CompanionCard className="mt-5" />
         <Card padding="none" className="mt-5 px-[18px] pb-4 pt-4">
           <CardHeader className="mb-3" title="Pickups to accept" subtitle={pickupsAside} action={<Link href={p.onlineHref} className={linkCls}>All bookings</Link>} />
           {pickups(4, true)}

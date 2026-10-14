@@ -15,6 +15,7 @@ rules_version = '2';
 //   shops/{shopId}/bookings/{bookingId} River Mobile bookings: created ONLY by the Partner API (Admin SDK);
 //                                       members accept / decline / mark received / complete / convert / cancel
 //   booking_refs/{bookingId}            { shopId } lookup for the Partner API (Admin SDK only, no client access)
+//   shops/{shopId}/companion/**, insights/{weekId}   AI Companion (functions write, owner reads)
 //   public_tickets/{ticketId}           public-safe projection: anyone may GET one by its unguessable id, nobody may LIST
 //
 // Least privilege: shop data is readable/writable only by active members; field lists are
@@ -207,6 +208,18 @@ service cloud.firestore {
           && request.resource.data.get('tag', null) in [null, 'Member', 'Regular', 'New']
           && request.resource.data.updatedAt == request.time;
         allow delete: if false;
+      }
+
+      // AI Companion (Cloud Functions / Admin SDK write everything; owner read only).
+      //   companion/goal, companion/usage-*, companion/refresh, companion/chat/messages/{id}
+      //   insights/{weekId}  weekly tips (Partner docs only ever contain the 1 teaser tip)
+      match /companion/{document=**} {
+        allow read: if isOwner(shopId);
+        allow write: if false;
+      }
+      match /insights/{weekId} {
+        allow read: if isOwner(shopId);
+        allow write: if false;
       }
 
       match /meta/{docId} {

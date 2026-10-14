@@ -1,0 +1,23 @@
+{
+  "name": "laundry-ph-functions",
+  "private": true,
+  "description": "Laundry.ph AI Companion (callable chat + Monday tips). Standalone, not shared with other River apps.",
+  "main": "lib/index.js",
+  "type": "module",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^9.3.1",
+    "@google/genai": "^2.29.1",
+    "firebase-admin": "^14.5.0",
+    "firebase-functions": "^7.4.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
