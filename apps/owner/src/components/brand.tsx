@@ -1,13 +1,11 @@
 import { BubbleGraphic, FoldedClothesIcon, LaundryBasketIcon, WasherIcon } from "@river-apps/icons";
-import { LogoMark } from "@river-apps/ui";
 
-/** River icon (vector, brand file river-mark-white.svg) on the app's black tile. Crisp at any DPR. */
+/** River mark (vector, brand file river-mark-black.svg), black, no tile. Crisp at any DPR. */
 export function RiverMark({ size = 34 }: { size?: number }) {
+  const w = Math.round(size * 1.15);
   return (
-    <LogoMark size={size}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- static SVG asset, no optimisation needed */}
-      <img src="/brand/river-mark-white.svg" alt="" width={Math.round(size * 0.68)} height={Math.round(size * 0.36)} style={{ width: "68%", height: "auto" }} />
-    </LogoMark>
+    // eslint-disable-next-line @next/next/no-img-element -- static SVG asset, no optimisation needed
+    <img src="/brand/river-mark-black.svg" alt="" aria-hidden width={w} height={Math.round(w * 0.523)} className="block shrink-0" style={{ width: w, height: "auto" }} />
   );
 }
 
