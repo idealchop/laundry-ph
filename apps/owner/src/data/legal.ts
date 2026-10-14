@@ -9,7 +9,7 @@ export type LegalSection = { id: string; title: string; blocks: LegalBlock[] };
 export type LegalDoc = { slug: "terms" | "privacy"; title: string; effective: string; intro: string[]; sections: LegalSection[] };
 
 export const LEGAL_ENTITY = {
-  company: "River Tech Inc.",
+  company: "River Technology Inc.",
   brand: "River Apps",
   app: "Laundry.ph",
   marketplace: "River Mobile",
