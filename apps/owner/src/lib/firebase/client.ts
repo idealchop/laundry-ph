@@ -1,5 +1,13 @@
 import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
-import { connectAuthEmulator, getAuth, type Auth } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  connectAuthEmulator,
+  getAuth,
+  indexedDBLocalPersistence,
+  initializeAuth,
+  type Auth,
+} from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { firebaseWebConfig, firestoreDatabaseId, hasFirebaseWebConfig } from "./config";
@@ -36,7 +44,17 @@ export function getDb(): Firestore {
 
 export function getFirebaseAuth(): Auth {
   if (auth) return auth;
-  auth = getAuth(getFirebaseApp());
+  // Stay signed in across reloads, restarts and days: local storage first, IndexedDB as fallback.
+  // The SDK migrates a user saved under either persistence, so existing sessions carry over.
+  const firebaseApp = getFirebaseApp();
+  try {
+    auth = initializeAuth(firebaseApp, {
+      persistence: [browserLocalPersistence, indexedDBLocalPersistence],
+      popupRedirectResolver: browserPopupRedirectResolver,
+    });
+  } catch {
+    auth = getAuth(firebaseApp); // already initialized (HMR)
+  }
   auth.languageCode = "en";
   if (useEmulators) connectAuthEmulator(auth, `http://${emulatorHost}:${authEmulatorPort}`, { disableWarnings: true });
   // Dev / test phone numbers: skip reCAPTCHA hang in headless and App Hosting preview.

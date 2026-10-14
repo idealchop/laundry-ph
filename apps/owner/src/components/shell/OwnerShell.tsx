@@ -1,10 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { AppShell, Button } from "@river-apps/ui";
-import { useAuthGate } from "@/components/auth/AuthGateProvider";
-import { useAuth } from "@/lib/auth";
 import { useShop } from "@/lib/shop";
 import { PAID_PER_MONTH, planLabel } from "@/lib/plans";
 import { LaundryBrand } from "../brand";
@@ -42,9 +40,6 @@ export function OwnerShell({ children }: { children: ReactNode }) {
       : pathname === "/sales" || pathname.startsWith("/sales/")
         ? "/home"
         : pathname;
-  const { user, loading } = useAuth();
-  const { openAuthCta, isAuthenticated } = useAuthGate();
-  const authPrompted = useRef(false);
   const isPaid = shop.tier === "paid";
   // Partner shops always use Partner chrome. Paid shops use Paid chrome, except while browsing /partner/*.
   const usePartnerChrome = !isPaid || pathname === "/partner" || pathname.startsWith("/partner/");
@@ -54,13 +49,6 @@ export function OwnerShell({ children }: { children: ReactNode }) {
   const pathForNav = usePartnerChrome ? pathname : paidPath;
   const tabKey = activeKeyFor(tabs, pathForNav) ?? (usePartnerChrome ? "home" : "");
   const homeHref = !isPaid ? "/partner" : "/home";
-
-  // Open sliding login sheet once per session when entering owner app without a Firebase user.
-  useEffect(() => {
-    if (loading || authPrompted.current || user || isAuthenticated) return;
-    authPrompted.current = true;
-    openAuthCta("Sign in to sync your shop and save changes.");
-  }, [loading, user, isAuthenticated, openAuthCta]);
 
   return (
     <AppShell
