@@ -6,7 +6,7 @@ export interface WideSidebarProps extends SidebarProps {
   /** "default" = kit width (244px); "wide" = 268px, enough for labels like "Message Automations" plus a badge. */
   size?: "default" | "wide";
   /** 3D icon per nav key (same assets as the mobile tab bar). Items without one use item.icon. */
-  icons3d?: Record<string, IconName>;
+  icons3d?: Partial<Record<string, IconName>>;
 }
 
 /**
