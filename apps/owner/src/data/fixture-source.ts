@@ -1,3 +1,5 @@
+import { dayKey } from "@/lib/format";
+import { PARTNER_WALKINS_PER_DAY, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 /**
  * In-memory LaundryDataSource over the sample fixtures. Fully interactive (create orders,
  * move statuses, add customers). Shop data resets on reload; bookings sent from the public
@@ -82,6 +84,7 @@ export function createFixtureDataSource(): LaundryDataSource {
     getPickupRequests: async () => fx.pickupRequests,
     getVerifiedBooking: async (ref) => (!ref || ref === fx.verifiedBooking.ref ? fx.verifiedBooking : null),
     getCatalog: async () => structuredClone(store.catalog),
+    getWalkInsToday: async () => store.orders.filter((o) => o.source === "walk-in" && dayKey(o.createdAt) === dayKey(Date.now())).length,
     getGrowthTip: async () => fx.growthTip,
     async updateCatalog(next) {
       if (!next.services?.length) throw new Error("Add at least one service.");
@@ -132,6 +135,7 @@ export function createFixtureDataSource(): LaundryDataSource {
     },
     async createWalkInOrder(input) {
       const now = Date.now();
+      if (!input.bookingId && store.shop.tier !== "paid" && store.orders.filter((o) => o.source === "walk-in" && dayKey(o.createdAt) === dayKey(now)).length >= PARTNER_WALKINS_PER_DAY) throw new Error(WALKIN_LIMIT_MESSAGE);
       const booking = input.bookingId ? store.bookings.find((b) => b.id === input.bookingId) : undefined;
       if (input.bookingId && (!booking || (booking.status !== "requested" && booking.status !== "accepted" && booking.status !== "received"))) {
         throw new Error(booking?.status === "converted" ? "This booking is already an order." : "This booking can’t be turned into an order.");

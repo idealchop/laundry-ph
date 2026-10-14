@@ -15,6 +15,7 @@ rules_version = '2';
 //   shops/{shopId}/bookings/{bookingId} River Mobile bookings: created ONLY by the Partner API (Admin SDK);
 //                                       members accept / decline / mark received / complete / convert / cancel
 //   booking_refs/{bookingId}            { shopId } lookup for the Partner API (Admin SDK only, no client access)
+//   shops/{shopId}/usage/{yyyy-MM-dd}  { walkIns } daily walk-in counter (Partner cap 10/day, rules-enforced)
 //   shops/{shopId}/companion/**, insights/{weekId}   AI Companion (functions write, owner reads)
 //   public_tickets/{ticketId}           public-safe projection: anyone may GET one by its unguessable id, nobody may LIST
 //
@@ -60,6 +61,24 @@ service cloud.firestore {
     }
     function shortString(v, max) {
       return v is string && v.size() <= max;
+    }
+    // Manila calendar day "yyyy-MM-dd" (UTC+8, no DST) for the daily walk-in counter.
+    function pad2(n) {
+      return n < 10 ? '0' + string(n) : string(n);
+    }
+    function manilaDay() {
+      let t = request.time + duration.value(8, 'h');
+      return string(t.year()) + '-' + pad2(t.month()) + '-' + pad2(t.day());
+    }
+    function usagePath(shopId, day) {
+      return /databases/$(database)/documents/shops/$(shopId)/usage/$(day);
+    }
+    // Partner: max 10 walk-ins per Manila day. The same write must bump usage/{today}.walkIns by exactly one.
+    // Pro / Lifetime (tier 'paid'): unlimited.
+    function walkInAllowed(shopId) {
+      let before = exists(usagePath(shopId, manilaDay())) ? get(usagePath(shopId, manilaDay())).data.walkIns : 0;
+      let after = getAfter(usagePath(shopId, manilaDay())).data.walkIns;
+      return get(shopPath(shopId)).data.tier == 'paid' || (after == before + 1 && after <= 10);
     }
     function bookingPath(shopId, bookingId) {
       return /databases/$(database)/documents/shops/$(shopId)/bookings/$(bookingId);
@@ -156,7 +175,7 @@ service cloud.firestore {
           ])
           && request.resource.data.status == 'received'
           && (
-            (request.resource.data.source == 'walk-in' && !('bookingId' in request.resource.data))
+            (request.resource.data.source == 'walk-in' && !('bookingId' in request.resource.data) && walkInAllowed(shopId))
             // Converted River Mobile booking: the same batch must flip that booking to converted → this order.
             || (request.resource.data.source == 'river-mobile'
               && request.resource.data.bookingId is string
@@ -220,6 +239,18 @@ service cloud.firestore {
       match /insights/{weekId} {
         allow read: if isOwner(shopId);
         allow write: if false;
+      }
+
+      // Daily walk-in counter (Manila day id). Only today's doc, only +1 per write, never deleted.
+      match /usage/{day} {
+        allow read: if isMember(shopId);
+        allow create: if isMember(shopId) && day == manilaDay()
+          && request.resource.data.keys().hasOnly(['walkIns', 'updatedAt'])
+          && request.resource.data.walkIns == 1;
+        allow update: if isMember(shopId) && day == manilaDay()
+          && request.resource.data.keys().hasOnly(['walkIns', 'updatedAt'])
+          && request.resource.data.walkIns == resource.data.walkIns + 1;
+        allow delete: if false;
       }
 
       match /meta/{docId} {

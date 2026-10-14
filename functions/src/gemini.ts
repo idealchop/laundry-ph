@@ -1,13 +1,13 @@
 import { GoogleGenAI, type Content, type FunctionDeclaration, type GenerateContentResponse } from "@google/genai";
 
-export const MODEL = process.env.COMPANION_MODEL || "gemini-2.5-flash-lite";
-/** USD per 1M tokens (Vertex AI list price for the flash-lite tier). */
-const PRICE_IN = 0.1, PRICE_OUT = 0.4;
+export const MODEL = process.env.COMPANION_MODEL || "gemini-2.5-flash";
+/** USD per 1M tokens, Vertex AI list price for gemini-2.5-flash (text in / out incl. thinking). */
+const PRICE_IN = 0.3, PRICE_OUT = 2.5;
 export const USD_PHP = 58;
 
 let _ai: GoogleGenAI | null = null;
 function ai(): GoogleGenAI {
-  if (!_ai) _ai = new GoogleGenAI({ vertexai: true, project: process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || "mylaundryph", location: process.env.COMPANION_VERTEX_LOCATION || "global" });
+  if (!_ai) _ai = new GoogleGenAI({ vertexai: true, project: process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || "mylaundryph", location: process.env.COMPANION_VERTEX_LOCATION || "asia-southeast1" });
   return _ai;
 }
 
@@ -29,6 +29,8 @@ export async function generate(system: string, contents: Content[], tools?: Func
       systemInstruction: system,
       temperature: 0.6,
       maxOutputTokens: 1024,
+      // No thinking budget: short owner answers, keeps cost and latency down.
+      thinkingConfig: { thinkingBudget: 0 },
       ...(tools?.length ? { tools: [{ functionDeclarations: tools }] } : {}),
       ...(json ? { responseMimeType: "application/json" } : {}),
     },

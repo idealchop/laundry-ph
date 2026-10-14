@@ -24,6 +24,7 @@ import {
 import { getDb, getFirebaseAuth } from "@/lib/firebase/client";
 import { BOOKING_DONE, BOOKING_OPEN, BOOKING_STATUSES, sortOpenBookings } from "@/lib/bookings";
 import { dayKey } from "@/lib/format";
+import { walkInLimit, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 import { SHOP_ABOUT_MAX } from "@/lib/shop-about";
 import { avatarFor, buildWalkInOrder, formatRef, makeTicketId, nextStatus, previousStatus, ticketStage, toPublicTicket } from "@/lib/orders";
 import {
@@ -349,6 +350,10 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
       };
     },
     getCatalog,
+    async getWalkInsToday() {
+      const snap = await getDoc(doc(db(), "shops", shopId, "usage", dayKey(Date.now())));
+      return snap.exists() ? Number(snap.data().walkIns ?? 0) : 0;
+    },
     async getGrowthTip() {
       const m = await meta<{ tip?: GrowthTip }>("growth");
       return m?.tip ?? null;
@@ -388,6 +393,11 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
       return runTransaction(database, async (tx) => {
         const countersRef = metaRef("counters");
         const counters = await tx.get(countersRef);
+        // Partner: 10 walk-ins per Manila day. The rules check the same counter doc, so no client can skip it.
+        const usageRef = doc(database, "shops", shopId, "usage", dayKey(Date.now()));
+        const usageSnap = input.bookingId ? null : await tx.get(usageRef);
+        const walkInsToday = usageSnap?.exists() ? Number(usageSnap.data().walkIns ?? 0) : 0;
+        if (usageSnap && walkInsToday >= walkInLimit(shop.tier)) throw new Error(WALKIN_LIMIT_MESSAGE);
         const requestedCustomerId = input.customer.id ?? null;
         const customerSnap = requestedCustomerId ? await tx.get(doc(customersCol(), requestedCustomerId)) : null;
         const bookingRef = input.bookingId ? doc(bookingsCol(), input.bookingId) : null;
@@ -428,6 +438,7 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         }
 
         tx.set(countersRef, { nextTicketNo: no + 1, queueDate: today, queueNo, updatedAt: serverTimestamp() });
+        if (usageSnap) tx.set(usageRef, { walkIns: walkInsToday + 1, updatedAt: serverTimestamp() });
         if (newCustomerRef) {
           tx.set(newCustomerRef, {
             name, nameLower: name.toLowerCase(), phone: input.customer.phone ?? null, avatar: avatarFor(name), source: bookingRef ? "River Mobile" : "Walk-in",

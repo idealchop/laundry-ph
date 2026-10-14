@@ -32,7 +32,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Monorepo root, so Turbopack can resolve the vendored kit packages in ../../packages.
   turbopack: { root: fileURLToPath(new URL("../..", import.meta.url)) },
-  env: webConfigEnv(),
+  // COMPANION_ENABLED=1 (apphosting.dev.yaml) turns the AI Companion on; copied for the browser at build time.
+  env: { ...webConfigEnv(), NEXT_PUBLIC_COMPANION_ENABLED: process.env.COMPANION_ENABLED ?? process.env.NEXT_PUBLIC_COMPANION_ENABLED ?? "" },
   ...(staticExport
     ? {
         output: "export" as const,

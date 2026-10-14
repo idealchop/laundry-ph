@@ -105,8 +105,8 @@ export const TERMS: LegalDoc = {
       title: "7. Plans, billing, cancellation and refunds",
       blocks: [
         { list: [
-          `<b>Partner:</b> the entry plan: a shop listing for ${E.marketplace}, incoming bookings, scanning customers and booking history.`,
-          "<b>Pro (₱499/month, regularly ₱950):</b> all features for 1 shop: everything in Partner plus the walk-in POS and order board, sales records and public customer tickets. Billed monthly in advance and renews automatically until you cancel.",
+          `<b>Partner:</b> the entry plan: a shop listing for ${E.marketplace}, incoming bookings, scanning customers, booking history and up to 10 walk-in orders per day (Philippine time).`,
+          "<b>Pro (₱499/month, regularly ₱950):</b> all features for 1 shop: everything in Partner plus unlimited walk-ins, the order board, sales records and public customer tickets. Billed monthly in advance and renews automatically until you cancel.",
           "<b>Lifetime (₱10,000 one-time for 1–5 locations, regularly ₱18,000; ₱20,000 one-time for 5+ locations, regularly ₱35,000):</b> a single payment that unlocks the Pro features for as long as the Services are offered, without a monthly bill.",
           "Payments are processed by PayMongo (cards, GCash, Maya and other methods offered). River does not store your full card number. Prices include VAT where applicable and are shown before you pay.",
           "You can cancel the Pro plan anytime in Settings → Plans. Cancellation takes effect at the end of the current billing period; your shop then returns to Partner and your records stay available.",

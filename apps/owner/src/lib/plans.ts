@@ -23,6 +23,12 @@ export const LIFETIME_UNLOCK_CENTAVOS = 1_000_000 as Centavos; // ₱10,000 (1�
 export const LIFETIME_UNLOCK_WAS_CENTAVOS = 1_800_000 as Centavos; // ₱18,000
 export const LIFETIME_MULTI_CENTAVOS = 2_000_000 as Centavos; // ₱20,000 (5+ locations)
 export const LIFETIME_MULTI_WAS_CENTAVOS = 3_500_000 as Centavos; // ₱35,000
+/** Partner shops may record this many walk-in orders per Manila calendar day (server-enforced). Pro/Lifetime: unlimited. */
+export const PARTNER_WALKINS_PER_DAY = 10;
+export function walkInLimit(tier: Tier): number {
+  return tier === "paid" ? Infinity : PARTNER_WALKINS_PER_DAY;
+}
+export const WALKIN_LIMIT_MESSAGE = `You've used today's ${PARTNER_WALKINS_PER_DAY} walk-ins on Partner. Upgrade to Pro · ₱499/mo for unlimited walk-ins.`;
 /** UI name for the internal "paid" tier. */
 export const PRO_NAME = "Pro";
 
@@ -56,7 +62,7 @@ export const PLAN_OPTIONS: PlanOption[] = [
     priceLabel: "",
     period: "Entry plan",
     blurb: "List on River Mobile, accept pickups, and scan customers.",
-    features: ["Shop listing for River Mobile", "Bookings · accept / decline", "Scan customers · history"],
+    features: ["Shop listing for River Mobile", "Bookings · accept / decline", "10 walk-ins a day", "Scan customers · history"],
     planSource: null,
   },
   {
@@ -68,7 +74,7 @@ export const PLAN_OPTIONS: PlanOption[] = [
     priceLabel: PAID_PRICE_LABEL,
     period: "per month",
     blurb: "All features, 1 shop.",
-    features: ["Walk-in POS and order board", "Sales Record", "Public customer tickets"],
+    features: ["Unlimited walk-ins and order board", "Sales Record", "Public customer tickets"],
     planSource: "subscription",
   },
   {
@@ -109,7 +115,7 @@ export const PAID_ONLY_PREFIXES = [
 ] as const;
 
 /** Exact paths under a Paid-only prefix that Partner shops may still open (My Account hub, Edit shop listing). */
-export const PARTNER_ALLOWED_PATHS = ["/profile", "/profile/edit"] as const;
+export const PARTNER_ALLOWED_PATHS = ["/profile", "/profile/edit", "/orders/new"] as const;
 
 export function isPaidOnlyPath(pathname: string): boolean {
   if ((PARTNER_ALLOWED_PATHS as readonly string[]).includes(pathname)) return false;

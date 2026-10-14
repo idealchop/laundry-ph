@@ -6,6 +6,10 @@ env:
   - variable: NEXT_PUBLIC_FIRESTORE_DATABASE
     value: laundrydb
     availability: [BUILD, RUNTIME]
+  # AI Companion stays off in prod until approved.
+  - variable: COMPANION_ENABLED
+    value: "0"
+    availability: [BUILD, RUNTIME]
   # Partner API key(s) for River Mobile (X-River-Key). Secret value may hold several keys, comma-separated.
   # Rotate: firebase apphosting:secrets:set river-api-key-prod --project mylaundryph, then redeploy.
   - variable: RIVER_API_KEYS

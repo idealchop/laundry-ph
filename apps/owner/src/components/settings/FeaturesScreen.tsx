@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Badge, Button, Card } from "@river-apps/ui";
+import { Badge, Card } from "@river-apps/ui";
 import { Store } from "lucide-react";
 import type { Tier } from "@/data";
 import { FocusHeader } from "@/components/FocusHeader";
-import { isPaidShop, PAID_PER_MO, PAID_PER_MONTH } from "@/lib/plans";
+import { isPaidShop, PAID_PER_MONTH } from "@/lib/plans";
 import { useShop } from "@/lib/shop";
 
 /** Features shown on Profile and the "See all" page. Only Walk-in POS for now (others hidden until they ship). */
@@ -15,7 +15,7 @@ export const FEATURES = [
 
 const tileCls = "inline-flex size-10 items-center justify-center rounded-tile bg-grey-100";
 
-/** Feature rows. Paid: opens the feature, badge "Included". Partner: "Upgrade · ₱499/mo" to Plan & billing. */
+/** Feature rows. Pro: badge "Included". Partner: Walk-in POS with "10 a day". */
 export function FeatureList({ tier, className }: { tier: Tier; className?: string }) {
   const paid = isPaidShop(tier);
   return (
@@ -40,7 +40,9 @@ export function FeatureList({ tier, className }: { tier: Tier; className?: strin
                 {row(<Badge variant="soft" size="sm">Included</Badge>)}
               </Link>
             ) : (
-              row(<Button href="/settings/billing" size="xs" pill className="whitespace-nowrap" aria-label={`Upgrade to Pro for ${f.title}, ${PAID_PER_MO}`}>Upgrade · {PAID_PER_MO}</Button>)
+              <Link href={f.href} className="block rounded-tile focus-visible:outline-2 focus-visible:outline-ink">
+                {row(<Badge variant="soft" size="sm">10 a day</Badge>)}
+              </Link>
             )}
           </li>
         );
@@ -62,7 +64,7 @@ export function FeaturesScreen() {
         <p className="px-1 text-[13px] font-medium leading-snug text-muted">
           {isPaidShop(shop.tier)
             ? "Walk-in POS is included in your plan."
-            : `Partner covers River Mobile bookings. Pro adds the walk-in POS for ${PAID_PER_MONTH}.`}
+            : `Partner includes 10 walk-ins a day. Pro is unlimited for ${PAID_PER_MONTH}.`}
         </p>
       </div>
     </>

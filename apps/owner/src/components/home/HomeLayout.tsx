@@ -19,7 +19,7 @@ const linkCls = "text-[14px] font-bold underline decoration-grey-300 underline-o
 export interface HomeLayoutProps {
   shop: Shop;
   today: DaySummary;
-  /** Paid shops record walk-ins at the counter (Walk-in button, walk-in copy); Partner shops don't. */
+  /** Shops record walk-ins at the counter (Walk-in button). Partner: 10 a day, Pro unlimited. */
   canWalkIn: boolean;
   /** Bookings shown under "Pickups to accept" (answerable right here). */
   bookings: Booking[];
@@ -141,7 +141,7 @@ export function UpgradeCard() {
     <Card padding="none" className="flex items-center justify-between gap-3 px-4 py-3.5">
       <span className="flex min-w-0 flex-col leading-[1.3]">
         <b className="text-[14px]">You’re on Partner</b>
-        <small className="text-[12.5px] font-semibold text-muted">Pro adds walk-ins and Sales · {PAID_PER_MO}</small>
+        <small className="text-[12.5px] font-semibold text-muted">Pro adds unlimited walk-ins and Sales · {PAID_PER_MO}</small>
       </span>
       <Button href="/settings/billing" variant="secondary" size="sm" className="flex-none">Plans</Button>
     </Card>

@@ -5,7 +5,7 @@
  * owner-only reads of shops/{shopId}/companion/** and insights/{weekId}. All writes happen server-side.
  */
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from "firebase/functions";
-import { collection, doc, limit, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, doc, getDocs, limit, onSnapshot, orderBy, query, startAfter, Timestamp, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getDb, getFirebaseApp } from "./firebase/client";
 
 export interface CompanionMessage { id: string; role: "user" | "assistant"; kind: "chat" | "tips" | "alert"; text: string; lockedTips?: number; createdAt: number }
@@ -30,9 +30,20 @@ export async function refreshTips(): Promise<void> {
 
 const ms = (v: unknown) => (v && typeof v === "object" && "toMillis" in v ? (v as { toMillis(): number }).toMillis() : 0);
 
+/** One continuous thread per shop: shops/{id}/companion/chat/messages (chat, Monday tips, alerts). */
+export const PAGE = 30;
+const thread = (shopId: string) => collection(getDb(), "shops", shopId, "companion", "chat", "messages");
+const toMsg = (d: QueryDocumentSnapshot): CompanionMessage => ({ id: d.id, role: d.get("role"), kind: d.get("kind") ?? "chat", text: String(d.get("text") ?? ""), lockedTips: d.get("lockedTips"), createdAt: ms(d.get("createdAt")) });
+
+/** Newest PAGE messages, live. */
 export function watchMessages(shopId: string, onData: (m: CompanionMessage[]) => void, onError: (e: Error) => void) {
-  const q = query(collection(getDb(), "shops", shopId, "companion", "chat", "messages"), orderBy("createdAt", "desc"), limit(60));
-  return onSnapshot(q, (s) => onData(s.docs.map((d) => ({ id: d.id, role: d.get("role"), kind: d.get("kind") ?? "chat", text: String(d.get("text") ?? ""), lockedTips: d.get("lockedTips"), createdAt: ms(d.get("createdAt")) })).reverse()), onError);
+  const q = query(thread(shopId), orderBy("createdAt", "desc"), limit(PAGE));
+  return onSnapshot(q, (s) => onData(s.docs.map(toMsg).reverse()), onError);
+}
+/** Older page before a message time (lazy-load on scroll up). Oldest first. */
+export async function loadOlder(shopId: string, beforeMs: number): Promise<CompanionMessage[]> {
+  const s = await getDocs(query(thread(shopId), orderBy("createdAt", "desc"), startAfter(Timestamp.fromMillis(beforeMs)), limit(PAGE)));
+  return s.docs.map(toMsg).reverse();
 }
 export function watchUsage(shopId: string, monthId: string, onData: (u: CompanionUsage) => void) {
   return onSnapshot(doc(getDb(), "shops", shopId, "companion", `usage-${monthId}`), (s) => onData({ questions: Number(s.get("questions") ?? 0) }), () => onData({ questions: 0 }));

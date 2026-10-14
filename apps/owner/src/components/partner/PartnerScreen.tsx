@@ -32,7 +32,7 @@ export function PartnerScreen() {
     <HomeLayout
       shop={shop}
       today={today}
-      canWalkIn={false}
+      canWalkIn
       bookings={requested}
       bookingsLoading={live.loading}
       bookingsError={live.error}

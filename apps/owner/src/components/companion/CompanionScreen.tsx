@@ -6,7 +6,8 @@ import { Button, Topbar } from "@river-apps/ui";
 import { useAuthGatePrompt } from "@/components/auth/AuthGateProvider";
 import { useShop } from "@/lib/shop";
 import { PAID_PER_MO } from "@/lib/plans";
-import { askCompanion, manilaMonthId, PARTNER_MONTHLY_QUESTIONS, refreshTips, watchMessages, watchUsage, type CompanionMessage } from "@/lib/companion";
+import { askCompanion, loadOlder, manilaMonthId, PAGE, PARTNER_MONTHLY_QUESTIONS, refreshTips, watchMessages, watchUsage, type CompanionMessage } from "@/lib/companion";
+import { CompanionAvatar } from "./CompanionMark";
 import { ShellBack } from "../shell/PageBack";
 import { ErrorNote } from "../ui";
 
@@ -20,9 +21,12 @@ function Rich({ text }: { text: string }) {
 function Bubble({ m }: { m: CompanionMessage }) {
   const mine = m.role === "user";
   const text = m.lockedTips ? m.text.split("\n").filter((l) => !l.startsWith("🔒")).join("\n") : m.text;
+  const tag = m.kind === "tips" ? "Monday tips" : m.kind === "alert" ? "Heads up" : "";
   return (
-    <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-      <div className={`max-w-[85%] rounded-[20px] px-3.5 py-2.5 text-[14px] font-medium leading-snug ${mine ? "bg-ink text-white" : "bg-grey-100 text-ink"}`}>
+    <div className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}>
+      {mine ? null : <CompanionAvatar size={26} state="still" />}
+      <div className={`max-w-[85%] rounded-[20px] px-3.5 py-2.5 text-[14px] font-medium leading-snug ${mine ? "rounded-br-[6px] bg-ink text-white" : "rounded-bl-[6px] bg-grey-100 text-ink"}`}>
+        {tag ? <b className="mb-1 block text-[11.5px] uppercase tracking-[0.04em] text-muted">{tag}</b> : null}
         <Rich text={text} />
         {m.lockedTips ? (
           <div className="mt-2">
@@ -42,16 +46,36 @@ export function CompanionScreen() {
   const { shop, member, source, isGuest } = useShop();
   const live = source.mode === "firebase" && !isGuest;
   const paid = shop.tier === "paid";
-  const [msgs, setMsgs] = useState<CompanionMessage[]>([]);
+  const [recent, setRecent] = useState<CompanionMessage[]>([]);
+  const [older, setOlder] = useState<CompanionMessage[]>([]);
+  const [moreOlder, setMoreOlder] = useState(true);
+  const loadingOlder = useRef(false);
+  const msgs = [...older, ...recent];
   const [used, setUsed] = useState(0);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<"chat" | "tips" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
 
-  useEffect(() => (live ? watchMessages(shop.id, setMsgs, (e) => setError(e.message)) : undefined), [live, shop.id]);
+  useEffect(() => (live ? watchMessages(shop.id, (m) => { setRecent(m); if (m.length < PAGE) setMoreOlder(false); }, (e) => setError(e.message)) : undefined), [live, shop.id]);
+  // Lazy-load older messages when the owner scrolls to the top of the thread.
+  useEffect(() => {
+    if (!live) return;
+    const onScroll = async () => {
+      if (window.scrollY > 40 || loadingOlder.current || !moreOlder || msgs.length === 0) return;
+      loadingOlder.current = true;
+      const h = document.documentElement.scrollHeight;
+      const page = await loadOlder(shop.id, msgs[0].createdAt).catch(() => []);
+      if (page.length < PAGE) setMoreOlder(false);
+      setOlder((o) => [...page, ...o]);
+      requestAnimationFrame(() => window.scrollTo(0, document.documentElement.scrollHeight - h));
+      loadingOlder.current = false;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [live, shop.id, moreOlder, msgs]);
   useEffect(() => (live ? watchUsage(shop.id, manilaMonthId(), (u) => setUsed(u.questions)) : undefined), [live, shop.id]);
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [msgs.length, busy]);
+  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [recent.length, busy]);
 
   const left = Math.max(0, PARTNER_MONTHLY_QUESTIONS - used);
   const out = !paid && left === 0;
@@ -70,20 +94,19 @@ export function CompanionScreen() {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[640px] flex-col px-4 pt-3">
-      <Topbar className="px-0" leading={<ShellBack />} title="Companion"
+      <Topbar className="px-0" leading={<ShellBack />} title={<span className="inline-flex items-center gap-2"><CompanionAvatar size={26} state={busy ? "thinking" : "idle"} />Companion</span>}
         subtitle={paid ? "Your laundry business buddy" : `${left} of ${PARTNER_MONTHLY_QUESTIONS} questions left this month`}
         actions={live && owner ? <button type="button" aria-label="Get this week's tips" title="Get this week's tips" disabled={!!busy} onClick={() => void tips()} className="inline-flex size-10 items-center justify-center rounded-full bg-grey-100 disabled:opacity-50"><RefreshCw size={17} className={busy === "tips" ? "animate-spin" : ""} /></button> : null} />
 
       <div className="flex flex-1 flex-col gap-2.5 py-3">
         {msgs.length === 0 && !busy ? (
           <div className="my-auto text-center">
-            {/* eslint-disable-next-line @next/next/no-img-element -- static PNG asset */}
-            <img src="/icons3d/sparkle.png" alt="" width={64} height={64} className="mx-auto" />
+            <div className="flex justify-center"><CompanionAvatar size={64} state={busy ? "thinking" : "idle"} /></div>
             <p className="mt-2 text-[15px] font-bold">Hi! Ako si Labby.</p>
             <p className="mt-0.5 text-[13.5px] font-medium text-muted">Ask about your sales, or pricing, promos and staffing.</p>
           </div>
         ) : msgs.map((m) => <Bubble key={m.id} m={m} />)}
-        {busy ? <p className="text-[13px] font-semibold text-muted">{busy === "tips" ? "Gumagawa ng tips…" : "Nag-iisip…"}</p> : null}
+        {busy ? <div className="flex items-center gap-2"><CompanionAvatar size={26} state="thinking" /><p className="text-[13px] font-semibold text-muted">{busy === "tips" ? "Gumagawa ng tips…" : "Nag-iisip…"}</p></div> : null}
         <div ref={end} />
       </div>
 
