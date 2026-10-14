@@ -65,7 +65,7 @@ export function CompanionScreen() {
       if (window.scrollY > 40 || loadingOlder.current || !moreOlder || msgs.length === 0) return;
       loadingOlder.current = true;
       const h = document.documentElement.scrollHeight;
-      const page = await loadOlder(shop.id, msgs[0].createdAt).catch(() => []);
+      const page = await loadOlder(shop.id, msgs[0]!.createdAt).catch(() => []);
       if (page.length < PAGE) setMoreOlder(false);
       setOlder((o) => [...page, ...o]);
       requestAnimationFrame(() => window.scrollTo(0, document.documentElement.scrollHeight - h));
