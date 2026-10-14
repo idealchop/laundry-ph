@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 /**
  * Bottom sheet sign-in — mirrors River Mobile AuthGateSheet.
  * Two-step: method list → chosen method (phone form / OTP). Guest can dismiss.
@@ -180,7 +181,9 @@ function AuthGateSheetOpen({
           ) : null}
 
           <p className="mt-4 text-center text-[12px] font-medium text-muted">
-            By continuing you agree to our Terms and Privacy Policy.
+            By continuing you agree to our{" "}
+            <Link href="/terms" target="_blank" className="underline">Terms</Link> and{" "}
+            <Link href="/privacy" target="_blank" className="underline">Privacy Policy</Link>.
           </p>
         </div>
       </div>
