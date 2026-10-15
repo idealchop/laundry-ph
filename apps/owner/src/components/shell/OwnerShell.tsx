@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppShell, Button } from "@river-apps/ui";
 import { useShop } from "@/lib/shop";
-import { PAID_PER_MONTH, planLabel } from "@/lib/plans";
+import { PAID_PER_MONTH, planLabel, hasProFeatures } from "@/lib/plans";
 import { LaundryBrand } from "../brand";
 import { ShopQrPromo } from "../qr/ShopQrPromo";
 import { PlanGate } from "../billing/PlanGate";
@@ -40,7 +40,7 @@ export function OwnerShell({ children }: { children: ReactNode }) {
       : pathname === "/sales" || pathname.startsWith("/sales/")
         ? "/home"
         : pathname;
-  const isPaid = shop.tier === "paid";
+  const isPaid = hasProFeatures(shop.tier);
   // Partner shops always use Partner chrome. Paid shops use Paid chrome, except while browsing /partner/*.
   const usePartnerChrome = !isPaid || pathname === "/partner" || pathname.startsWith("/partner/");
   const focus = FOCUS_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));

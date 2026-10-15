@@ -2,7 +2,7 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import type { Content, Part } from "@google/genai";
-import { db, monthId } from "./db.js";
+import { db, isPro, monthId } from "./db.js";
 import { addUsage, emptyUsage, generate, MODEL } from "./gemini.js";
 import { PERSONA } from "./persona.js";
 import { runTool, TOOL_DECLS } from "./tools.js";
@@ -18,7 +18,7 @@ export async function ownerShop(req: CallableRequest) {
   const m = (await db().doc(`shops/${userShop}/members/${uid}`).get()).data();
   if (!m || m.status !== "active" || m.role !== "owner" || m.shopId !== userShop) throw new HttpsError("permission-denied", "Only the shop owner can use the Companion.");
   const shop = (await db().doc(`shops/${userShop}`).get()).data() ?? {};
-  return { uid, shopId: userShop, shopName: String(shop.name ?? "your shop"), paid: shop.tier === "paid" };
+  return { uid, shopId: userShop, shopName: String(shop.name ?? "your shop"), paid: await isPro(shop.tier) };
 }
 
 export async function chat(req: CallableRequest<{ text?: string }>) {

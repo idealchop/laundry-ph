@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { isPaidOnlyPath } from "@/lib/plans";
+import { isPaidOnlyPath, hasProFeatures } from "@/lib/plans";
 import { useShop } from "@/lib/shop";
 import { UpgradeWall } from "./UpgradeWall";
 
@@ -14,7 +14,7 @@ export function PlanGate({ children }: { children: ReactNode }) {
   const { shop } = useShop();
   const pathname = usePathname() || "/";
   const router = useRouter();
-  const partner = shop.tier !== "paid";
+  const partner = !hasProFeatures(shop.tier);
   const blocked = partner && isPaidOnlyPath(pathname);
 
   useEffect(() => {

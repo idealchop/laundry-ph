@@ -1,5 +1,6 @@
 "use client";
 
+import { hasProFeatures } from "@/lib/plans";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@river-apps/ui";
 import { usePathname, useRouter } from "next/navigation";
@@ -42,6 +43,6 @@ export function PageBack({ fallback, className }: { fallback: string; className?
 export function ShellBack({ className }: { className?: string }) {
   const pathname = usePathname() || "/";
   const { shop } = useShop();
-  const home = shop.tier === "paid" ? "/home" : "/partner";
+  const home = hasProFeatures(shop.tier) ? "/home" : "/partner";
   return <PageBack fallback={backFallback(pathname, home)} className={className} />;
 }

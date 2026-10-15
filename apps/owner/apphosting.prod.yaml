@@ -7,6 +7,10 @@ env:
     value: laundrydb
     availability: [BUILD, RUNTIME]
   # AI Companion stays off in prod until approved.
+  # Test phase: "1" gives every tier Pro features (plans/prices still shown). Pair with config/flags.allFeaturesUnlocked in the db.
+  - variable: ALL_FEATURES_UNLOCKED
+    value: "0"
+    availability: [BUILD, RUNTIME]
   - variable: COMPANION_ENABLED
     value: "0"
     availability: [BUILD, RUNTIME]

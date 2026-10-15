@@ -13,6 +13,15 @@ import { ORDER_FLOW } from "@/data/types";
 import { PARTNER_WALKINS_PER_DAY, walkInLimit, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 import { adminDb } from "./admin";
 
+/** Same switch the rules read: config/flags.allFeaturesUnlocked in this database (cached 60 s). */
+let flagCache: { at: number; on: boolean } | null = null;
+export async function allUnlocked(): Promise<boolean> {
+  if (flagCache && Date.now() - flagCache.at < 60_000) return flagCache.on;
+  const on = (await adminDb().doc("config/flags").get().catch(() => null))?.get("allFeaturesUnlocked") === true;
+  flagCache = { at: Date.now(), on };
+  return on;
+}
+
 export class StaffError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
@@ -62,7 +71,7 @@ export async function staffView(link: StaffLink) {
     ref.collection("orders").where("createdAt", ">=", Timestamp.fromMillis(start - 6 * 86_400_000)).get(),
   ]);
   const tier = shop.data()?.tier === "paid" ? "paid" : "partner";
-  const limit = walkInLimit(tier);
+  const limit = walkInLimit(tier, await allUnlocked());
   const used = num(usage.data()?.walkIns);
   const cat = normCatalog(catalog.data() ?? {});
   const queue = orders.docs
@@ -92,7 +101,8 @@ export async function staffWalkIn(link: StaffLink, input: StaffWalkInInput) {
     const shop = shopSnap!.data() ?? {};
     const tier = shop.tier === "paid" ? "paid" : "partner";
     const used = num(usage!.data()?.walkIns);
-    if (used >= walkInLimit(tier)) throw new StaffError(402, WALKIN_LIMIT_MESSAGE);
+    const unlocked = await allUnlocked();
+    if (used >= walkInLimit(tier, unlocked)) throw new StaffError(402, WALKIN_LIMIT_MESSAGE);
     const catalog = normCatalog(catSnap!.data() ?? {});
     const c = counters!.data() ?? {};
     const no = typeof c.nextTicketNo === "number" ? c.nextTicketNo : 1;
@@ -118,7 +128,7 @@ export async function staffWalkIn(link: StaffLink, input: StaffWalkInInput) {
     const t = toPublicTicket(order, { name: String(shop.name ?? ""), sample: shop.sample === true });
     const { id: _id, ...ticket } = t; void _id;
     tx.set(db.collection("public_tickets").doc(ticketId), strip({ ...ticket, stageTimes: { received: FieldValue.serverTimestamp() }, updatedAt: FieldValue.serverTimestamp(), sample: ticket.sample ? true : undefined } as Record<string, unknown>));
-    return { id: orderRef.id, ref: refCode, ticketId, left: Number.isFinite(walkInLimit(tier)) ? Math.max(0, PARTNER_WALKINS_PER_DAY - used - 1) : null };
+    return { id: orderRef.id, ref: refCode, ticketId, left: Number.isFinite(walkInLimit(tier, unlocked)) ? Math.max(0, PARTNER_WALKINS_PER_DAY - used - 1) : null };
   });
 }
 

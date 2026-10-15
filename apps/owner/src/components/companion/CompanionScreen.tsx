@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Topbar } from "@river-apps/ui";
 import { useAuthGatePrompt } from "@/components/auth/AuthGateProvider";
 import { useShop } from "@/lib/shop";
-import { PAID_PER_MO } from "@/lib/plans";
+import { PAID_PER_MO, ALL_FEATURES_UNLOCKED, hasProFeatures } from "@/lib/plans";
 import { askCompanion, loadOlder, manilaMonthId, PAGE, PARTNER_MONTHLY_QUESTIONS, refreshTips, watchMessages, watchUsage, type CompanionMessage } from "@/lib/companion";
 import { CompanionAvatar } from "./CompanionMark";
 import { ShellBack } from "../shell/PageBack";
@@ -20,7 +20,8 @@ function Rich({ text }: { text: string }) {
 
 function Bubble({ m }: { m: CompanionMessage }) {
   const mine = m.role === "user";
-  const text = m.lockedTips ? m.text.split("\n").filter((l) => !l.startsWith("🔒")).join("\n") : m.text;
+  const locked = ALL_FEATURES_UNLOCKED ? 0 : m.lockedTips ?? 0;
+  const text = locked ? m.text.split("\n").filter((l) => !l.startsWith("🔒")).join("\n") : m.text;
   const tag = m.kind === "tips" ? "Monday tips" : m.kind === "alert" ? "Heads up" : "";
   return (
     <div className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}>
@@ -28,10 +29,10 @@ function Bubble({ m }: { m: CompanionMessage }) {
       <div className={`max-w-[85%] rounded-[20px] px-3.5 py-2.5 text-[14px] font-medium leading-snug ${mine ? "rounded-br-[6px] bg-ink text-white" : "rounded-bl-[6px] bg-grey-100 text-ink"}`}>
         {tag ? <b className="mb-1 block text-[11.5px] uppercase tracking-[0.04em] text-muted">{tag}</b> : null}
         <Rich text={text} />
-        {m.lockedTips ? (
+        {locked ? (
           <div className="mt-2">
             <div aria-hidden className="select-none space-y-1 blur-[5px]">
-              {Array.from({ length: m.lockedTips }, (_, i) => <p key={i}>• Mas maraming tips para sa shop mo ngayong linggo, kasama ang pricing at promos.</p>)}
+              {Array.from({ length: locked }, (_, i) => <p key={i}>• Mas maraming tips para sa shop mo ngayong linggo, kasama ang pricing at promos.</p>)}
             </div>
             <Button href="/settings/billing" size="sm" className="mt-2" leadingIcon={<Lock size={14} />}>Upgrade to Pro · {PAID_PER_MO}</Button>
           </div>
@@ -45,7 +46,7 @@ export function CompanionScreen() {
   useAuthGatePrompt({ promptOnMount: true, subtitle: "Sign in to chat with your Companion." });
   const { shop, member, source, isGuest } = useShop();
   const live = source.mode === "firebase" && !isGuest;
-  const paid = shop.tier === "paid";
+  const paid = hasProFeatures(shop.tier);
   const [recent, setRecent] = useState<CompanionMessage[]>([]);
   const [older, setOlder] = useState<CompanionMessage[]>([]);
   const [moreOlder, setMoreOlder] = useState(true);

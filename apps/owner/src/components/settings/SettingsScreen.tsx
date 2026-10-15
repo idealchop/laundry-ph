@@ -25,7 +25,7 @@ import {
 } from "./CreditsPanel";
 import { ShopQrPromo } from "../qr/ShopQrPromo";
 import { FeatureList } from "./FeaturesScreen";
-import { PAID_PER_MO } from "@/lib/plans";
+import { PAID_PER_MO, hasProFeatures } from "@/lib/plans";
 
 /** Soft @handle from shop name (Oceanus-style). */
 function shopHandle(name: string): string {
@@ -225,7 +225,7 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
             </span>
             <Badge variant="soft" size="sm">{shops.enabled ? "On" : "Off"}</Badge>
           </Link>
-          {shop.tier === "paid" ? (
+          {hasProFeatures(shop.tier) ? (
             <ShopQrPromo className="mx-1.5 mb-1 mt-11 lg:hidden" />
           ) : null}
           <FeatureList tier={shop.tier} className="mt-1" />

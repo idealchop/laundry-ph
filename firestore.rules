@@ -76,10 +76,15 @@ service cloud.firestore {
     }
     // Partner: max 10 walk-ins per Manila day. The same write must bump usage/{today}.walkIns by exactly one.
     // Pro / Lifetime (tier 'paid'): unlimited.
+    // Test-phase switch: config/flags {allFeaturesUnlocked: true} gives every tier Pro limits. Admin SDK writes only.
+    function allUnlocked() {
+      let f = /databases/$(database)/documents/config/flags;
+      return exists(f) && get(f).data.get('allFeaturesUnlocked', false) == true;
+    }
     function walkInAllowed(shopId) {
       let before = exists(usagePath(shopId, manilaDay())) ? get(usagePath(shopId, manilaDay())).data.walkIns : 0;
       let after = getAfter(usagePath(shopId, manilaDay())).data.walkIns;
-      return get(shopPath(shopId)).data.tier == 'paid' || (after == before + 1 && after <= 10);
+      return allUnlocked() || get(shopPath(shopId)).data.tier == 'paid' || (after == before + 1 && after <= 10);
     }
     function bookingPath(shopId, bookingId) {
       return /databases/$(database)/documents/shops/$(shopId)/bookings/$(bookingId);
@@ -93,6 +98,12 @@ service cloud.firestore {
         && request.resource.data.statusTimes.diff(resource.data.get('statusTimes', {})).affectedKeys().hasOnly([to])
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time;
+    }
+
+    // ---------- feature flags ----------
+    match /config/flags {
+      allow read: if true;
+      allow write: if false;
     }
 
     // ---------- staff links ----------

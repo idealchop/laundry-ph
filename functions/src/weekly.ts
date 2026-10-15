@@ -1,6 +1,6 @@
 import { logger } from "firebase-functions";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { db, weekId } from "./db.js";
+import { db, isPro, weekId } from "./db.js";
 import { detectAlerts, weeklyAggregates } from "./data.js";
 import { addUsage, emptyUsage, generate, MODEL } from "./gemini.js";
 import { PERSONA } from "./persona.js";
@@ -12,7 +12,7 @@ interface TipsJson { headline: string; tips: string[] }
 export async function weeklyForShop(shopId: string, now = Date.now()) {
   const shopSnap = await db().doc(`shops/${shopId}`).get();
   const shop = shopSnap.data() ?? {};
-  const paid = shop.tier === "paid";
+  const paid = await isPro(shop.tier);
   const agg = await weeklyAggregates(shopId, now);
   if (agg.last28.orders === 0 && agg.last28.bookings === 0) return { shopId, skipped: "no data" };
   const alerts = paid ? detectAlerts(agg.last7, agg.prev7) : [];

@@ -11,6 +11,18 @@ export function db(): Firestore {
   return _db;
 }
 
+/** config/flags.allFeaturesUnlocked: test phase, every tier gets Pro (cached 60 s). */
+let _flags: { at: number; on: boolean } | null = null;
+export async function allUnlocked(): Promise<boolean> {
+  if (_flags && Date.now() - _flags.at < 60_000) return _flags.on;
+  const on = (await db().doc("config/flags").get()).get("allFeaturesUnlocked") === true;
+  _flags = { at: Date.now(), on };
+  return on;
+}
+export async function isPro(tier: unknown): Promise<boolean> {
+  return tier === "paid" || (await allUnlocked());
+}
+
 export const TZ = "Asia/Manila";
 export const DAY = 86_400_000;
 

@@ -9,6 +9,10 @@ env:
   # Partner API key(s) for River Mobile (X-River-Key). Secret value may hold several keys, comma-separated.
   # Rotate: firebase apphosting:secrets:set river-api-key-dev --project mylaundryph, then redeploy.
   # AI Companion on for dev only.
+  # Test phase: "1" gives every tier Pro features (plans/prices still shown). Pair with config/flags.allFeaturesUnlocked in the db.
+  - variable: ALL_FEATURES_UNLOCKED
+    value: "1"
+    availability: [BUILD, RUNTIME]
   - variable: COMPANION_ENABLED
     value: "1"
     availability: [BUILD, RUNTIME]

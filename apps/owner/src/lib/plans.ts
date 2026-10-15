@@ -25,8 +25,17 @@ export const LIFETIME_MULTI_CENTAVOS = 2_000_000 as Centavos; // ₱20,000 (5+ l
 export const LIFETIME_MULTI_WAS_CENTAVOS = 3_500_000 as Centavos; // ₱35,000
 /** Partner shops may record this many walk-in orders per Manila calendar day (server-enforced). Pro/Lifetime: unlimited. */
 export const PARTNER_WALKINS_PER_DAY = 10;
-export function walkInLimit(tier: Tier): number {
-  return tier === "paid" ? Infinity : PARTNER_WALKINS_PER_DAY;
+/**
+ * Test-phase switch: NEXT_PUBLIC_ALL_FEATURES_UNLOCKED=1 (from ALL_FEATURES_UNLOCKED in apphosting.*.yaml) gives every
+ * tier Pro features. Plans and prices still show. Rules / server / functions read config/flags.allFeaturesUnlocked.
+ */
+export const ALL_FEATURES_UNLOCKED = process.env.NEXT_PUBLIC_ALL_FEATURES_UNLOCKED === "1";
+/** Pro features on? (real Pro/Lifetime, or everything unlocked). Use the raw tier only for plan / billing labels. */
+export function hasProFeatures(tier: Tier, unlocked = ALL_FEATURES_UNLOCKED): boolean {
+  return unlocked || tier === "paid";
+}
+export function walkInLimit(tier: Tier, unlocked = ALL_FEATURES_UNLOCKED): number {
+  return hasProFeatures(tier, unlocked) ? Infinity : PARTNER_WALKINS_PER_DAY;
 }
 export const WALKIN_LIMIT_MESSAGE = `You've used today's ${PARTNER_WALKINS_PER_DAY} walk-ins on Partner. Upgrade to Pro · ₱499/mo for unlimited walk-ins.`;
 /** UI name for the internal "paid" tier. */
@@ -123,7 +132,7 @@ export function isPaidOnlyPath(pathname: string): boolean {
 }
 
 export function isPaidShop(tier: Tier): boolean {
-  return tier === "paid";
+  return hasProFeatures(tier);
 }
 
 export function planLabel(tier: Tier, planSource?: PlanSource): string {
