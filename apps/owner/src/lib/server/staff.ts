@@ -17,7 +17,7 @@ import { adminDb } from "./admin";
 let flagCache: { at: number; on: boolean } | null = null;
 export async function allUnlocked(): Promise<boolean> {
   if (flagCache && Date.now() - flagCache.at < 60_000) return flagCache.on;
-  const on = (await adminDb().doc("config/flags").get().catch(() => null))?.get("allFeaturesUnlocked") === true;
+  const on = process.env.ALL_FEATURES_UNLOCKED === "1" || (await adminDb().doc("config/flags").get().catch(() => null))?.get("allFeaturesUnlocked") === true;
   flagCache = { at: Date.now(), on };
   return on;
 }

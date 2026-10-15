@@ -78,8 +78,9 @@ service cloud.firestore {
     // Pro / Lifetime (tier 'paid'): unlimited.
     // Test-phase switch: config/flags {allFeaturesUnlocked: true} gives every tier Pro limits. Admin SDK writes only.
     function allUnlocked() {
+      // Dev database is always unlocked (test page). Prod: create config/flags {allFeaturesUnlocked: true} to flip.
       let f = /databases/$(database)/documents/config/flags;
-      return exists(f) && get(f).data.get('allFeaturesUnlocked', false) == true;
+      return database == 'laundrydb-dev' || exists(f) && get(f).data.get('allFeaturesUnlocked', false) == true;
     }
     function walkInAllowed(shopId) {
       let before = exists(usagePath(shopId, manilaDay())) ? get(usagePath(shopId, manilaDay())).data.walkIns : 0;
