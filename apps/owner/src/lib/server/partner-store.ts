@@ -192,7 +192,7 @@ export class BookingError extends Error {
   }
 }
 
-export interface CreateMeta { keyId: string; test?: boolean; createdBy?: string }
+export interface CreateMeta { keyId: string; test?: boolean; createdBy?: string; /** Extra allow-listed fields (QR page: channel, payWhere, branchId, customer email). */ extra?: DocumentData }
 
 /** Create a requested booking. Returns { booking, created } (created false = idempotent replay). */
 export async function createBooking(shopId: string, input: BookingInput, meta: CreateMeta, base: string): Promise<{ booking: PublicBooking; created: boolean }> {
@@ -219,10 +219,10 @@ export async function createBooking(shopId: string, input: BookingInput, meta: C
       clothesType = { id: t.id, name: t.name };
     }
 
-    const open = await tx.get(
+    const open = input.customer.phone ? await tx.get(
       shopRef.collection("bookings").where("customer.phone", "==", input.customer.phone).where("status", "==", "requested").limit(BOOKING_LIMITS.openPerPhone),
-    );
-    if (open.size >= BOOKING_LIMITS.openPerPhone) {
+    ) : null;
+    if (open && open.size >= BOOKING_LIMITS.openPerPhone) {
       throw new BookingError("conflict", `This number already has ${BOOKING_LIMITS.openPerPhone} bookings waiting at this shop.`);
     }
 
@@ -257,6 +257,7 @@ export async function createBooking(shopId: string, input: BookingInput, meta: C
       apiKeyId: meta.keyId,
       test: meta.test === true,
       ...(shopSnap.data()?.sample === true ? { sample: true } : {}),
+      ...(meta.extra ?? {}),
     };
     tx.create(bookingRef, body);
     tx.create(lookupRef, { shopId, createdAt: now });

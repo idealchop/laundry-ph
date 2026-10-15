@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { catalog, SAMPLE_SHOP_ID, shop as sampleShop } from "@/data/fixtures";
 import { addPublicBooking } from "@/data/fixture-source";
+import { dataMode } from "@/data";
 import type { Booking, BookingType, Fulfillment } from "@/data/types";
 import { BOOKING_LIMITS, manilaDateKey, manilaSlotMs, normalizePhMobile } from "@/lib/bookings";
 import { money } from "@/lib/format";
@@ -67,6 +68,9 @@ export function BookScreen() {
     if (saved?.shopId === shopId) {
       setDraft(saved);
       setPhase("status");
+    } else if (!id.startsWith("bk-public-")) {
+      setDraft({ id } as Booking); // Firestore booking: RequestStatus loads it from the server
+      setPhase("status");
     }
   }, [shopId]);
 
@@ -125,10 +129,25 @@ export function BookScreen() {
     setPhase("pay");
   };
 
-  const confirmPay = () => {
+  const [sending, setSending] = useState(false);
+  const confirmPay = async () => {
     if (!draft || !payWhere) return;
-    const booking = { ...draft, payWhere };
-    addPublicBooking(booking);
+    let booking: Booking = { ...draft, payWhere };
+    if (dataMode() === "firebase") {
+      // Real shop queue: the server writes shops/{shopId}/bookings (status requested) for Accept / Decline.
+      setSending(true);
+      try {
+        const res = await fetch("/api/public/bookings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+          shopId, contact, serviceId: draft.serviceId, type: draft.type, fulfillment: draft.fulfillment, slot: draft.slot,
+          address: draft.address, notes: draft.notes, payWhere, branchId: branchId || null,
+        }) });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j.booking) { setErrors({ form: j.error ?? "Could not send the request. Try again." }); setPhase("form"); return; }
+        booking = j.booking as Booking;
+      } finally { setSending(false); }
+    } else {
+      addPublicBooking(booking);
+    }
     sessionStorage.setItem(ACTIVE_BOOKING_KEY, booking.id);
     setDraft(booking);
     setPhase("status");
@@ -181,7 +200,7 @@ export function BookScreen() {
             subtitle="Cash when you drop off or pick up"
           />
         </div>
-        <Button fullWidth className="mt-5" disabled={!payWhere} onClick={confirmPay}>Confirm</Button>
+        <Button fullWidth className="mt-5" disabled={!payWhere || sending} onClick={() => void confirmPay()}>{sending ? "Sending…" : "Confirm"}</Button>
       </main>
     );
   }

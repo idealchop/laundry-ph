@@ -17,6 +17,7 @@ rules_version = '2';
 //   booking_refs/{bookingId}            { shopId } lookup for the Partner API (Admin SDK only, no client access)
 //   shops/{shopId}/usage/{yyyy-MM-dd}  { walkIns } daily walk-in counter (Partner cap 10/day, rules-enforced)
 //   shops/{shopId}/companion/**, insights/{weekId}   AI Companion (functions write, owner reads)
+//   staff_links/{token}                owner-published staff link (no client read; server API scopes to that shop)
 //   public_tickets/{ticketId}           public-safe projection: anyone may GET one by its unguessable id, nobody may LIST
 //
 // Least privilege: shop data is readable/writable only by active members; field lists are
@@ -92,6 +93,23 @@ service cloud.firestore {
         && request.resource.data.statusTimes.diff(resource.data.get('statusTimes', {})).affectedKeys().hasOnly([to])
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time;
+    }
+
+    // ---------- staff links ----------
+    // staff_links/{token}: the owner publishes a shop's staff link. No browser can read or list it;
+    // /api/staff/{token} (Admin SDK) checks it and only touches that shop's orders + usage counter.
+    match /staff_links/{token} {
+      allow read: if false;
+      allow create, update: if token.size() >= 20 && token.size() <= 40
+        && isOwner(request.resource.data.shopId)
+        && request.resource.data.ownerUid == request.auth.uid
+        && (resource == null || resource.data.shopId == request.resource.data.shopId)
+        && request.resource.data.keys().hasOnly(['shopId', 'branchId', 'branchName', 'shopName', 'ownerUid', 'expiresAt', 'updatedAt'])
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt < request.time + duration.value(40, 'd')
+        && shortString(request.resource.data.branchName, 60)
+        && shortString(request.resource.data.shopName, 80);
+      allow delete: if false;
     }
 
     // ---------- users ----------

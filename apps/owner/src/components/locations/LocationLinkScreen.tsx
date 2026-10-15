@@ -1,117 +1,126 @@
 "use client";
 
-import { Avatar, Button } from "@river-apps/ui";
-import { useEffect, useState } from "react";
-import type { Booking } from "@/data";
-import { readPublicBookings, updatePublicBooking } from "@/lib/public-bookings";
-import {
-  HOME_LOCATION_ID, branchLinkExpired, findBranchByToken, linkExpiryLabel,
-} from "@/lib/shop-locations";
+import { Avatar, Button, Input } from "@river-apps/ui";
+import { useCallback, useEffect, useState } from "react";
+import { money } from "@/lib/format";
+import { PAID_PER_MO } from "@/lib/plans";
+import { ORDER_STATUS_LABEL, type OrderStatus } from "@/data/types";
 
-function useBookings() {
-  const [rows, setRows] = useState<Booking[]>([]);
-  useEffect(() => {
-    const pull = () => setRows(readPublicBookings());
-    pull();
-    const timer = window.setInterval(pull, 1000);
-    window.addEventListener("storage", pull);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("storage", pull);
-    };
-  }, []);
-  return rows;
+interface View {
+  shopName: string; branchName: string; expiresAt: number;
+  services: { id: string; name: string; unit: "kg" | "pc"; priceCentavos: number }[];
+  defaults: { serviceId: string; kg: number; pieces: number };
+  walkIns: { used: number; limit: number; left: number } | null;
+  queue: { id: string; ref: string; status: OrderStatus; customer: string; detail: string; next: OrderStatus | null }[];
 }
 
-/** The page a shop opens from the link. No account. */
+/**
+ * Staff link page (no account). Talks only to /api/staff/{token}: the server checks the token and writes
+ * that shop's Firestore orders, so walk-ins show up live in the owner's Orders queue and Home.
+ */
 export function LocationLinkScreen({ token }: { token: string }) {
-  const [now, setNow] = useState(() => Date.now());
-  const [found, setFound] = useState<ReturnType<typeof findBranchByToken>>(null);
-  const [ready, setReady] = useState(false);
-  const rows = useBookings();
+  const [view, setView] = useState<View | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [serviceId, setServiceId] = useState("");
+  const [qty, setQty] = useState("6");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [capHit, setCapHit] = useState<string | null>(null);
 
-  useEffect(() => {
-    const pull = () => setFound(findBranchByToken(token));
-    pull();
-    setReady(true);
-    window.addEventListener("storage", pull);
-    return () => window.removeEventListener("storage", pull);
+  const load = useCallback(async () => {
+    const r = await fetch(`/api/staff/${encodeURIComponent(token)}`, { cache: "no-store" }).catch(() => null);
+    const j = r ? await r.json().catch(() => ({})) : {};
+    if (!r || !r.ok) { setError(j.error ?? "This link is not active."); return; }
+    setView(j); setError(null);
+    setServiceId((s) => s || j.defaults?.serviceId || j.services?.[0]?.id || "");
   }, [token]);
+  useEffect(() => { void load(); const t = window.setInterval(() => void load(), 10_000); return () => window.clearInterval(t); }, [load]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  if (!ready) {
-    return <main className="mx-auto min-h-dvh max-w-[402px] bg-canvas px-4 pt-8"><p className="text-[14px] font-semibold text-muted">Loading…</p></main>;
+  async function add() {
+    setBusy(true); setNote(null);
+    const r = await fetch(`/api/staff/${encodeURIComponent(token)}/walk-ins`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, serviceId, quantity: Number(qty) }) }).catch(() => null);
+    const j = r ? await r.json().catch(() => ({})) : {};
+    setBusy(false);
+    if (r?.status === 402) { setCapHit(j.error); return; }
+    if (!r?.ok) { setNote(j.error ?? "Could not add the walk-in."); return; }
+    setNote(`${j.ref} added to the queue.`); setName(""); void load();
+  }
+  async function advance(id: string) {
+    await fetch(`/api/staff/${encodeURIComponent(token)}/orders/${id}`, { method: "POST" }).catch(() => null);
+    void load();
   }
 
-  const branch = found?.branch;
-  if (!branch || branchLinkExpired(branch, now)) {
+  if (error) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-[402px] flex-col bg-canvas px-5 pt-16">
-        <h1 className="text-[28px] font-extrabold tracking-[-0.03em]">{branch ? "This link expired" : "This link is not active"}</h1>
-        <p className="mt-2 text-[15px] font-medium text-ink-2">
-          {branch
-            ? `It stopped on ${linkExpiryLabel(branch.linkExpiresAt!)}. Shop links expire each month. Ask the shop to send a new one.`
-            : "Ask the shop to send a new link. Each link expires after one month."}
-        </p>
+        <h1 className="text-[28px] font-extrabold tracking-[-0.03em]">{error.includes("expired") ? "This link expired" : "This link is not active"}</h1>
+        <p className="mt-2 text-[15px] font-medium text-ink-2">{error} Shop links expire each month.</p>
       </main>
     );
   }
+  if (!view) return <main className="mx-auto min-h-dvh max-w-[402px] bg-canvas px-4 pt-8"><p className="text-[14px] font-semibold text-muted">Loading…</p></main>;
 
-  const here = (row: Booking) => (row.branchId || HOME_LOCATION_ID) === branch.id;
-  const waiting = rows.filter((row) => here(row) && row.status === "requested").sort((a, b) => a.createdAt - b.createdAt);
-  const accepted = rows.filter((row) => here(row) && (row.status === "accepted" || row.status === "received")).sort((a, b) => b.updatedAt - a.updatedAt);
-  const shopName = found.store.shopName || "Laundry.ph";
+  const svc = view.services.find((s) => s.id === serviceId);
+  const atCap = Boolean(capHit) || (view.walkIns != null && view.walkIns.left <= 0);
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-[402px] bg-canvas px-4 pb-10 pt-6">
       <header className="flex min-w-0 items-center gap-2.5">
-        <Avatar name={shopName} preset="sky" size={44} />
+        <Avatar name={view.shopName} preset="sky" size={44} />
         <div className="min-w-0">
-          <p className="truncate text-[12px] font-medium text-muted">Shop link</p>
-          <h1 className="truncate text-[18px] font-extrabold leading-tight tracking-[-0.02em]">{shopName}</h1>
-          <p className="truncate text-[13px] font-semibold text-muted">{branch.name}</p>
+          <p className="truncate text-[12px] font-medium text-muted">Staff link</p>
+          <h1 className="truncate text-[18px] font-extrabold leading-tight tracking-[-0.02em]">{view.shopName}</h1>
+          <p className="truncate text-[13px] font-semibold text-muted">{view.branchName}</p>
         </div>
       </header>
 
-      <section className="mt-5">
-        <h2 className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">Waiting</h2>
-        {waiting.length === 0 ? (
-          <p className="mt-2 rounded-card bg-surface px-4 py-6 text-center text-[13.5px] font-semibold text-muted shadow-card">No one waiting.</p>
+      <section className="mt-5 rounded-card bg-surface px-4 py-4 shadow-card">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[16px] font-extrabold">New walk-in</h2>
+          {view.walkIns ? <span className="text-[12.5px] font-semibold text-muted" aria-live="polite">{view.walkIns.left} of {view.walkIns.limit} walk-ins left today</span> : null}
+        </div>
+        {atCap ? (
+          <div className="mt-3 rounded-tile bg-grey-100 px-4 py-4 text-center">
+            <b className="block text-[15px]">That&apos;s 10 walk-ins today</b>
+            <p className="mt-1 text-[13px] font-medium text-muted">Ask the owner to upgrade to Pro · {PAID_PER_MO} for unlimited walk-ins.</p>
+          </div>
         ) : (
-          <ul className="mt-2 flex flex-col gap-3">
-            {waiting.map((row) => (
-              <li key={row.id} className="rounded-card bg-surface px-3 py-3 shadow-card">
-                <b className="block truncate text-[16px]">{row.customer.name || row.customer.email || row.customer.phone || "Customer"}</b>
-                <p className="mt-0.5 truncate text-[13px] font-medium text-muted">{row.serviceName} · {row.ref}</p>
-                <p className="mt-0.5 text-[12.5px] font-semibold text-muted">{row.type === "pickup" ? "Pickup" : "Drop-off"}</p>
-                <Button className="mt-3" size="sm" fullWidth onClick={() => {
-                  const at = Date.now();
-                  updatePublicBooking(row.id, { status: "accepted", statusTimes: { ...row.statusTimes, accepted: at }, updatedAt: at });
-                }}>Accept</Button>
+          <form className="mt-3 flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); void add(); }}>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Service">
+              {view.services.map((s) => (
+                <button key={s.id} type="button" role="radio" aria-checked={s.id === serviceId} onClick={() => setServiceId(s.id)}
+                  className={`rounded-full px-3 py-1.5 text-[13px] font-bold ${s.id === serviceId ? "bg-ink text-white" : "bg-grey-100"}`}>
+                  {s.name} · {money(s.priceCentavos)}/{s.unit}
+                </button>
+              ))}
+            </div>
+            <Input size="md" label={svc?.unit === "pc" ? "Pieces" : "Kilos"} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
+            <Input size="md" label="Customer name (optional)" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
+            <Button type="submit" fullWidth disabled={busy || !serviceId}>{busy ? "Adding…" : "Add walk-in"}</Button>
+            {note ? <p className="text-[13px] font-semibold" role="status">{note}</p> : null}
+          </form>
+        )}
+      </section>
+
+      <section className="mt-5">
+        <h2 className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">Queue</h2>
+        {view.queue.length === 0 ? (
+          <p className="mt-2 rounded-card bg-surface px-4 py-6 text-center text-[13.5px] font-semibold text-muted shadow-card">No orders in the queue.</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-2">
+            {view.queue.map((o) => (
+              <li key={o.id} className="flex items-center gap-3 rounded-card bg-surface px-3 py-3 shadow-card">
+                <div className="min-w-0 flex-1">
+                  <b className="block truncate text-[15px]">{o.ref} · {o.customer}</b>
+                  <p className="truncate text-[12.5px] font-medium text-muted">{o.detail} · {ORDER_STATUS_LABEL[o.status]}</p>
+                </div>
+                {o.next ? <Button size="sm" variant="secondary" onClick={() => void advance(o.id)}>{ORDER_STATUS_LABEL[o.next]}</Button> : null}
               </li>
             ))}
           </ul>
         )}
       </section>
-
-      {accepted.length ? (
-        <section className="mt-5">
-          <h2 className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">Accepted</h2>
-          <ul className="mt-2 flex flex-col gap-3">
-            {accepted.map((row) => (
-              <li key={row.id} className="rounded-card bg-surface px-3 py-3 shadow-card">
-                <b className="block truncate text-[16px]">{row.customer.name || row.customer.email || row.customer.phone || "Customer"}</b>
-                <p className="mt-0.5 truncate text-[13px] font-medium text-muted">{row.serviceName} · {row.ref}</p>
-                <p className="mt-0.5 text-[12.5px] font-semibold text-muted">Accepted</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
     </main>
   );
 }

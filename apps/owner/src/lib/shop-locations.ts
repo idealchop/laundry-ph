@@ -178,9 +178,11 @@ export function removeBranch(id: string): string {
 
 const ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
 
+/** Unguessable staff-link token (24 chars, crypto random). Shorter legacy tokens are replaced on next copy. */
 function newLinkToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
   let token = "";
-  for (let i = 0; i < 12; i++) token += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+  for (const b of bytes) token += ALPHABET[b % ALPHABET.length];
   return token;
 }
 
@@ -213,7 +215,7 @@ export function ensureBranchLink(id: string): string {
   const store = readLocationStore();
   const branch = store.branches.find((b) => b.id === id);
   if (!branch) return "";
-  if (branch.linkToken && !branchLinkExpired(branch)) {
+  if (branch.linkToken && branch.linkToken.length >= 20 && !branchLinkExpired(branch)) {
     if (!branch.linkExpiresAt) updateBranch(id, { linkExpiresAt: monthFrom(Date.now()) });
     return branchLinkPath(branch.linkToken);
   }

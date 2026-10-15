@@ -4,20 +4,27 @@ import { useState } from "react";
 import { Button, Input } from "@river-apps/ui";
 import { reverseGeocodePin } from "@/lib/geocode";
 import {
-  HOME_LOCATION_ID, branchLinkExpired, ensureBranchLink, linkExpiryLabel, useShopLocations,
+  HOME_LOCATION_ID, branchLinkExpired, ensureBranchLink, linkExpiryLabel, readLocationStore, useShopLocations,
   type ShopBranch,
 } from "@/lib/shop-locations";
 import { useShop } from "@/lib/shop";
+import { publishStaffLink } from "@/lib/staff-links";
 import type { ShopLocation } from "@/data";
 import { PageBack } from "../shell/PageBack";
 import { LocationPicker } from "./LocationPicker";
 
 function CopyShopLink({ id }: { id: string }) {
   const [label, setLabel] = useState("Copy link");
+  const { shop, source, isGuest } = useShop();
   return (
-    <Button size="sm" variant="secondary" onClick={() => {
+    <Button size="sm" variant="secondary" onClick={async () => {
       const path = ensureBranchLink(id);
       if (!path) return;
+      // Publish the token so the staff page (server) can find this shop. Guests/fixtures stay local.
+      const branch = readLocationStore().branches.find((b) => b.id === id);
+      if (branch && source.mode === "firebase" && !isGuest) {
+        try { await publishStaffLink(shop, branch); } catch (e) { setLabel((e as Error).message); return; }
+      }
       const url = `${window.location.origin}${path}`;
       navigator.clipboard?.writeText(url).then(
         () => {
@@ -125,7 +132,7 @@ export function ShopsScreen() {
                     <Button size="sm" variant="secondary" onClick={() => onRemove(branch)}>Remove</Button>
                   )}
                 </div>
-                <p className="mt-2 text-[12.5px] font-semibold text-muted">They open this link to see bookings for {branch.name}. No account. It expires each month.{branchLinkExpired(branch) ? " This one has expired. Copy link sends a new one." : ""}</p>
+                <p className="mt-2 text-[12.5px] font-semibold text-muted">Staff open this link to add walk-ins and move orders for {branch.name}. No account. It expires each month.{branchLinkExpired(branch) ? " This one has expired. Copy link sends a new one." : ""}</p>
                 {editing === branch.id ? (
                   <div className="mt-3">
                     <LocationPicker value={editPin} onChange={setEditPin} disabled={busy} />

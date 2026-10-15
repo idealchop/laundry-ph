@@ -117,9 +117,21 @@ function statusStory(b: Booking): { title: string; description: string; icon: (s
 }
 
 function useLiveRequest(id: string): { booking: Booking | null; ticket: PublicTicket | null } {
-  const read = () => ({ booking: readPublicBooking(id), ticket: readBookingTicket(id) });
+  const local = id.startsWith("bk-public-");
+  const read = () => (local ? { booking: readPublicBooking(id), ticket: readBookingTicket(id) } : { booking: null, ticket: null });
   const [live, setLive] = useState(read);
   useEffect(() => {
+    if (!local) {
+      // Firestore booking: follow the shop via the server (Accept / Decline / order stages).
+      let stop = false;
+      const pull = async () => {
+        const r = await fetch(`/api/public/bookings/${encodeURIComponent(id)}`, { cache: "no-store" }).catch(() => null);
+        if (r?.ok && !stop) setLive(await r.json());
+      };
+      void pull();
+      const timer = window.setInterval(() => void pull(), 4000);
+      return () => { stop = true; window.clearInterval(timer); };
+    }
     const pull = () => setLive(read());
     const onStorage = (e: StorageEvent) => {
       if (e.key === PUBLIC_BOOKINGS_KEY || e.key === PUBLIC_TICKETS_KEY || e.key === null) pull();
