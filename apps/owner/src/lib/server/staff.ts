@@ -73,7 +73,7 @@ export async function staffView(link: StaffLink) {
     .map((o) => ({ id: o.id, ref: String(o.ref), status: o.status as OrderStatus, source: o.source === "river-mobile" ? "river-mobile" : "walk-in", customer: String(o.customer?.name ?? "Walk-in customer").slice(0, 40), detail: String(o.detail ?? o.serviceName ?? ""), next: nextStatus({ status: o.status, source: o.source }) }));
   return {
     shopName: link.shopName, branchName: link.branchName, expiresAt: link.expiresAt,
-    services: cat.services.map((s) => ({ id: s.id, name: s.name, unit: s.unit, priceCentavos: s.priceCentavos })),
+    services: cat.services.map((s) => ({ id: s.id, name: s.name, icon: s.icon, unit: s.unit, priceCentavos: s.priceCentavos })),
     defaults: cat.defaults,
     walkIns: Number.isFinite(limit) ? { used, limit: PARTNER_WALKINS_PER_DAY, left: Math.max(0, PARTNER_WALKINS_PER_DAY - used) } : null,
     queue,

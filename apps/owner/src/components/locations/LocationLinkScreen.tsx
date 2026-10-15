@@ -1,5 +1,7 @@
 "use client";
 
+import { Icon3D, type IconName } from "@river-apps/icons";
+import { ServiceSlider } from "@/components/kit-extensions";
 import { Avatar, Button, Input } from "@river-apps/ui";
 import { useCallback, useEffect, useState } from "react";
 import { money } from "@/lib/format";
@@ -8,7 +10,7 @@ import { ORDER_STATUS_LABEL, type OrderStatus } from "@/data/types";
 
 interface View {
   shopName: string; branchName: string; expiresAt: number;
-  services: { id: string; name: string; unit: "kg" | "pc"; priceCentavos: number }[];
+  services: { id: string; name: string; icon?: IconName; unit: "kg" | "pc"; priceCentavos: number }[];
   defaults: { serviceId: string; kg: number; pieces: number };
   walkIns: { used: number; limit: number; left: number } | null;
   queue: { id: string; ref: string; status: OrderStatus; customer: string; detail: string; next: OrderStatus | null }[];
@@ -87,14 +89,11 @@ export function LocationLinkScreen({ token }: { token: string }) {
           </div>
         ) : (
           <form className="mt-3 flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); void add(); }}>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Service">
-              {view.services.map((s) => (
-                <button key={s.id} type="button" role="radio" aria-checked={s.id === serviceId} onClick={() => setServiceId(s.id)}
-                  className={`rounded-full px-3 py-1.5 text-[13px] font-bold ${s.id === serviceId ? "bg-ink text-white" : "bg-grey-100"}`}>
-                  {s.name} · {money(s.priceCentavos)}/{s.unit}
-                </button>
-              ))}
-            </div>
+            <ServiceSlider
+              options={view.services.map((s) => ({ id: s.id, label: s.name, icon: <Icon3D name={s.icon ?? "washer"} size={34} />, meta: `${money(s.priceCentavos)}/${s.unit}` }))}
+              value={serviceId}
+              onChange={setServiceId}
+            />
             <Input size="md" label={svc?.unit === "pc" ? "Pieces" : "Kilos"} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
             <Input size="md" label="Customer name (optional)" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
             <Button type="submit" fullWidth disabled={busy || !serviceId}>{busy ? "Adding…" : "Add walk-in"}</Button>

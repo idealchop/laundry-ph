@@ -1,6 +1,6 @@
 "use client";
 
-import { CoinIcon, EWalletIcon } from "@river-apps/icons";
+import { CoinIcon, EWalletIcon, Icon3D } from "@river-apps/icons";
 import { Button, Input } from "@river-apps/ui";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -11,7 +11,7 @@ import type { Booking, BookingType, Fulfillment } from "@/data/types";
 import { BOOKING_LIMITS, manilaDateKey, manilaSlotMs, normalizePhMobile } from "@/lib/bookings";
 import { money } from "@/lib/format";
 import { ACTIVE_BOOKING_KEY, readPublicBooking } from "@/lib/public-bookings";
-import { ChoiceTile } from "../kit-extensions";
+import { ChoiceTile, ServiceSlider } from "../kit-extensions";
 import { RequestStatus } from "./RequestStatus";
 
 const TIMES = ["09:00", "11:00", "14:00", "16:00"] as const;
@@ -215,23 +215,11 @@ export function BookScreen() {
       >
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1 text-[14px] font-bold">Service</legend>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {catalog.services.map((s) => {
-                const on = s.id === serviceId;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => setServiceId(s.id)}
-                    className={`rounded-tile px-3 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${on ? "bg-surface ring-2 ring-ink" : "bg-grey-100 hover:bg-grey-200"}`}
-                  >
-                    <b className="block text-[14px]">{s.name}</b>
-                    <small className="text-[12.5px] font-semibold text-muted">{money(s.priceCentavos)} / {s.unit}</small>
-                  </button>
-                );
-              })}
-            </div>
+            <ServiceSlider
+              options={catalog.services.map((s) => ({ id: s.id, label: s.name, icon: <Icon3D name={s.icon} size={34} />, meta: `${money(s.priceCentavos)}/${s.unit}` }))}
+              value={serviceId}
+              onChange={setServiceId}
+            />
           </fieldset>
 
           <Choice

@@ -4,6 +4,7 @@
  */
 export { Chip, type ChipProps } from "./Chip";
 export { ChoiceTile, type ChoiceTileProps } from "./ChoiceTile";
+export { ServiceSlider, type ServiceOption } from "./ServiceSlider";
 export { StepTracker, type Step, type StepTrackerProps } from "./StepTracker";
 export { WideSidebar, type WideSidebarProps } from "./WideSidebar";
 export { FieldLabel } from "./FieldLabel";

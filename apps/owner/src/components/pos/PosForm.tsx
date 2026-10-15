@@ -9,7 +9,7 @@ import { CLOTHES_PRICING_LABEL, pieceLabel, REGULAR_CLOTHES_ID } from "@/lib/clo
 import { money } from "@/lib/format";
 import { parseCustomerText } from "@/lib/orders";
 import { quote } from "@/lib/pricing";
-import { Chip, ChoiceTile, FieldLabel } from "../kit-extensions";
+import { Chip, ChoiceTile, FieldLabel, ServiceSlider } from "../kit-extensions";
 import { FocusHeader } from "../FocusHeader";
 import { ErrorNote } from "../ui";
 import { BasketFill, basketLabel } from "./BasketFill";
@@ -347,20 +347,11 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
 
           <div role="group" aria-labelledby="svc-label">
             <FieldLabel id="svc-label">Service</FieldLabel>
-            <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
-              {catalog.services.map((s) => (
-                <ChoiceTile
-                  key={s.id}
-                  layout="card"
-                  selected={s.id === serviceId}
-                  onClick={() => { setServiceId(s.id); setQtyText(null); }}
-                  className="w-full"
-                  icon={<Icon3D name={s.icon} size={40} />}
-                  title={s.name}
-                  subtitle={`${money(s.priceCentavos)} / ${s.unit}`}
-                />
-              ))}
-            </div>
+            <ServiceSlider
+              options={catalog.services.map((s) => ({ id: s.id, label: s.name, icon: <Icon3D name={s.icon} size={34} />, meta: `${money(s.priceCentavos)}/${s.unit}` }))}
+              value={serviceId}
+              onChange={(id) => { setServiceId(id); setQtyText(null); }}
+            />
           </div>
 
           <div className="grid items-start gap-3 lg:grid-cols-3">
