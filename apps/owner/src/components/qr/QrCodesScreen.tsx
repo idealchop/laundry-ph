@@ -17,14 +17,14 @@ export function QrCodesScreen() {
   const [origin, setOrigin] = useState("");
   const [src, setSrc] = useState("");
   const [copied, setCopied] = useState(false);
-  useEffect(() => setOrigin(window.location.origin), []);
+  useEffect(() => queueMicrotask(() => setOrigin(window.location.origin)), []);
 
   const locationId = shops.enabled && shops.scopeId ? shops.scopeId : undefined;
   const url = origin && !shops.viewingAll ? bookingUrl(origin, shop.id, locationId) : "";
   const who = shops.enabled && shops.branch ? `${shop.name} · ${shops.branch.name}` : shop.name;
 
   useEffect(() => {
-    if (!url) { setSrc(""); return; }
+    if (!url) return;
     let live = true;
     void QRCode.toDataURL(url, { margin: 1, width: 280, color: { dark: "#0A0A0A", light: "#FFFFFF" } }).then((data) => {
       if (live) setSrc(data);
@@ -53,7 +53,7 @@ export function QrCodesScreen() {
           <b className="text-[16px]">Booking</b>
           <p className="mt-1 max-w-[280px] text-[13px] font-medium text-muted">{shops.viewingAll ? "This code stays blank until one shop is open." : `One code for ${who}.`}</p>
           <div className="mt-4 rounded-tile bg-surface p-3 ring-1 ring-grey-200">
-            {src ? (
+            {url && src ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={src} alt="Booking QR code" width={220} height={220} className="size-[220px]" />
             ) : (

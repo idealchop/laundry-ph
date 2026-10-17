@@ -44,7 +44,7 @@ export function NewOrderScreen() {
       <>
         <FocusHeader title="Walk-in" backHref="/partner" />
         <div className="mx-5 mt-6 rounded-card bg-grey-100 px-5 py-6 text-center">
-          <b className="block text-[17px]">That's 10 walk-ins today</b>
+          <b className="block text-[17px]">That&apos;s 10 walk-ins today</b>
           <p className="mx-auto mt-1 max-w-[300px] text-[14px] font-medium text-muted">{WALKIN_LIMIT_MESSAGE.split(". ")[0]}. The count resets at midnight.</p>
           <Button href="/settings/billing" size="md" className="mt-4">Upgrade to Pro · {PAID_PER_MO}</Button>
         </div>

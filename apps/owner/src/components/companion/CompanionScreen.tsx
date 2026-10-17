@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowUp, Lock, RefreshCw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Topbar } from "@river-apps/ui";
 import { useAuthGatePrompt } from "@/components/auth/AuthGateProvider";
 import { useShop } from "@/lib/shop";
@@ -51,7 +51,7 @@ export function CompanionScreen() {
   const [older, setOlder] = useState<CompanionMessage[]>([]);
   const [moreOlder, setMoreOlder] = useState(true);
   const loadingOlder = useRef(false);
-  const msgs = [...older, ...recent];
+  const msgs = useMemo(() => [...older, ...recent], [older, recent]);
   const [used, setUsed] = useState(0);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<"chat" | "tips" | null>(null);

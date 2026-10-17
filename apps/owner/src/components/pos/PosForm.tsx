@@ -9,7 +9,7 @@ import { CLOTHES_PRICING_LABEL, pieceLabel, REGULAR_CLOTHES_ID } from "@/lib/clo
 import { money } from "@/lib/format";
 import { parseCustomerText } from "@/lib/orders";
 import { quote } from "@/lib/pricing";
-import { Chip, ChoiceTile, FieldLabel, ServiceSlider } from "../kit-extensions";
+import { Chip, FieldLabel, ServiceSlider } from "../kit-extensions";
 import { FocusHeader } from "../FocusHeader";
 import { ErrorNote } from "../ui";
 import { BasketFill, basketLabel } from "./BasketFill";

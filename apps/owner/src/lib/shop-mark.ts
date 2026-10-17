@@ -42,9 +42,11 @@ export function useShopMark(shopId: string, fallbackLocations: number) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const saved = readAll()[shopId];
-    setMark(saved ?? { logoUrl: "", locations: fallback });
-    setReady(true);
+    queueMicrotask(() => { // localStorage is client-only: read after mount
+      const saved = readAll()[shopId];
+      setMark(saved ?? { logoUrl: "", locations: fallback });
+      setReady(true);
+    });
   }, [shopId, fallback]);
 
   function save(next: Partial<ShopMark>) {

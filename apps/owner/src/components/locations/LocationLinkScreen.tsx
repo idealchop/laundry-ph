@@ -4,7 +4,8 @@ import { Icon3D, type IconName } from "@river-apps/icons";
 import { ServiceSlider } from "@/components/kit-extensions";
 import { HeroPhoto } from "@/components/home/HeroPhoto";
 import { Button, Input } from "@river-apps/ui";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useVisiblePoll } from "@/lib/visible-poll";
 import { money } from "@/lib/format";
 import { PAID_PER_MO } from "@/lib/plans";
 import { ORDER_STATUS_LABEL, type OrderStatus } from "@/data/types";
@@ -38,7 +39,7 @@ export function LocationLinkScreen({ token }: { token: string }) {
     setView(j); setError(null);
     setServiceId((s) => s || j.defaults?.serviceId || j.services?.[0]?.id || "");
   }, [token]);
-  useEffect(() => { void load(); const t = window.setInterval(() => void load(), 10_000); return () => window.clearInterval(t); }, [load]);
+  useVisiblePoll(load, 15_000);
 
   async function add() {
     setBusy(true); setNote(null);

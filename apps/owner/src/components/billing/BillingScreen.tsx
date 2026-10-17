@@ -8,7 +8,6 @@
 import { Check, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Badge, Button, Card, Topbar } from "@river-apps/ui";
-import { money } from "@/lib/format";
 import { PLAN_OPTIONS, monthlyExpiryFrom, planLabel, type PlanOptionId, isLifetimeOption } from "@/lib/plans";
 import { useAuthGatePrompt } from "@/components/auth/AuthGateProvider";
 import { useAction, useShop } from "@/lib/shop";

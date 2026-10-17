@@ -17,6 +17,8 @@ rules_version = '2';
 //   booking_refs/{bookingId}            { shopId } lookup for the Partner API (Admin SDK only, no client access)
 //   shops/{shopId}/usage/{yyyy-MM-dd}  { walkIns } daily walk-in counter (Partner cap 10/day, rules-enforced)
 //   shops/{shopId}/companion/**, insights/{weekId}   AI Companion (functions write, owner reads)
+//   shops/{shopId}/audit_logs/{id}   server-written audit trail (actor, action, resourceId); owner read-only
+//   config/flags                       { allFeaturesUnlocked } test-phase switch (Admin SDK writes; anyone reads)
 //   staff_links/{token}                owner-published staff link (no client read; server API scopes to that shop)
 //   public_tickets/{ticketId}           public-safe projection: anyone may GET one by its unguessable id, nobody may LIST
 //
@@ -99,6 +101,13 @@ service cloud.firestore {
         && request.resource.data.statusTimes.diff(resource.data.get('statusTimes', {})).affectedKeys().hasOnly([to])
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time;
+    }
+
+    // ---------- audit log ----------
+    // shops/{shopId}/audit_logs/{id}: written by server routes (Admin SDK) in the same transaction as the mutation.
+    match /shops/{shopId}/audit_logs/{logId} {
+      allow read: if isOwner(shopId);
+      allow write: if false;
     }
 
     // ---------- feature flags ----------

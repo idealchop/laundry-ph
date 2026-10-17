@@ -184,8 +184,8 @@ function AuthGateSheetOpen({
 
           <p className="mt-4 text-center text-[12px] font-medium text-muted">
             By continuing you agree to our{" "}
-            <Link href="/terms" target="_blank" className="underline">Terms</Link> and{" "}
-            <Link href="/privacy" target="_blank" className="underline">Privacy Policy</Link>.
+            <Link href="/terms" target="_blank" rel="noopener noreferrer" className="underline">Terms</Link> and{" "}
+            <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</Link>.
           </p>
         </div>
       </div>

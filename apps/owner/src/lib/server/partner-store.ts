@@ -12,6 +12,7 @@ import { BOOKING_LIMITS, BOOKING_STATUSES, type BookingInput } from "@/lib/booki
 import type { BookingStatus, ClothesPricing } from "@/data/types";
 import { normalizeClothesTypes, REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import { adminDb, isDevEnv } from "./admin";
+import { auditInTx } from "./audit";
 
 const PUBLIC_BASE = process.env.PUBLIC_BASE_URL || "";
 
@@ -261,6 +262,7 @@ export async function createBooking(shopId: string, input: BookingInput, meta: C
     };
     tx.create(bookingRef, body);
     tx.create(lookupRef, { shopId, createdAt: now });
+    auditInTx(tx, shopId, meta.createdBy ?? `api:${meta.keyId}`, "booking.create", bookingRef);
     return { snap: null, shopName: String(shopSnap.data()?.name ?? ""), created: true };
   });
 
@@ -315,6 +317,7 @@ export async function cancelBooking(bookingId: string, reason: string | null, ba
       updatedAt: FieldValue.serverTimestamp(),
       updatedBy: "api",
     });
+    auditInTx(tx, loc.shopRef.id, "api", "booking.cancel", loc.bookingRef);
   });
   const b = await getBooking(bookingId, base);
   if (!b) throw new BookingError("not_found", "Booking not found.");

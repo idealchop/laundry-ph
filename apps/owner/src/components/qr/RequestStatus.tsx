@@ -2,7 +2,8 @@
 
 import { CheckIcon, CoinIcon, EWalletIcon, FoldedClothesIcon, LaundryBasketIcon, WasherIcon } from "@river-apps/icons";
 import { Card, HeroBanner, MonoText, StatusDot } from "@river-apps/ui";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useVisiblePoll } from "@/lib/visible-poll";
 import type { Booking, PublicTicket } from "@/data/types";
 import { bookingCustomerLabel, formatSlot } from "@/lib/bookings";
 import { whenLabel } from "@/lib/format";
@@ -118,21 +119,18 @@ function statusStory(b: Booking): { title: string; description: string; icon: (s
 
 function useLiveRequest(id: string): { booking: Booking | null; ticket: PublicTicket | null } {
   const local = id.startsWith("bk-public-");
-  const read = () => (local ? { booking: readPublicBooking(id), ticket: readBookingTicket(id) } : { booking: null, ticket: null });
-  const [live, setLive] = useState(read);
+  const [live, setLive] = useState<{ booking: Booking | null; ticket: PublicTicket | null }>(() =>
+    local ? { booking: readPublicBooking(id), ticket: readBookingTicket(id) } : { booking: null, ticket: null });
+  // Firestore booking: follow the shop via the server while the tab is visible; stop once the request is final.
+  const final = live.booking?.status === "declined" || live.booking?.status === "cancelled" || live.booking?.status === "completed";
+  const pullServer = useCallback(async () => {
+    const r = await fetch(`/api/public/bookings/${encodeURIComponent(id)}`, { cache: "no-store" }).catch(() => null);
+    if (r?.ok) setLive(await r.json());
+  }, [id]);
+  useVisiblePoll(pullServer, 8_000, !local && !final);
   useEffect(() => {
-    if (!local) {
-      // Firestore booking: follow the shop via the server (Accept / Decline / order stages).
-      let stop = false;
-      const pull = async () => {
-        const r = await fetch(`/api/public/bookings/${encodeURIComponent(id)}`, { cache: "no-store" }).catch(() => null);
-        if (r?.ok && !stop) setLive(await r.json());
-      };
-      void pull();
-      const timer = window.setInterval(() => void pull(), 4000);
-      return () => { stop = true; window.clearInterval(timer); };
-    }
-    const pull = () => setLive(read());
+    if (!local) return;
+    const pull = () => setLive({ booking: readPublicBooking(id), ticket: readBookingTicket(id) });
     const onStorage = (e: StorageEvent) => {
       if (e.key === PUBLIC_BOOKINGS_KEY || e.key === PUBLIC_TICKETS_KEY || e.key === null) pull();
     };
@@ -142,6 +140,6 @@ function useLiveRequest(id: string): { booking: Booking | null; ticket: PublicTi
       window.removeEventListener("storage", onStorage);
       window.clearInterval(timer);
     };
-  }, [id]);
+  }, [id, local]);
   return live;
 }

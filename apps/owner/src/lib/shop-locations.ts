@@ -257,8 +257,7 @@ export function useShopLocations() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const pull = () => setStore(readLocationStore());
-    pull();
-    setReady(true);
+    queueMicrotask(() => { pull(); setReady(true); }); // first read after mount (localStorage is client-only)
     window.addEventListener(EVENT, pull);
     window.addEventListener("storage", pull);
     return () => {

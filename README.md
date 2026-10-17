@@ -1,12 +1,14 @@
 # laundry-ph
 
+Docs index: [docs/README.md](./docs/README.md). Rules: [river-ai-rules](https://github.com/idealchop/river-ai-rules).
+
 **Laundry.ph** is the River Apps owner app for neighbourhood wash-dry-fold shops in the Philippines: counter POS, the order queue, a shop QR for customer bookings, public tickets, history, and the owner community.
 
 **Phase 1 Paid MVP:** the owner app reads and writes to **Firestore** (project **`mylaundryph`**, named DB `laundrydb-dev` / `laundrydb`). It is standalone, with no Smart Refill / `riverdb`. Walk-in POS orders, the live order board, Online bookings, public tickets, ticket lookup and history all work against real data. If Firebase isn't configured, or `NEXT_PUBLIC_DEMO_FIXTURES=1` is set, the app runs on an in-memory sample store that saves nothing. Screens and tickets from the seeded `sample-laundry` shop carry a "Sample data" tag.
 
 ## Setup
 
-Requirements: Node.js ≥ 20.9 (CI uses 22) and pnpm 10 (`corepack enable` picks up the version in `package.json`).
+Requirements: Node.js 22 LTS and pnpm 10 (`corepack enable` picks up the version in `package.json`).
 
 ```bash
 pnpm install
@@ -51,7 +53,7 @@ CI (`.github/workflows/ci.yml`) runs install, typecheck, lint and build on every
 | `/profile` | My account: shop photo, credits, edit shop, history, services, plan, Walk-in POS, shop QR (on a phone), and **Log out**. `/settings` is the same screen. `/more` redirects here |
 | `/profile/edit` | Shop name, area, address and map pin |
 | `/profile/services` | Services, clothes types, detergent, add-ons and the minimum kilos |
-| `/settings/billing` | Partner FREE · Paid ₱499/mo · Lifetime ₱10,000 one-time |
+| `/settings/billing` | Partner (entry) · Pro ₱499/mo · Lifetime from ₱10,000 one-time |
 | `/scan/result?code=<ticket URL or LDY-####>` | Look up a ticket and open the order |
 | `/partner` | Partner home: today’s summary, pickups to accept, upgrade |
 | `/partner/orders` | Partner bookings. `/partner/bookings` redirects here |
@@ -214,7 +216,7 @@ Once `Chip`, `ChoiceTile`, `StepTracker` and a `Sidebar` size option land in the
 - **Done in Phase 1:** standalone Firebase project, Firestore `shops/{shopId}` model, owner/staff roles, walk-in POS, Walk-ins / Online order board, history, shop QR booking (email or mobile, pay online or at the shop, live status), Accept creates the order, public tickets, scan lookup, services editor, community feed.
 - **Phase 2 gaps:** SMS automations and a stored "text me" number; live GCash / PayMongo Checkout (the pay button is UI only until secrets are set); live AI growth tip; vouchers; camera scanning; staff invites; machine tracking; saving ticket ratings; Cloud Functions to write the ticket projection server-side; deploying prod `laundrydb` rules + `laundry-prod`; composite indexes as data grows.
 - **`/partner/v1` API for River Mobile:** a versioned Partner API so River Mobile can create pickup and drop-off bookings, verify customers by QR scan, and receive status webhooks (accepted, weighed, ready). It uses scoped API clients, idempotency keys and a consented customer link instead of a shared user table.
-- **Partner vs Paid tiers (enforced in UI):** Partner (FREE) covers the River Mobile listing, bookings, scan and history (`/partner`). Paid (₱499/month or ₱10,000 lifetime) adds the counter POS, the order board, history, the shop QR and public tickets. New shops start on Partner. `/settings/billing` can demo-upgrade a non-sample shop when PayMongo keys are absent.
+- **Partner vs Paid tiers (enforced in UI):** Partner (entry plan) covers the River Mobile listing, bookings, scan, history and 10 walk-ins a day (`/partner`). Pro (₱499/month, internal tier `paid`) or Lifetime (from ₱10,000) adds the counter POS, the order board, history, the shop QR and public tickets. New shops start on Partner. `/settings/billing` can demo-upgrade a non-sample shop when PayMongo keys are absent.
 
 ### Billing assumptions (Oct 5, 2026)
 

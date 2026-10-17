@@ -65,13 +65,15 @@ export function BookScreen() {
     const id = sessionStorage.getItem(ACTIVE_BOOKING_KEY);
     if (!id || !shopId) return;
     const saved = readPublicBooking(id);
-    if (saved?.shopId === shopId) {
-      setDraft(saved);
-      setPhase("status");
-    } else if (!id.startsWith("bk-public-")) {
-      setDraft({ id } as Booking); // Firestore booking: RequestStatus loads it from the server
-      setPhase("status");
-    }
+    queueMicrotask(() => { // resume this tab's request (sessionStorage is client-only)
+      if (saved?.shopId === shopId) {
+        setDraft(saved);
+        setPhase("status");
+      } else if (!id.startsWith("bk-public-")) {
+        setDraft({ id } as Booking); // Firestore booking: RequestStatus loads it from the server
+        setPhase("status");
+      }
+    });
   }, [shopId]);
 
   const needsAddress = type === "pickup" || fulfillment === "delivery";

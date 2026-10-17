@@ -12,6 +12,7 @@ import { buildWalkInOrder, formatRef, makeTicketId, nextStatus, ticketStage, toP
 import { ORDER_FLOW } from "@/data/types";
 import { PARTNER_WALKINS_PER_DAY, walkInLimit, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 import { adminDb } from "./admin";
+import { auditInTx } from "./audit";
 
 /** Same switch the rules read: config/flags.allFeaturesUnlocked in this database (cached 60 s). */
 let flagCache: { at: number; on: boolean } | null = null;
@@ -128,6 +129,7 @@ export async function staffWalkIn(link: StaffLink, input: StaffWalkInInput) {
     const t = toPublicTicket(order, { name: String(shop.name ?? ""), sample: shop.sample === true });
     const { id: _id, ...ticket } = t; void _id;
     tx.set(db.collection("public_tickets").doc(ticketId), strip({ ...ticket, stageTimes: { received: FieldValue.serverTimestamp() }, updatedAt: FieldValue.serverTimestamp(), sample: ticket.sample ? true : undefined } as Record<string, unknown>));
+    auditInTx(tx, link.shopId, `staff-link:${link.branchId}`, "order.create", orderRef);
     return { id: orderRef.id, ref: refCode, ticketId, left: Number.isFinite(walkInLimit(tier, unlocked)) ? Math.max(0, PARTNER_WALKINS_PER_DAY - used - 1) : null };
   });
 }
@@ -149,6 +151,7 @@ export async function staffAdvance(link: StaffLink, orderId: string) {
       if ((ORDER_FLOW as string[]).includes(to)) patch[`stageTimes.${to}`] = FieldValue.serverTimestamp();
       tx.update(db.collection("public_tickets").doc(o.ticketId), patch);
     }
+    auditInTx(tx, link.shopId, `staff-link:${link.branchId}`, `order.status.${to}`, ref);
     return { id: orderId, status: to };
   });
 }
