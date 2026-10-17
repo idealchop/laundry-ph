@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Input } from "@river-apps/ui";
+import { Input } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { useState, type FormEvent } from "react";
 import { createShop, joinDemoShop } from "@/data/membership";
 import type { Shop } from "@/data";

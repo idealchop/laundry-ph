@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { startOfShopDay } from "@/lib/format";
-import { summarizeToday } from "@/lib/orders";
+import { liveWork, summarizeToday } from "@/lib/orders";
 import { useLocationFilter } from "@/lib/shop-locations";
 import { useBoardOrders, useBookings, useCustomers, useShop } from "@/lib/shop";
-import { ErrorNote, Spinner } from "../ui";
+import { ErrorNote } from "../ui";
+import { HomeSkeleton } from "../common/Skeleton";
 import { HomeLayout } from "./HomeLayout";
 
 /** Paid home (phone + desktop): the shared HomeLayout fed by the shop's orders, with walk-ins on. The queue lives in Orders. */
@@ -26,7 +27,9 @@ export function HomeScreen() {
     [scopedOrders, shop.dailyTargetCentavos, newBookings, customers],
   );
 
-  if (loading && orders.length === 0) return <Spinner label="Loading orders" />;
+  const liveNow = useMemo(() => liveWork(scopedOrders), [scopedOrders]);
+
+  if ((loading && orders.length === 0) || !loc.ready) return <HomeSkeleton />;
   return (
     <>
       {error ? <ErrorNote className="mx-4 mt-3 lg:mx-[30px]">{error}</ErrorNote> : null}
@@ -39,6 +42,7 @@ export function HomeScreen() {
         bookingsError={live.error}
         canConvert
         onlineHref="/orders?channel=online"
+        live={liveNow}
       />
     </>
   );

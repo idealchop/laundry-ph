@@ -1,7 +1,8 @@
 "use client";
 
 import { CheckIcon, DryerIcon, FoldedClothesIcon, LaundryBasketIcon, WasherIcon } from "@river-apps/icons";
-import { Badge, Button, cn } from "@river-apps/ui";
+import { Badge, cn } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { ORDER_STATUS_LABEL, type Order, type OrderStatus } from "@/data";

@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { AppShell, Button } from "@river-apps/ui";
+import { AppShell } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { useShop } from "@/lib/shop";
 import { PAID_PER_MONTH, planLabel, hasProFeatures } from "@/lib/plans";
 import { LaundryBrand } from "../brand";

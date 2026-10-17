@@ -1,18 +1,20 @@
 "use client";
-import { Badge, Button, Card, CardHeader, ProgressRing, SectionHeader, StatCard } from "@river-apps/ui";
+import { Badge, Card, CardHeader, ProgressRing, SectionHeader, StatCard } from "@river-apps/ui";
+import { Button } from "../common/Button";
+import { EmptyQueue } from "../common/EmptyQueue";
+import { useLocationSwitching } from "../common/LocationMenu";
+import { ShopHeader } from "../common/ShopHeader";
+import { RowsSkeleton, Sk, StatsSkeleton } from "../common/Skeleton";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import type { Booking, DaySummary, Shop } from "@/data";
 import { money } from "@/lib/format";
-import { ownerFirstName } from "@/lib/greeting";
 import { PAID_PER_MO } from "@/lib/plans";
 import { CompanionCard } from "../companion/CompanionCard";
 import { BookingCard } from "../bookings/BookingCard";
 import { TestBookingButton, useBookingActions } from "../bookings/BookingsList";
-import { Greeting } from "../Greeting";
-import { SampleNote } from "../SampleNote";
 import { ErrorNote } from "../ui";
-import { HomeHeroDesktop, HomeHeroMobile, HomeTopbar } from "./HomeHero";
+import { HomeHeroDesktop, HomeHeroMobile, type LiveWork } from "./HomeHero";
 
 const linkCls = "text-[14px] font-bold underline decoration-grey-300 underline-offset-[3px]";
 
@@ -33,6 +35,8 @@ export interface HomeLayoutProps {
   subtitleExtra?: ReactNode;
   /** Optional block at the very bottom (Partner: small upgrade card). */
   footer?: ReactNode;
+  /** Loads in progress: turns the hero live (glow, dot, timer). */
+  live?: LiveWork;
 }
 
 /** Live bookings (new requests first). Desktop shows up to 4, two per row. */
@@ -44,15 +48,13 @@ function Pickups({ bookings, loading, error, canConvert, moreHref, max = 3, twoU
   const queue = canConvert ? bookings.filter((b) => b.status === "requested") : bookings;
   const shown = queue.slice(0, max);
   const more = queue.length - shown.length;
-  if (loading) return <p className="rounded-[18px] bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-muted">Loading bookings…</p>;
+  if (loading) return <RowsSkeleton rows={2} className="mt-0" />;
   return (
     <div className="flex flex-col gap-3">
       {error ? <ErrorNote>{error}</ErrorNote> : null}
       {actions.error ? <ErrorNote onRetry={actions.clearError}>{actions.error}</ErrorNote> : null}
       {shown.length === 0 && !error ? (
-        <p className="rounded-[18px] bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-muted">
-          No bookings yet. When River Mobile customers book your shop, they’ll show up here.
-        </p>
+        <EmptyQueue icon="basket" title="No pickups to accept" subtitle="River Mobile bookings show up here" />
       ) : null}
       {shown.length ? (
         <div className={twoUp ? "grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2" : "flex flex-col gap-3"}>
@@ -100,16 +102,17 @@ export function HomeLayout(p: HomeLayoutProps) {
   const { shop, today, canWalkIn } = p;
   const fresh = p.bookings.filter((b) => b.status === "requested").length;
   const pickupsAside = p.bookingsLoading ? "" : fresh ? `${fresh} new` : p.bookings.length ? `${p.bookings.length} open` : "Live";
-  const pickups = (max: number, twoUp: boolean) => (
+  const switching = useLocationSwitching();
+  const pickups = (max: number, twoUp: boolean) => switching ? <RowsSkeleton rows={2} className="mt-0" /> : (
     <Pickups bookings={p.bookings} loading={p.bookingsLoading} error={p.bookingsError} canConvert={p.canConvert} moreHref={p.onlineHref} max={max} twoUp={twoUp} />
   );
   return (
     <>
       {/* Phone and tablet (below lg). */}
       <div className="mx-auto w-full max-w-[560px] pb-4 lg:hidden">
-        <Greeting name={ownerFirstName(shop.ownerName) || shop.name} avatar={shop.ownerAvatar} photoUrl={shop.photoUrls?.[0]} />
-        <HomeHeroMobile shop={shop} today={today} showWalkIn={canWalkIn} />
-        <Stats today={today} className="mx-4 mt-3" />
+        <ShopHeader shop={shop} className="px-4 pt-1" />
+        {switching ? <Sk className="mx-4 mt-1 h-[150px] rounded-banner" /> : <HomeHeroMobile shop={shop} today={today} showWalkIn={canWalkIn} live={p.live} />}
+        {switching ? <StatsSkeleton className="mx-4 mt-3" /> : <Stats today={today} className="mx-4 mt-3" />}
         <CompanionCard className="mx-4 mt-3" />
         <SectionHeader className="px-4 pb-1 pt-4" title="Pickups to accept" aside={pickupsAside} />
         <div className="mx-4">{pickups(3, false)}</div>
@@ -118,12 +121,12 @@ export function HomeLayout(p: HomeLayoutProps) {
 
       {/* Desktop (lg and up). */}
       <div className="mx-auto hidden w-full max-w-[1120px] px-4 pb-6 pt-4 lg:block lg:px-[30px] lg:pt-6">
-        <HomeTopbar shop={shop} today={today} subtitleExtra={<>{p.subtitleExtra} <SampleNote className="ml-1 align-middle" /></>} />
-        <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_286px]">
-          <HomeHeroDesktop shop={shop} today={today} showWalkIn={canWalkIn} />
-          <DailyTarget today={today} />
+        <ShopHeader shop={shop} className="px-1" />
+        <div className="mt-4 grid gap-5 xl:grid-cols-[1fr_286px]">
+          {switching ? <Sk className="h-[248px] rounded-banner" /> : <HomeHeroDesktop shop={shop} today={today} showWalkIn={canWalkIn} live={p.live} />}
+          {switching ? <Sk className="h-[248px] rounded-card" /> : <DailyTarget today={today} />}
         </div>
-        <Stats today={today} className="mt-5" />
+        {switching ? <StatsSkeleton className="mt-5" /> : <Stats today={today} className="mt-5" />}
         <CompanionCard className="mt-5" />
         <Card padding="none" className="mt-5 px-[18px] pb-4 pt-4">
           <CardHeader className="mb-3" title="Pickups to accept" subtitle={pickupsAside} action={<Link href={p.onlineHref} className={linkCls}>All bookings</Link>} />

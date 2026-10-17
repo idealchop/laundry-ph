@@ -7,7 +7,8 @@ import { LaundryBrand } from "@/components/brand";
  * Two-step: method list → chosen method (phone form / OTP). Guest can dismiss.
  */
 import { ChatIcon } from "@river-apps/icons";
-import { Button, OtpInput, PhoneInput, formatPhilippineMobile, cn } from "@river-apps/ui";
+import { OtpInput, PhoneInput, formatPhilippineMobile, cn } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { ArrowLeft, X } from "lucide-react";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { GoogleG } from "@/components/brand";

@@ -1,12 +1,14 @@
 "use client";
 
 import { Icon3D } from "@river-apps/icons";
+import { RowsSkeleton } from "@/components/common/Skeleton";
 import { Banknote, Info, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Badge, Button, Card, ListItem } from "@river-apps/ui";
+import { Badge, Card, ListItem } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { money, shortDate, timeLabel } from "@/lib/format";
 import { useAction, useShop, useShopQuery } from "@/lib/shop";
-import { ErrorNote, Spinner } from "../ui";
+import { ErrorNote } from "../ui";
 
 type CreditStatus = "pending" | "available" | "withdrawn";
 
@@ -143,7 +145,7 @@ export function CreditsPanel() {
   }
 
   if ((pickups.loading || booking.loading) && !pickups.data && !booking.data) {
-    return <Spinner label="Loading credits" />;
+    return <RowsSkeleton rows={3} />;
   }
 
   return (

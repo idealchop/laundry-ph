@@ -3,7 +3,8 @@
 import { Icon3D, type IconName } from "@river-apps/icons";
 import { ServiceSlider } from "@/components/kit-extensions";
 import { HeroPhoto } from "@/components/home/HeroPhoto";
-import { Button, Input } from "@river-apps/ui";
+import { Input } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { useCallback, useState } from "react";
 import { useVisiblePoll } from "@/lib/visible-poll";
 import { money } from "@/lib/format";

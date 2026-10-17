@@ -1,7 +1,9 @@
 "use client";
 
 import { ScanLine, Search } from "lucide-react";
-import { Avatar, Button, Card, EmptyState, Input, MonoText, StatusDot, SuccessState } from "@river-apps/ui";
+import { FormSkeleton } from "@/components/common/Skeleton";
+import { Avatar, Card, EmptyState, Input, MonoText, StatusDot, SuccessState } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { ORDER_STATUS_LABEL, type VerifiedBooking } from "@/data";
@@ -76,7 +78,7 @@ function LookupForm({ initial }: { initial: string }) {
 function ResolvedOrder({ orderId }: { orderId: string }) {
   const { order } = useOrder(orderId);
   const action = useAction();
-  if (!order) return <Spinner label="Loading order" />;
+  if (!order) return <FormSkeleton />;
   const next = nextStatus(order);
   return (
     <>

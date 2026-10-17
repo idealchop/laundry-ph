@@ -1,7 +1,8 @@
 "use client";
 
 import { CoinIcon, EWalletIcon, Icon3D } from "@river-apps/icons";
-import { Button, Input } from "@river-apps/ui";
+import { Input } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { catalog, SAMPLE_SHOP_ID, shop as sampleShop } from "@/data/fixtures";

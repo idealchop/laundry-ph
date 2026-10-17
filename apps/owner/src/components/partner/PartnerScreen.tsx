@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { startOfShopDay } from "@/lib/format";
-import { summarizeToday } from "@/lib/orders";
+import { liveWork, summarizeToday } from "@/lib/orders";
 import { useLocationFilter } from "@/lib/shop-locations";
 import { useBookings, useOrders, useShop } from "@/lib/shop";
 import { HomeLayout, UpgradeCard } from "../home/HomeLayout";
@@ -28,6 +28,7 @@ export function PartnerScreen() {
     return { ...t, inQueue: t.inQueue + inProgress };
   }, [scopedOrders, shop.dailyTargetCentavos, requested.length, inProgress]);
 
+  const liveNow = useMemo(() => liveWork(scopedOrders), [scopedOrders]);
   return (
     <HomeLayout
       shop={shop}
@@ -40,6 +41,7 @@ export function PartnerScreen() {
       onlineHref="/partner/orders"
       subtitleExtra=" · Partner"
       footer={<UpgradeCard />}
+      live={liveNow}
     />
   );
 }

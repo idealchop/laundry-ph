@@ -1,9 +1,11 @@
 "use client";
 
 import { pieceLabel } from "@/lib/clothes";
+import { FormSkeleton } from "@/components/common/Skeleton";
 import { Copy, ExternalLink, Phone, User } from "lucide-react";
 import { CoinIcon, EWalletIcon } from "@river-apps/icons";
-import { Avatar, Button, Card, CardHeader, EmptyState, MonoText, StatusDot } from "@river-apps/ui";
+import { Avatar, Card, CardHeader, EmptyState, MonoText, StatusDot } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ORDER_FLOW, ORDER_STATUS_LABEL, type Order, type OrderStatus } from "@/data";
@@ -14,7 +16,7 @@ import { useAction, useOrder, useShop } from "@/lib/shop";
 import { StepTracker } from "../kit-extensions";
 import { SampleNote } from "../SampleNote";
 import { ShellBack } from "../shell/PageBack";
-import { ErrorNote, PaymentBadge, Spinner, statusIcon } from "../ui";
+import { ErrorNote, PaymentBadge, statusIcon } from "../ui";
 
 const UNDO_MS = 5000;
 
@@ -22,7 +24,7 @@ const UNDO_MS = 5000;
 export function OrderDetailScreen() {
   const id = useSearchParams().get("id");
   const { order, error, loading } = useOrder(id);
-  if (loading) return <Spinner label="Loading order" />;
+  if (loading) return <FormSkeleton />;
   if (!order) {
     return (
       <div className="mx-auto w-full max-w-[560px] px-4 pt-6">

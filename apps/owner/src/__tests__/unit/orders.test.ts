@@ -18,3 +18,18 @@ describe("order flow", () => {
     expect(dayKey(Date.parse("2026-10-17T16:00:00Z"))).toBe("2026-10-18");
   });
 });
+
+import { liveWork } from "@/lib/orders";
+describe("live hero", () => {
+  it("TC-HOME-HP-01 counts washing/drying/folding and picks the oldest start", () => {
+    const r = liveWork([
+      { status: "washing", stageTimes: { washing: 2000 }, updatedAt: 9 },
+      { status: "folding", stageTimes: { washing: 1000, folding: 5000 }, updatedAt: 9 },
+      { status: "received", stageTimes: {}, updatedAt: 9 },
+    ]);
+    expect(r).toEqual({ count: 2, since: 1000 });
+  });
+  it("TC-HOME-NEG-01 nothing in progress → not live", () => {
+    expect(liveWork([{ status: "ready", stageTimes: {}, updatedAt: 1 }])).toEqual({ count: 0, since: null });
+  });
+});

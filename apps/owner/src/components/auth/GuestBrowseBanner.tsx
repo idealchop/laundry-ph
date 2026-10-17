@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { useAuthGate } from "./AuthGateProvider";
 
 /** Subtle bar for guests — sign-in is optional until they take an action. */

@@ -1,6 +1,7 @@
 "use client";
 import type { AvatarPreset } from "@river-apps/icons";
-import { Avatar, Button } from "@river-apps/ui";
+import { Avatar } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { ChartColumn } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";

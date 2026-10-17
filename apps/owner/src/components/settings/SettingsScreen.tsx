@@ -7,7 +7,8 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Avatar, Badge, Button, Card, ListItem, Topbar, cn } from "@river-apps/ui";
+import { Avatar, Badge, Card, ListItem, Topbar, cn } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import type { Shop } from "@/data";
 import { useAuthGate } from "@/components/auth/AuthGateProvider";
 import { locationCount, locationCountLabel, money } from "@/lib/format";

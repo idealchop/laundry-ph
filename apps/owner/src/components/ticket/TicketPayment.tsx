@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { CoinIcon, EWalletIcon } from "@river-apps/icons";
-import { Button, Card, StatusDot } from "@river-apps/ui";
+import { Card, StatusDot } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { ChoiceTile } from "../kit-extensions";
 
 type Method = "gcash" | "cash";

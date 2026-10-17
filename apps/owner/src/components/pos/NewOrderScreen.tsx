@@ -1,13 +1,14 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { FormSkeleton } from "@/components/common/Skeleton";
 import { firestoreErrorMessage } from "@/data/firebase-source";
 import type { NewWalkInOrder } from "@/data";
-import { Button } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { useAction, useCustomers, useShop, useShopQuery } from "@/lib/shop";
 import { PAID_PER_MO, walkInLimit, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 import { FocusHeader } from "../FocusHeader";
-import { ErrorNote, Spinner } from "../ui";
+import { ErrorNote } from "../ui";
 import { PosForm } from "./PosForm";
 
 export function NewOrderScreen() {
@@ -20,7 +21,7 @@ export function NewOrderScreen() {
   const limit = walkInLimit(shop.tier);
   const capped = Number.isFinite(limit);
   const used = useShopQuery((s) => (capped && !bookingId ? s.getWalkInsToday() : Promise.resolve(0)), [capped, bookingId]);
-  if (catalog.loading || booking.loading) return <Spinner label="Loading price list" />;
+  if (catalog.loading || booking.loading) return <FormSkeleton />;
   if (!catalog.data) {
     return (
       <>

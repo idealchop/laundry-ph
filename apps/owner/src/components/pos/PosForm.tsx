@@ -3,7 +3,8 @@ import { Bike, CalendarDays, ChevronDown, Copy, Minus, Plus, ReceiptText, Store,
 import type { ReactNode } from "react";
 import { useId, useMemo, useRef, useState } from "react";
 import { Icon3D } from "@river-apps/icons";
-import { Avatar, Badge, Button, Input, IconButton, MonoText, SuccessState } from "@river-apps/ui";
+import { Avatar, Badge, Input, IconButton, MonoText, SuccessState } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import type { Booking, Catalog, Customer, Fulfillment, NewWalkInOrder, Order } from "@/data";
 import { CLOTHES_PRICING_LABEL, pieceLabel, REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import { money } from "@/lib/format";

@@ -2,7 +2,8 @@
 
 import { ArrowUp, Lock, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Topbar } from "@river-apps/ui";
+import { Topbar } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { useAuthGatePrompt } from "@/components/auth/AuthGateProvider";
 import { useShop } from "@/lib/shop";
 import { PAID_PER_MO, ALL_FEATURES_UNLOCKED, hasProFeatures } from "@/lib/plans";

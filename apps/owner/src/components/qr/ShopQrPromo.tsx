@@ -1,4 +1,4 @@
-import { Button } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { LaundryScene } from "../brand";
 
 /** Same QR card as the desktop sidebar: illustration, short line, and a button to the QR page. */

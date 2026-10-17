@@ -1,7 +1,8 @@
 "use client";
 
 import { ChatIcon } from "@river-apps/icons";
-import { Button, PhoneInput } from "@river-apps/ui";
+import { PhoneInput } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { AuthNav } from "@/components/AuthNav";

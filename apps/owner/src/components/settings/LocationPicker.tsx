@@ -9,7 +9,7 @@
  */
 import { MapPin, Navigation } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import type { ShopLocation } from "@/data";
 import { reverseGeocodePin } from "@/lib/geocode";
 import { FieldLabel } from "../kit-extensions";

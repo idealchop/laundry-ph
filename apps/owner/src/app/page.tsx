@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Spinner } from "@/components/ui";
+import { HomeSkeleton } from "@/components/common/Skeleton";
 
 /**
  * Entry: go straight to Home. Guests browse without signing in; the login sheet
@@ -13,5 +13,5 @@ export default function EntryPage() {
   useEffect(() => {
     router.replace("/home");
   }, [router]);
-  return <Spinner label="Opening your shop" fullScreen />;
+  return <HomeSkeleton />;
 }

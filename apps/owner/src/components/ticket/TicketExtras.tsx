@@ -2,7 +2,8 @@
 import { Star } from "lucide-react";
 import { useState } from "react";
 import { ChatIcon } from "@river-apps/icons";
-import { Button, Card, IconButton, IconTile, PhoneInput, StatusDot, cn } from "@river-apps/ui";
+import { Card, IconButton, IconTile, PhoneInput, StatusDot, cn } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 
 /** Optional SMS opt-in ("With option to gather customer information" in the feature map). UI-only until SMS automations ship (Phase 2): the number is not stored. */
 export function SmsOptIn() {

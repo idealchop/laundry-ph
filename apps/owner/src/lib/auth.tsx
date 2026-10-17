@@ -11,6 +11,7 @@ import {
   signInWithPhoneNumber,
   signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
   signOut as fbSignOut,
   type ConfirmationResult,
   type User,
@@ -19,6 +20,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { getFirebaseAuth } from "@/lib/firebase/client";
 
 const GUEST_KEY = "laundry-ph-guest-v1";
+/** Set just before a Google redirect so the return trip shows "Signing you in…" instead of guest data. */
+const REDIRECT_KEY = "laundry-ph-auth-redirect";
+
+function readRedirectFlag(): boolean {
+  if (typeof window === "undefined") return false;
+  try { return window.sessionStorage.getItem(REDIRECT_KEY) === "1"; } catch { return false; }
+}
 
 function readGuestFlag(): boolean {
   if (typeof window === "undefined") return false;
@@ -46,6 +54,8 @@ interface AuthState {
   isAuthenticated: boolean;
   /** Browsing without an account (persisted). */
   isGuest: boolean;
+  /** Back from a Google redirect and still finishing sign-in. */
+  redirecting: boolean;
   enterAsGuest: () => void;
   clearGuest: () => void;
 }
@@ -55,6 +65,7 @@ const AuthContext = createContext<AuthState>({
   loading: true,
   isAuthenticated: false,
   isGuest: false,
+  redirecting: false,
   enterAsGuest: () => undefined,
   clearGuest: () => undefined,
 });
@@ -64,6 +75,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   // false on SSR; first client render reads localStorage via lazy init
   const [isGuest, setIsGuest] = useState(() => readGuestFlag());
+  const [redirecting, setRedirecting] = useState(() => readRedirectFlag());
+
+  useEffect(() => {
+    if (!redirecting) return;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      try { window.sessionStorage.removeItem(REDIRECT_KEY); } catch { /* ignore */ }
+      document.documentElement.removeAttribute("data-auth-redirect");
+      setRedirecting(false);
+    };
+    getRedirectResult(getFirebaseAuth()).catch(() => null).finally(finish);
+    const t = window.setTimeout(finish, 15_000); // never trap the user behind the overlay
+    return () => window.clearTimeout(t);
+  }, [redirecting]);
 
   useEffect(() => {
     return onAuthStateChanged(getFirebaseAuth(), (next) => {
@@ -92,10 +119,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       isAuthenticated: Boolean(user),
       isGuest: Boolean(isGuest) && !user,
+      redirecting,
       enterAsGuest,
       clearGuest,
     }),
-    [user, loading, isGuest, enterAsGuest, clearGuest],
+    [user, loading, isGuest, redirecting, enterAsGuest, clearGuest],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -134,7 +162,10 @@ export async function signInWithGoogle() {
   try {
     await signInWithPopup(auth, provider);
   } catch (err) {
-    if ((err as { code?: string })?.code === "auth/popup-blocked") await signInWithRedirect(auth, provider);
+    if ((err as { code?: string })?.code === "auth/popup-blocked") {
+      try { window.sessionStorage.setItem(REDIRECT_KEY, "1"); } catch { /* ignore */ }
+      await signInWithRedirect(auth, provider);
+    }
     else throw err;
   }
 }

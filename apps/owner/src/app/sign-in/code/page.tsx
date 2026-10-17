@@ -1,7 +1,8 @@
 "use client";
 
 import { ShieldIcon } from "@river-apps/icons";
-import { Button, OtpInput, formatPhilippineMobile } from "@river-apps/ui";
+import { OtpInput, formatPhilippineMobile } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { Clock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

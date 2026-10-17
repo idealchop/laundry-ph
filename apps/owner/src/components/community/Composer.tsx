@@ -4,7 +4,8 @@
 import { ImagePlus, X } from "lucide-react";
 import Link from "next/link";
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { Avatar, Button, cn } from "@river-apps/ui";
+import { Avatar, cn } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import type { ReactNode } from "react";
 import { fileToDataUrl, profileHref, type PostAuthor } from "./posts";
 

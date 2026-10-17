@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Card, Topbar } from "@river-apps/ui";
+import { Card, Topbar } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { bookingUrl } from "@/lib/shop-qr";

@@ -1,14 +1,16 @@
 "use client";
 
 import { Plus } from "lucide-react";
+import { FormSkeleton } from "@/components/common/Skeleton";
 import { useState } from "react";
-import { Button, Card, Input } from "@river-apps/ui";
+import { Card, Input } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import type { Catalog, CatalogOption } from "@/data";
 import { DEFAULT_CLOTHES_TYPES } from "@/lib/clothes";
 import { catalog as defaultCatalog } from "@/data/fixtures";
 import { FocusHeader } from "@/components/FocusHeader";
 import { useAction, useShop, useShopQuery } from "@/lib/shop";
-import { ErrorNote, Spinner } from "../ui";
+import { ErrorNote } from "../ui";
 import { centavosFromPesos, ClothesTypeList, pesosFromCentavos, ServiceList } from "./CatalogLists";
 
 function cloneCatalog(c: Catalog): Catalog {
@@ -70,7 +72,7 @@ export function ServicesScreen() {
     });
   }
 
-  if (q.loading && !draft) return <Spinner label="Loading price list" />;
+  if (q.loading && !draft) return <FormSkeleton />;
   if (q.error && !draft) {
     return (
       <>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Input } from "@river-apps/ui";
+import { Input } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { reverseGeocodePin } from "@/lib/geocode";
 import {
   HOME_LOCATION_ID, branchLinkExpired, ensureBranchLink, linkExpiryLabel, readLocationStore, useShopLocations,

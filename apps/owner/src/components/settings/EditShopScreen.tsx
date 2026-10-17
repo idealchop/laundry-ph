@@ -3,7 +3,8 @@
 import { ChevronLeft, ImagePlus, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { Badge, Button, Card, Input, cn } from "@river-apps/ui";
+import { Badge, Card, Input, cn } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import type { Shop, ShopAddress, ShopLocation } from "@/data";
 import { fileToDataUrl } from "@/components/community/posts";
 import { useAuthGate } from "@/components/auth/AuthGateProvider";

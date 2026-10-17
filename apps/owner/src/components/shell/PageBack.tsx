@@ -39,10 +39,14 @@ export function PageBack({ fallback, className }: { fallback: string; className?
   );
 }
 
-/** Back control for the current route, meant to sit on the same row as the page icon. */
+/** Tab roots: no back control there (Barbers.ph pattern). */
+export const ROOT_PATHS = ["/home", "/orders", "/community", "/partner", "/partner/orders"];
+
+/** Back control for the current route, meant to sit on the same row as the page icon. Hidden on tab roots. */
 export function ShellBack({ className }: { className?: string }) {
   const pathname = usePathname() || "/";
   const { shop } = useShop();
   const home = hasProFeatures(shop.tier) ? "/home" : "/partner";
+  if (ROOT_PATHS.includes(pathname.replace(/\/$/, "") || "/")) return null;
   return <PageBack fallback={backFallback(pathname, home)} className={className} />;
 }

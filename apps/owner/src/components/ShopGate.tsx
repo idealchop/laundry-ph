@@ -1,13 +1,15 @@
 "use client";
 
-import { Button, EmptyState } from "@river-apps/ui";
+import { EmptyState } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { Icon3D } from "@river-apps/icons";
 import type { ReactNode } from "react";
 import { signOut, useAuth } from "@/lib/auth";
 import { useShopState } from "@/lib/shop";
 import { AuthScreen } from "./AuthScreen";
 import { Onboarding } from "./Onboarding";
-import { Spinner } from "./ui";
+import { usePathname } from "next/navigation";
+import { HomeSkeleton, ListSkeleton } from "./common/Skeleton";
 
 /**
  * Renders the owner shell once a shop is ready.
@@ -16,10 +18,12 @@ import { Spinner } from "./ui";
 export function ShopGate({ children }: { children: ReactNode }) {
   const s = useShopState();
   const { isAuthenticated } = useAuth();
-  if (!s || s.status === "loading") return <Spinner label="Opening your shop" fullScreen />;
+  const pathname = usePathname() || "/";
+  const skeleton = pathname === "/home" || pathname === "/partner" ? <HomeSkeleton /> : <ListSkeleton />;
+  if (!s || s.status === "loading") return skeleton;
   if (s.status === "onboarding") {
     // Only after a real sign-in — guests never land here.
-    if (!isAuthenticated) return <Spinner label="Opening your shop" fullScreen />;
+    if (!isAuthenticated) return skeleton;
     return <Onboarding demoShop={s.demoShop} onDone={s.reload} />;
   }
   if (s.status === "error") {

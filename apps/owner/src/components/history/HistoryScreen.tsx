@@ -1,6 +1,7 @@
 "use client";
 
 import { EmptyState, SegmentedControl, Topbar } from "@river-apps/ui";
+import { RowsSkeleton } from "@/components/common/Skeleton";
 import { useMemo, useState } from "react";
 import type { Booking, Order } from "@/data";
 import { dayKey, startOfShopDay } from "@/lib/format";
@@ -11,7 +12,7 @@ import { SampleNote } from "../SampleNote";
 import { ShellBack } from "../shell/PageBack";
 import { BookingCard } from "../bookings/BookingCard";
 import { OnlineOrderCard } from "../bookings/OnlineOrderCard";
-import { ErrorNote, Spinner } from "../ui";
+import { ErrorNote } from "../ui";
 import { DayPicker } from "./DayPicker";
 
 type Range = "today" | "week" | "month";
@@ -103,7 +104,7 @@ export function HistoryScreen() {
       </div>
 
       {error || past.error ? <ErrorNote className="mt-3">{error ?? past.error}</ErrorNote> : null}
-      {pending ? <Spinner label="Loading history" /> : null}
+      {pending ? <RowsSkeleton rows={5} /> : null}
       {!pending && cards.length === 0 ? (
         <EmptyState className="mt-4" title="Nothing in this range" description="Walk-in orders and online bookings from these dates show up here." />
       ) : null}

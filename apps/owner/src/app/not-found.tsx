@@ -1,5 +1,6 @@
 import { LaundryBasketIcon } from "@river-apps/icons";
-import { Button, EmptyState } from "@river-apps/ui";
+import { EmptyState } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 
 export default function NotFound() {
   return (

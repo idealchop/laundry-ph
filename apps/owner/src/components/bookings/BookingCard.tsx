@@ -1,7 +1,8 @@
 "use client";
 
 import { Icon3D } from "@river-apps/icons";
-import { Avatar, Button, IconTile, Input, cn } from "@river-apps/ui";
+import { Avatar, IconTile, Input, cn } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { Bike, Check, MapPin, MessageSquareText, Phone, Store, X } from "lucide-react";
 import Link from "next/link";
 import { useId, useState } from "react";

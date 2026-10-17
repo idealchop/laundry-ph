@@ -1,7 +1,8 @@
 "use client";
 
 import { MapPin } from "lucide-react";
-import { Badge, Button, Card, EmptyState, ListItem, Topbar } from "@river-apps/ui";
+import { Badge, Card, EmptyState, ListItem, Topbar } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { Icon3D } from "@river-apps/icons";
 import { useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";

@@ -1,8 +1,12 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { ChevronLeft, Plus, QrCode } from "lucide-react";
 import { Icon3D } from "@river-apps/icons";
-import { Button, Card, EmptyState, SearchInput, StatCard, cn } from "@river-apps/ui";
+import { Card, EmptyState, SearchInput, StatCard } from "@river-apps/ui";
+import { Button } from "../common/Button";
+import { EmptyQueue } from "../common/EmptyQueue";
+import { LocationMenu, useLocationSwitching } from "../common/LocationMenu";
+import { ListSkeleton, RowsSkeleton, Sk } from "../common/Skeleton";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Order } from "@/data";
@@ -10,12 +14,10 @@ import { minimalDate, money, startOfShopDay } from "@/lib/format";
 import { isActive, isDone, ordersBetween, salesTotals } from "@/lib/orders";
 import { useLocationFilter } from "@/lib/shop-locations";
 import { useBoardOrders, useBookings } from "@/lib/shop";
-import { SampleNote } from "../SampleNote";
-import { ShellBack } from "../shell/PageBack";
 import { BookingCard, bookingHref } from "../bookings/BookingCard";
 import { OnlineOrderCard, useConvertedBookings } from "../bookings/OnlineOrderCard";
 import { TestBookingButton, useBookingActions } from "../bookings/BookingsList";
-import { ErrorNote, PaymentBadge, Spinner, StatusPill } from "../ui";
+import { ErrorNote, PaymentBadge, StatusPill } from "../ui";
 
 type Channel = "walk-ins" | "online";
 /** List order: work still in the shop first, then ready for pickup, then done; newest first within each. */
@@ -80,75 +82,78 @@ export function OrderBoard() {
   const onlineTotal = onlineOrders.length + pickupList.length;
   const onlineNew = pickupList.filter((r) => r.status === "requested").length;
 
+  const switching = useLocationSwitching();
+  const busy = switching || !loc.ready;
+
+  if (loading && orders.length === 0) return <ListSkeleton />;
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
-      <header className="flex flex-wrap items-end gap-x-6 border-b border-line px-1">
-        <div className="flex items-center gap-[11px] pb-3">
-          <ShellBack />
-          <ChannelArt />
-          <div className="flex flex-col leading-[1.2]">
-            <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">Orders</h1>
-            <p className="mt-0.5 text-[14px] font-semibold text-muted">
+      <header className="flex items-center justify-between gap-3 border-b border-line px-1 pb-3">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {channel === "online" ? (
+            <button type="button" aria-label="Back to orders" onClick={() => setChannel("walk-ins")}
+              className="inline-flex size-11 flex-none items-center justify-center rounded-full bg-grey-100 text-ink hover:bg-grey-200">
+              <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
+            </button>
+          ) : <ChannelArt />}
+          <div className="min-w-0 leading-[1.2]">
+            <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">{channel === "online" ? "Online" : "Orders"}</h1>
+            <p className="mt-0.5 truncate text-[14px] font-semibold text-muted">
               {channel === "walk-ins"
                 ? <>{counts.progress} in progress · {counts.ready} ready</>
-                : <>{onlineNew} new {onlineNew === 1 ? "booking" : "bookings"} · {onlineOrders.length} online orders</>}
-              {" "}
-              <SampleNote className="ml-1 align-middle" />
+                : <>{onlineNew} new · {onlineOrders.length} online {onlineOrders.length === 1 ? "order" : "orders"}</>}
             </p>
           </div>
         </div>
-        <ChannelSwitch
-          channel={channel}
-          onChange={setChannel}
-          walkIns={walkIns.length}
-          online={onlineTotal}
-        />
+        {channel === "walk-ins" ? (
+          <button type="button" onClick={() => setChannel("online")} aria-label={`Online orders${onlineTotal ? `, ${onlineTotal}` : ""}`}
+            className="inline-flex min-h-11 flex-none items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[14px] font-bold text-ink hover:bg-grey-50">
+            Online
+            {onlineTotal ? <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-ink px-1.5 text-[11.5px] font-bold tabular-nums leading-5 text-on-ink">{onlineTotal}</span> : null}
+          </button>
+        ) : null}
       </header>
 
-      <p className="mt-4 px-1 text-[13px] font-bold text-muted">Today</p>
-      <div className="mt-2 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        <StatCard className="pb-3" label="Sales" value={money(today.salesCentavos)} caption={`${today.orders} orders`} />
-        <StatCard className="pb-3" label="Collected" value={money(today.collectedCentavos)} caption="Marked paid" />
-        <StatCard className="pb-3" label="Unpaid" value={money(today.unpaidCentavos)} caption="To collect" />
-        <StatCard className="pb-3" label="Average ticket" value={money(today.averageCentavos)} caption={`${today.kg} kg washed`} />
-      </div>
-
-      <div className="mt-4 flex flex-col gap-2.5">
-        <div className="flex items-center gap-2">
-          <SearchInput
-            className="min-w-0 flex-1"
-            placeholder={channel === "walk-ins" ? "Ticket or customer" : "Customer or service"}
-            label="Search orders"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {channel === "walk-ins" ? (
-            <Button href="/orders/new" size="md" aria-label="New order" leadingIcon={<Plus size={18} strokeWidth={2.2} />}
-              className="flex-none px-4 min-[380px]:px-5">
-              <span className="min-[380px]:hidden">New</span>
-              <span className="hidden min-[380px]:inline">New order</span>
-            </Button>
-          ) : null}
+      <div className="mt-4 flex min-h-9 items-center justify-between gap-3 px-1">
+        <div className="flex min-w-0 items-center text-[13px] font-bold text-muted">
+          Today<LocationMenu prefix="· " className="ml-1" />
         </div>
-        {channel === "online" ? (
-          <p className="text-[13px] font-semibold text-muted">River Mobile bookings & pickups</p>
+        {channel === "walk-ins" ? (
+          <Button href="/orders/new" size="sm" className="h-9 flex-none rounded-pill px-3.5 text-[13px]" leadingIcon={<Plus size={16} strokeWidth={2.4} />} aria-label="Add walk-in">
+            Walk-in
+          </Button>
         ) : null}
       </div>
+      {busy ? (
+        <div aria-hidden className="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4">{Array.from({ length: 4 }, (_, i) => <Sk key={i} className="h-[84px] rounded-card" />)}</div>
+      ) : (
+        <div className="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+          <StatCard className="pb-3" label="Sales" value={money(today.salesCentavos)} caption={`${today.orders} orders`} />
+          <StatCard className="pb-3" label="Collected" value={money(today.collectedCentavos)} caption="Marked paid" />
+          <StatCard className="pb-3" label="Unpaid" value={money(today.unpaidCentavos)} caption="To collect" />
+          <StatCard className="pb-3" label="Average ticket" value={money(today.averageCentavos)} caption={`${today.kg} kg washed`} />
+        </div>
+      )}
+
+      <SearchInput
+        className="mt-4"
+        placeholder={channel === "walk-ins" ? "Ticket or customer" : "Customer or service"}
+        label="Search orders"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
       {error || live.error || bookingActions.error ? (
         <ErrorNote className="mt-3">{error ?? live.error ?? bookingActions.error}</ErrorNote>
       ) : null}
 
-      {channel === "walk-ins" ? (
+      {busy ? <RowsSkeleton rows={4} className="mt-4" /> : channel === "walk-ins" ? (
         <>
-          {loading && walkIns.length === 0 ? <Spinner label="Loading orders" /> : null}
-          {!loading && walkInList.length === 0 ? (
-            <EmptyState
-              className="mt-4"
-              title={search ? "No matching orders" : "Nothing here yet"}
-              description={search ? undefined : "New walk-in orders start as Received."}
-              action={<Button href="/orders/new" size="md" variant="secondary">Walk-in</Button>}
-            />
+          {walkInList.length === 0 ? (
+            search ? <EmptyState className="mt-4" title="No matching orders" /> : (
+              <EmptyQueue className="mt-4" title="No laundry in queue" subtitle="Add a walk-in, or share your QR so customers can book"
+                action={<Button href="/qr" size="sm" variant="secondary" leadingIcon={<QrCode size={15} strokeWidth={2} />}>Show QR</Button>} />
+            )
           ) : null}
           <Card padding="none" className="mt-4 px-4 py-1.5" hidden={walkInList.length === 0}>
             <ul aria-label="Walk-in orders">
@@ -160,21 +165,16 @@ export function OrderBoard() {
         </>
       ) : (
         <>
-          {onlineLoading && onlineEmpty ? <Spinner label="Loading online orders" /> : null}
+          {onlineLoading && onlineEmpty ? <RowsSkeleton rows={3} className="mt-4" /> : null}
           {!onlineLoading && onlineEmpty ? (
-            <EmptyState
-              className="mt-4"
-              illustration={<Icon3D name="basket" size={72} />}
-              title={search ? "No matching bookings" : "No bookings yet"}
-              description={search ? undefined : "When River Mobile customers book your shop, they’ll show up here."}
-            />
+            search ? <EmptyState className="mt-4" title="No matching bookings" /> : (
+              <EmptyQueue className="mt-4" title="No online orders yet" subtitle="River Mobile bookings and pickups show up here" />
+            )
           ) : null}
 
           {onlineFilteredPickups.length > 0 ? (
-            <div className="mt-3 flex flex-col gap-3">
-              <p className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">
-                Bookings to handle
-              </p>
+            <div className="mt-4 flex flex-col gap-3">
+              <p className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">Bookings to handle</p>
               <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2">
                 {onlineFilteredPickups.map((b) => (
                   <BookingCard key={b.id} booking={b} canConvert onMove={bookingActions.onMove} acceptAsOrder={bookingActions.acceptAsOrder} now={now} detailsHref={bookingHref(b.id)} />
@@ -184,7 +184,7 @@ export function OrderBoard() {
           ) : null}
 
           {onlineFilteredOrders.length > 0 ? (
-            <div className="mt-3 flex flex-col gap-3">
+            <div className="mt-4 flex flex-col gap-3">
               <p className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">Online orders</p>
               <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2" aria-label="Online orders">
                 {onlineFilteredOrders.map((o) => (
@@ -206,43 +206,6 @@ function ChannelArt() {
     <span aria-hidden className="inline-flex size-14 flex-none items-center justify-center">
       <Icon3D name="basket" size={56} className="drop-shadow-[0_10px_14px_rgba(10,10,10,0.16)]" />
     </span>
-  );
-}
-
-/** Walk-ins / Online as header tabs. The selected tab's rule sits on the header line. */
-function ChannelSwitch({ channel, onChange, walkIns, online, className }: {
-  channel: Channel;
-  onChange: (channel: Channel) => void;
-  walkIns: number;
-  online: number;
-  className?: string;
-}) {
-  const options: { value: Channel; label: string; count: number }[] = [
-    { value: "walk-ins", label: "Walk-ins", count: walkIns },
-    { value: "online", label: "Online", count: online },
-  ];
-  return (
-    <div role="tablist" aria-label="Order channel" className={cn("flex items-end gap-6", className)}>
-      {options.map((o) => {
-        const on = channel === o.value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            role="tab"
-            aria-selected={on}
-            onClick={() => onChange(o.value)}
-            className={cn(
-              "-mb-px min-h-11 border-b-2 px-0.5 pb-2.5 pt-2 text-[15px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-              on ? "border-ink font-bold text-ink" : "border-transparent font-semibold text-muted hover:text-ink",
-            )}
-          >
-            {o.label}
-            {o.count ? <span className={cn("ml-1.5 tabular-nums", on ? "text-ink" : "text-subtle")}>{o.count}</span> : null}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 

@@ -23,7 +23,11 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, them
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-PH">
+    <html lang="en-PH" suppressHydrationWarning>
+      <head>
+        {/* Back from a Google redirect: cover the page ("Signing you in…") before React paints guest data. */}
+        <script dangerouslySetInnerHTML={{ __html: "try{if(sessionStorage.getItem('laundry-ph-auth-redirect')==='1')document.documentElement.setAttribute('data-auth-redirect','')}catch(e){}" }} />
+      </head>
       <body className="font-sans text-ink antialiased">
         <Providers>{children}</Providers>
       </body>

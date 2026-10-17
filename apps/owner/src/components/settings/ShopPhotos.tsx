@@ -2,7 +2,8 @@
 
 import { ImagePlus, Trash2 } from "lucide-react";
 import { useRef } from "react";
-import { Badge, Button, Card } from "@river-apps/ui";
+import { Badge, Card } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import type { Shop } from "@/data";
 import { useAction, useShop } from "@/lib/shop";
 import { deleteShopPhotoByUrl, MAX_SHOP_PHOTOS, uploadShopPhoto } from "@/lib/shop-photos";

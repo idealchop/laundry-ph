@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { ReceiptText } from "lucide-react";
 import { useMemo } from "react";
 import type { Booking, Order } from "@/data";

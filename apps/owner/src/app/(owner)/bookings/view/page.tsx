@@ -1,7 +1,7 @@
 import { Suspense } from "react";
+import { FormSkeleton } from "@/components/common/Skeleton";
 import { FocusSurface } from "@/components/FocusHeader";
 import { BookingDetailScreen } from "@/components/bookings/BookingDetail";
-import { Spinner } from "@/components/ui";
 
 export const metadata = { title: "Booking" };
 
@@ -9,7 +9,7 @@ export const metadata = { title: "Booking" };
 export default function BookingViewPage() {
   return (
     <FocusSurface className="lg:overflow-visible">
-      <Suspense fallback={<Spinner label="Loading booking" />}>
+      <Suspense fallback={<FormSkeleton />}>
         <BookingDetailScreen />
       </Suspense>
     </FocusSurface>

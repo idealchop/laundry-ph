@@ -1,7 +1,9 @@
 "use client";
 
 import { Icon3D } from "@river-apps/icons";
-import { Button, EmptyState } from "@river-apps/ui";
+import { RowsSkeleton } from "@/components/common/Skeleton";
+import { EmptyState } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { FlaskConical } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Booking, BookingMove, BookingScope } from "@/data";
@@ -9,7 +11,7 @@ import { orderFromBooking } from "@/lib/bookings";
 import { isPaidShop } from "@/lib/plans";
 import { useLocationFilter } from "@/lib/shop-locations";
 import { useAction, useBookings, useShop } from "@/lib/shop";
-import { ErrorNote, Spinner } from "../ui";
+import { ErrorNote } from "../ui";
 import { BookingCard } from "./BookingCard";
 
 const DEV_TOOLS = process.env.NEXT_PUBLIC_APP_ENV === "dev" || process.env.NEXT_PUBLIC_APP_ENV === "local";
@@ -67,7 +69,7 @@ export function BookingsList({ scope, emptyAction }: { scope: BookingScope; empt
     if (id) document.getElementById(id)?.scrollIntoView({ block: "center" });
   }, [loading]);
 
-  if (loading) return <Spinner label="Loading bookings" />;
+  if (loading) return <RowsSkeleton rows={3} />;
   return (
     <div className="flex flex-col gap-3">
       {error ? <ErrorNote>{error}</ErrorNote> : null}

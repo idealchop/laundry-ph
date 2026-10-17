@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 import { Icon3D, type IconName } from "@river-apps/icons";
-import { Button, Card, EmptyState, Topbar } from "@river-apps/ui";
+import { Card, EmptyState, Topbar } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { SampleNote } from "./SampleNote";
 
 export interface PlaceholderProps {

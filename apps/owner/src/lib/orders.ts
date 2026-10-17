@@ -307,3 +307,14 @@ export function growthStats(orders: Order[], now = Date.now()): GrowthStat[] {
     },
   ];
 }
+
+/** Statuses that mean a load is in the machines or on the folding table. */
+const IN_PROGRESS: OrderStatus[] = ["washing", "drying", "folding"];
+
+/** Loads in progress right now and when the oldest one started washing (for the live Home hero). */
+export function liveWork(orders: Pick<Order, "status" | "stageTimes" | "updatedAt">[]): { count: number; since: number | null } {
+  const busy = orders.filter((o) => IN_PROGRESS.includes(o.status));
+  if (!busy.length) return { count: 0, since: null };
+  const since = Math.min(...busy.map((o) => o.stageTimes?.washing ?? o.stageTimes?.[o.status] ?? o.updatedAt));
+  return { count: busy.length, since: Number.isFinite(since) ? since : null };
+}

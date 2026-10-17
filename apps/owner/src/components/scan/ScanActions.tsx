@@ -1,7 +1,8 @@
 "use client";
 import { Check } from "lucide-react";
 import { useState } from "react";
-import { Button, StatusDot } from "@river-apps/ui";
+import { StatusDot } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 
 /** Decline / Accept for a verified River Mobile booking. Demo only: the Partner API (Phase 2) will persist it. */
 export function ScanActions({ total, bookingRef }: { total: string; bookingRef: string }) {

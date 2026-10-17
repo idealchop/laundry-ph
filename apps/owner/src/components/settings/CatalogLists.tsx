@@ -1,7 +1,8 @@
 "use client";
 
 import { ICON_NAMES, Icon3D, type IconName } from "@river-apps/icons";
-import { Button, Card, Input } from "@river-apps/ui";
+import { Card, Input } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { ChevronRight, Plus } from "lucide-react";
 import { useState } from "react";
 import type { CatalogService, ClothesPricing, ClothesType } from "@/data";

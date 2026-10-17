@@ -1,7 +1,8 @@
 "use client";
 
 import { Icon3D } from "@river-apps/icons";
-import { Button, EmptyState } from "@river-apps/ui";
+import { EmptyState } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { PLAN_OPTIONS } from "@/lib/plans";
 import { money } from "@/lib/format";
 

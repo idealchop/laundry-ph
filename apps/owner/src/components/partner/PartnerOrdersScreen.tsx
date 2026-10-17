@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Topbar } from "@river-apps/ui";
+import { Topbar } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { useId, useState, type KeyboardEvent } from "react";
 import { SampleNote } from "@/components/SampleNote";
 import { ShellBack } from "@/components/shell/PageBack";

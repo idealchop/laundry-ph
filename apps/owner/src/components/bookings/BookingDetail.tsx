@@ -1,7 +1,9 @@
 "use client";
 
 import { Icon3D } from "@river-apps/icons";
-import { Avatar, Button, Card, EmptyState, IconTile } from "@river-apps/ui";
+import { FormSkeleton } from "@/components/common/Skeleton";
+import { Avatar, Card, EmptyState, IconTile } from "@river-apps/ui";
+import { Button } from "@/components/common/Button";
 import { ExternalLink, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -15,7 +17,7 @@ import { isPaidShop } from "@/lib/plans";
 import { fetchRoute, formatDistance, formatEta, googleDirectionsUrl, type LatLng, type RouteInfo } from "@/lib/route";
 import { useShop, useShopQuery } from "@/lib/shop";
 import { FocusHeader } from "../FocusHeader";
-import { ErrorNote, Spinner } from "../ui";
+import { ErrorNote } from "../ui";
 import { BookingActions, BookingStatusPill, isOpenBooking } from "./BookingCard";
 import { useBookingActions } from "./BookingsList";
 import { RouteMap } from "./RouteMap";
@@ -30,7 +32,7 @@ export function BookingDetailScreen() {
   const q = useShopQuery((s) => (id ? s.getBooking(id) : Promise.resolve(null)), [id]);
   const backHref = isPaidShop(shop.tier) ? "/home" : "/partner";
 
-  if (q.loading && !q.data) return <><FocusHeader title="Booking" backHref={backHref} /><Spinner label="Loading booking" /></>;
+  if (q.loading && !q.data) return <><FocusHeader title="Booking" backHref={backHref} /><FormSkeleton /></>;
   if (!q.data) {
     return (
       <>

@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon3D } from "@river-apps/icons";
+import { RowsSkeleton } from "@/components/common/Skeleton";
 import { Card, EmptyState, SegmentedControl, cn } from "@river-apps/ui";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -10,7 +11,7 @@ import { useLocationFilter } from "@/lib/shop-locations";
 import { useBoardOrders, useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
 import { ShellBack } from "../shell/PageBack";
-import { ErrorNote, Spinner } from "../ui";
+import { ErrorNote } from "../ui";
 
 const VIEWS: { value: SalesView; label: string }[] = [
   { value: "overview", label: "Overview" },
@@ -78,7 +79,7 @@ export function SalesScreen() {
       />
 
       {error ? <ErrorNote className="mt-3">{error}</ErrorNote> : null}
-      {loading && orders.length === 0 ? <Spinner label="Loading sales" /> : null}
+      {loading && orders.length === 0 ? <RowsSkeleton rows={4} /> : null}
 
       {view === "overview" ? <Overview report={report} /> : null}
       {view === "services" ? <Breakdown title="Services" empty="No services in this range." rows={report.services} total={report.totals.salesCentavos} /> : null}

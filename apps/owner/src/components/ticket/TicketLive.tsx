@@ -1,12 +1,12 @@
 "use client";
 
 import { EmptyState } from "@river-apps/ui";
+import { TicketSkeleton } from "@/components/common/Skeleton";
 import { useEffect, useState } from "react";
 import { dataMode, type PublicTicket } from "@/data";
 import { firebaseTicketSource } from "@/data/firebase-source";
 import { fixtureTicketSource } from "@/data/fixture-source";
 import { LaundryBrand } from "../brand";
-import { Spinner } from "../ui";
 import { TicketView } from "./TicketView";
 
 /** Public ticket with live updates (Firestore onSnapshot on public_tickets/{id}). */
@@ -22,7 +22,7 @@ export function TicketLive({ ticketId, initial }: { ticketId: string; initial: P
     );
   }, [ticketId]);
   if (ticket) return <TicketView ticket={ticket} />;
-  if (!checked) return <Spinner label="Loading your ticket" fullScreen />;
+  if (!checked) return <TicketSkeleton />;
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[440px] flex-col bg-canvas px-4 pb-10">
       <div className="flex h-14 items-center px-1 pt-1"><LaundryBrand size={30} /></div>
