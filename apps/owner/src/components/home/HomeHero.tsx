@@ -1,6 +1,6 @@
 "use client";
 import { Plus, ScanLine } from "lucide-react";
-import { Button, HeroBanner, SearchInput, Topbar } from "@river-apps/ui";
+import { Button, SearchInput, Topbar } from "@river-apps/ui";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { useShopLocations } from "@/lib/shop-locations";
@@ -8,7 +8,7 @@ import { MyAccountLink, SalesLink } from "../Greeting";
 import type { DaySummary, Shop } from "@/data";
 import { money } from "@/lib/format";
 import { homeTitle, useGreeting } from "@/lib/greeting";
-import { LaundryScene } from "../brand";
+import { HeroPhoto } from "./HeroPhoto";
 
 /** Compact pill on the black hero; ::after pads the tap area to 44px tall without changing the look. */
 const PILL = "relative h-8 gap-1 rounded-pill px-2.5 text-[12px] after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']";
@@ -30,29 +30,22 @@ export function HomeHeroMobile({ shop, today, showWalkIn = true, className }: Ho
   const shops = useShopLocations();
   const place = shops.placeLabel ? `${shop.name} · ${shops.placeLabel}` : shop.name;
   return (
-    <section className={`relative isolate mx-4 mt-1 overflow-hidden rounded-banner bg-ink px-4 py-4 text-on-ink min-[380px]:px-5 ${className ?? ""}`}>
-      <i aria-hidden className="pointer-events-none absolute -right-20 -top-[120px] size-[260px] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,.16),rgba(255,255,255,0)_65%)]" />
-      <i aria-hidden className="pointer-events-none absolute -bottom-[140px] right-10 size-[220px] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,.08),rgba(255,255,255,0)_65%)]" />
-      <p className="relative z-10 truncate text-[12.5px] leading-4">
-        {greeting ? <span className="font-medium text-on-ink-muted">{greeting}, </span> : null}
-        <span className="font-semibold text-on-ink/90">{place}</span>
+    <section className={`relative isolate mx-4 mt-1 overflow-hidden rounded-banner bg-black px-4 py-4 text-white min-[380px]:px-5 ${className ?? ""}`}>
+      <HeroPhoto className="-right-6 min-[380px]:-right-4" />
+      <p className="relative z-10 truncate pr-24 text-[12.5px] leading-4">
+        {greeting ? <span className="font-medium text-white/65">{greeting}, </span> : null}
+        <span className="font-semibold text-white/90">{place}</span>
       </p>
-      <div className="flex items-center gap-1.5 min-[380px]:gap-2">
-        <div className="relative z-10 min-w-0 flex-1">
-          <h2 className="mt-2 text-[20px] font-extrabold leading-[1.12] tracking-[-0.025em] whitespace-nowrap">
-            Today: {money(today.salesCentavos)}
-          </h2>
-          <p className="mt-1.5 text-[13px] font-medium text-on-ink-muted">{today.kgWashed} kg washed</p>
-          <div className="mt-3 flex flex-nowrap items-center gap-1.5">
-            {showWalkIn ? (
-              <Button href="/orders/new" variant="white" size="sm" className={PILL} leadingIcon={<Plus size={14} strokeWidth={2} />}>Walk-in</Button>
-            ) : null}
-            <Button href="/scan/result" variant="ghost-inverse" size="sm" className={PILL} leadingIcon={<ScanLine size={14} strokeWidth={1.9} />}>Scan QR</Button>
-          </div>
-        </div>
-        <div aria-hidden className="pointer-events-none relative z-0 mt-1 w-[112px] flex-none min-[380px]:w-[132px]">
-          <span className="block min-[380px]:hidden"><LaundryScene size={112} folded={false} /></span>
-          <span className="hidden min-[380px]:block"><LaundryScene size={132} folded={false} /></span>
+      <div className="relative z-10 min-w-0">
+        <h2 className="mt-2 text-[20px] font-extrabold leading-[1.12] tracking-[-0.025em] whitespace-nowrap">
+          Today: {money(today.salesCentavos)}
+        </h2>
+        <p className="mt-1.5 text-[13px] font-medium text-white/65">{today.kgWashed} kg washed</p>
+        <div className="mt-3 flex flex-nowrap items-center gap-1.5">
+          {showWalkIn ? (
+            <Button href="/orders/new" variant="white" size="sm" className={PILL} leadingIcon={<Plus size={14} strokeWidth={2} />}>Walk-in</Button>
+          ) : null}
+          <Button href="/scan/result" variant="ghost-inverse" size="sm" className={PILL} leadingIcon={<ScanLine size={14} strokeWidth={1.9} />}>Scan QR</Button>
         </div>
       </div>
     </section>
@@ -62,23 +55,18 @@ export function HomeHeroMobile({ shop, today, showWalkIn = true, className }: Ho
 /** Desktop hero shared by Paid and Partner home: date pill, today's headline, kg line, actions, washer art. */
 export function HomeHeroDesktop({ today, showWalkIn = true, className }: HomeHeroProps) {
   return (
-    <HeroBanner
-      className={className}
-      size="lg"
-      eyebrow={`Today · ${today.dateLabel}`}
-      title={`Today: ${money(today.salesCentavos)}`}
-      titleSize="lg"
-      description={`${today.kgWashed} kg washed`}
-      contentWidth={460}
-      actions={
-        <div className="flex flex-nowrap items-center gap-2.5">
+    <section className={`relative isolate flex min-h-[248px] flex-col justify-center overflow-hidden rounded-banner bg-black px-9 py-8 text-white ${className ?? ""}`}>
+      <HeroPhoto />
+      <div className="relative z-10 max-w-[460px]">
+        <p className="text-[13px] font-semibold text-white/65">Today · {today.dateLabel}</p>
+        <h2 className="mt-2 text-[36px] font-extrabold leading-[1.08] tracking-[-0.03em]">Today: {money(today.salesCentavos)}</h2>
+        <p className="mt-2 text-[15px] font-medium text-white/65">{today.kgWashed} kg washed</p>
+        <div className="mt-5 flex flex-nowrap items-center gap-2.5">
           {showWalkIn ? <Button href="/orders/new" variant="white" size="md" leadingIcon={<Plus size={18} strokeWidth={1.9} />}>Walk-in</Button> : null}
           <Button href="/scan/result" variant={showWalkIn ? "ghost-inverse" : "white"} size="md" leadingIcon={<ScanLine size={18} strokeWidth={1.75} />}>Scan QR</Button>
         </div>
-      }
-      illustration={<LaundryScene size={268} />}
-      illustrationClassName="right-[34px] bottom-3"
-    />
+      </div>
+    </section>
   );
 }
 

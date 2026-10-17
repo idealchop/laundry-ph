@@ -2,7 +2,8 @@
 
 import { Icon3D, type IconName } from "@river-apps/icons";
 import { ServiceSlider } from "@/components/kit-extensions";
-import { Avatar, Button, Input } from "@river-apps/ui";
+import { HeroPhoto } from "@/components/home/HeroPhoto";
+import { Button, Input } from "@river-apps/ui";
 import { useCallback, useEffect, useState } from "react";
 import { money } from "@/lib/format";
 import { PAID_PER_MO } from "@/lib/plans";
@@ -68,19 +69,18 @@ export function LocationLinkScreen({ token }: { token: string }) {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-[402px] bg-canvas px-4 pb-10 pt-6">
-      <header className="flex min-w-0 items-center gap-2.5">
-        <Avatar name={view.shopName} preset="sky" size={44} />
-        <div className="min-w-0">
-          <p className="truncate text-[12px] font-medium text-muted">Staff link</p>
-          <h1 className="truncate text-[18px] font-extrabold leading-tight tracking-[-0.02em]">{view.shopName}</h1>
-          <p className="truncate text-[13px] font-semibold text-muted">{view.branchName}</p>
+      <header className="relative isolate overflow-hidden rounded-banner bg-black px-5 py-5 text-white">
+        <HeroPhoto className="-right-6" />
+        <div className="relative z-10 min-w-0 pr-28">
+          <p className="truncate text-[12.5px] font-medium text-white/65">Staff link · {view.branchName}</p>
+          <h1 className="mt-1 truncate text-[20px] font-extrabold leading-tight tracking-[-0.025em]">{view.shopName}</h1>
+          {view.walkIns ? <p className="mt-1.5 text-[13px] font-medium text-white/65">{view.walkIns.left} of {view.walkIns.limit} walk-ins left today</p> : <p className="mt-1.5 text-[13px] font-medium text-white/65">Add walk-ins and move orders</p>}
         </div>
       </header>
 
       <section className="mt-5 rounded-card bg-surface px-4 py-4 shadow-card">
         <div className="flex items-baseline justify-between">
           <h2 className="text-[16px] font-extrabold">New walk-in</h2>
-          {view.walkIns ? <span className="text-[12.5px] font-semibold text-muted" aria-live="polite">{view.walkIns.left} of {view.walkIns.limit} walk-ins left today</span> : null}
         </div>
         {atCap ? (
           <div className="mt-3 rounded-tile bg-grey-100 px-4 py-4 text-center">
