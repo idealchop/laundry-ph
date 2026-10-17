@@ -1,6 +1,6 @@
 # Test summary
 
-Matrix per river-ai-rules 03-test: HP (happy path), NEG (negative), ODD (edge), NF (non-functional). Process: Create → Apply → Execute, with a log below.
+Matrix per river-ai-rules 04-test: HP (happy path), NEG (negative), ODD (edge), NF (non-functional). Process: Create → Apply → Execute, with a log below.
 
 ## Automated (Vitest, `pnpm test`, runs in CI)
 | ID | Area | Type | Result (2026-10-15) |
