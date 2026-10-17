@@ -63,13 +63,16 @@ export async function resolveLink(token: string): Promise<StaffLink> {
 const shopRef = (id: string) => adminDb().collection("shops").doc(id);
 
 /** What the staff page shows: price list, today's queue for this branch, walk-ins left. */
+/** Upper bound on orders read for the staff queue (bounded query, river-ai-rules D3). */
+const STAFF_QUEUE_SCAN = 500;
+
 export async function staffView(link: StaffLink) {
   const ref = shopRef(link.shopId);
   const today = dayKey(Date.now());
   const start = Date.parse(`${today}T00:00:00+08:00`);
   const [shop, catalog, usage, orders] = await Promise.all([
     ref.get(), ref.collection("meta").doc("catalog").get(), ref.collection("usage").doc(today).get(),
-    ref.collection("orders").where("createdAt", ">=", Timestamp.fromMillis(start - 6 * 86_400_000)).get(),
+    ref.collection("orders").where("createdAt", ">=", Timestamp.fromMillis(start - 6 * 86_400_000)).orderBy("createdAt", "desc").limit(STAFF_QUEUE_SCAN).get(),
   ]);
   const tier = shop.data()?.tier === "paid" ? "paid" : "partner";
   const limit = walkInLimit(tier, await allUnlocked());

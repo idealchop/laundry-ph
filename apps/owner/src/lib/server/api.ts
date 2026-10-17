@@ -114,3 +114,8 @@ export function logApiError(route: string, err: unknown) {
 export function rateLimit(bucket: string, limit: number, windowMs = LIMITS.windowMs): number | null {
   return take(`x:${bucket}`, limit, windowMs);
 }
+
+/** Machine-readable error code for a status (river-ai-rules D4: status + code + safe message). */
+export function errorCode(status: number): string {
+  return ({ 400: "invalid_request", 401: "unauthorized", 402: "walk_in_limit", 403: "forbidden", 404: "not_found", 409: "conflict", 410: "expired", 429: "rate_limited" } as Record<number, string>)[status] ?? "internal";
+}

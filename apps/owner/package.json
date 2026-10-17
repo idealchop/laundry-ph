@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start -p ${PORT:-3300}",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run"
   },
   "dependencies": {
     "@river-apps/icons": "workspace:*",
@@ -33,6 +34,7 @@
     "eslint": "^9.39.0",
     "eslint-config-next": "16.3.8",
     "tailwindcss": "4.3.3",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^3.2.7"
   }
 }

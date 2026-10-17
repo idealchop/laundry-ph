@@ -21,7 +21,8 @@
     "firebase:deploy:rules": "firebase deploy --only firestore",
     "test:emulator": "sh scripts/test-emulator.sh",
     "firebase:deploy:rules:dev": "firebase deploy --only firestore:laundrydb-dev --project mylaundryph",
-    "seed:booking": "node scripts/seed-booking.mjs"
+    "seed:booking": "node scripts/seed-booking.mjs",
+    "test": "pnpm --filter @laundry-ph/owner test"
   },
   "devDependencies": {
     "typescript": "5.9.3",
