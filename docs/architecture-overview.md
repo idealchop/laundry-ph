@@ -28,4 +28,4 @@
 2. **Audit (C0h).** Server-route mutations write `shops/{id}/audit_logs`. Client-SDK mutations carry `createdBy` / `updatedBy` + server timestamps but no separate audit doc until (1) moves server-side.
 3. **Web Storage for app state (D2.4).** Multi-shop locations (`laundryph.shop-locations`), shop mark/logo and the guest demo store live in localStorage.
 4. **Folder layout / naming (C0 §4, B3).** Code is organised by `components/{area}` with PascalCase component files, not `src/features/{domain}` with kebab-case. New non-component files use kebab-case.
-5. **Branches (C0f).** `main` deploys to dev first and then prod after approval; there is no `dev` branch yet.
+5. **Branches (C0f).** Resolved 2026-10-17: `dev` → laundry-dev, `main` → laundry-prod (see [environments.md](./environments.md)). Deploys are still manual CLI uploads, not GitHub-connected rollouts.

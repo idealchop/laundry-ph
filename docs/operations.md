@@ -14,10 +14,12 @@
 - Firestore daily reads above budget (Billing budget alert on project `mylaundryph`).
 
 ## Release + smoke test
-1. `git pull` on `main`; `pnpm typecheck && pnpm lint && pnpm test && pnpm --filter @laundry-ph/owner build`.
-2. Dev: `firebase deploy --only firestore:laundrydb-dev --project mylaundryph` (when rules change), then `firebase deploy --only apphosting:laundry-dev --project mylaundryph --force`.
+1. `git checkout dev && git pull`; `pnpm typecheck && pnpm lint && pnpm test && pnpm --filter @laundry-ph/owner build`; `git status` clean.
+2. Dev (from `dev`): `firebase deploy --only firestore:laundrydb-dev --project mylaundryph` (when rules change), then `firebase deploy --only apphosting:laundry-dev --project mylaundryph --force`.
 3. Smoke on dev at 320px and 1280px: Home loads, `/terms` and `/privacy` load, staff link `/walk-in/{token}` shows the queue, a QR booking can be sent.
-4. Prod (only with the owner's OK): `firestore:laundrydb`, then `apphosting:laundry-prod`; repeat the smoke test.
+4. Merge `dev` into `main` (PR, or `git checkout main && git pull && git merge --ff-only dev && git push`).
+5. Prod (only with Jimboy's OK, from a clean `main`): `firestore:laundrydb`, then `apphosting:laundry-prod`; repeat the smoke test.
+6. Hotfix: fix on `dev`, deploy dev, fast-forward `main`, deploy prod. Never commit to `main` directly.
 
 ## Rollback
 - **App:** Firebase console → App Hosting → backend → Rollouts → pick the previous good rollout → *Roll back*. CLI alternative: `firebase apphosting:rollouts:create <backend> --git-commit <good-sha> --project mylaundryph`.

@@ -32,7 +32,7 @@ pnpm dev          # builds the kit packages, then runs the owner app on http://l
 | `pnpm firebase:deploy:rules:dev` | Deploy Firestore rules/indexes to **`laundrydb-dev` only** |
 | `pnpm firebase:deploy:rules` | Deploy Firestore rules/indexes to both named databases (prod included) |
 
-CI (`.github/workflows/ci.yml`) runs install, typecheck, lint and build on every pull request and on pushes to `main`.
+CI (`.github/workflows/ci.yml`) runs install, typecheck, lint and build on every pull request and on pushes to `main` and `dev`. Work on `dev` (deploys to laundry-dev); `main` deploys to laundry-prod after approval. See [docs/environments.md](./docs/environments.md).
 
 ## Routes
 

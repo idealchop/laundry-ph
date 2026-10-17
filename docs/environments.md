@@ -7,15 +7,27 @@
 | Cloud Functions (`companion`) | `COMPANION_DATABASE=laundrydb-dev` | not deployed against prod |
 | Deploy order | Dev first, smoke, then prod with Jimboy's OK | |
 
-Branch: `main` (deploy dev, then prod after approval). A dedicated `dev` branch per river-ai-rules C0f is an open decision.
+## Branches and deploys
+
+| Branch | Deploys to | When |
+| --- | --- | --- |
+| `dev` | `laundry-dev` + `laundrydb-dev` | Any time, after checks pass |
+| `main` | `laundry-prod` + `laundrydb` | Only after Jimboy's OK |
+
+1. Work on `dev` (`git checkout dev && git pull`). Commit and push to `origin/dev`.
+2. Deploy laundry-dev **from a clean checkout of `dev`** and smoke-test it.
+3. Merge `dev` into `main` (PR, or `git checkout main && git merge --ff-only dev && git push`).
+4. With Jimboy's OK, deploy laundry-prod **from a clean checkout of `main`**.
+
+Deploys run from the Firebase CLI on a local folder: App Hosting backends are **not** connected to GitHub (no live branch, no automatic rollouts). The CLI uploads whatever is in the working tree, so check `git status` is clean and you're on the right branch before deploying.
 
 ## Deploy commands
 
 ```bash
-firebase deploy --only firestore:laundrydb-dev --project mylaundryph          # dev rules + indexes
+firebase deploy --only firestore:laundrydb-dev --project mylaundryph          # dev rules + indexes (from `dev`)
 firebase deploy --only functions:companion --project mylaundryph --force      # functions (dev db)
 firebase deploy --only apphosting:laundry-dev --project mylaundryph --force   # dev app
-# prod (approval required):
+# prod (approval required, from `main` only):
 firebase deploy --only firestore:laundrydb --project mylaundryph
 firebase deploy --only apphosting:laundry-prod --project mylaundryph --force
 ```

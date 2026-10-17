@@ -1,5 +1,8 @@
 # What's new
 
+## 2026-10-17
+- Branch policy: `dev` → laundry-dev, `main` → laundry-prod (after approval). CI runs on both.
+
 ## 2026-10-15
 - Staff link and customer booking errors now include a machine-readable code.
 - The staff queue reads a bounded number of orders.
