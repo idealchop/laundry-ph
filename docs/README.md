@@ -9,5 +9,12 @@ Index for the app docs (river-ai-rules C0 §2: read these before changing schema
 | [firestore_schema.md](./firestore_schema.md) | Collections, ownership, audit log fields |
 | [environments.md](./environments.md) | Dev / prod targets, env vars, flags, deploy commands |
 | [partner-api.md](./partner-api.md) | Partner API v1 for River Mobile |
+| [auth-flow.md](./auth-flow.md) | Sign-in methods, guest mode, non-session credentials |
+| [workspace-roles-and-permissions.md](./workspace-roles-and-permissions.md) | Role matrix: owner, staff, staff link, customer, Partner API |
+| [backend-documentation.md](./backend-documentation.md) | Server routes, auth, error codes |
+| [operations.md](./operations.md) | SLOs, alerts, release smoke test, rollback |
+| [test-summary.md](./test-summary.md) | HP/NEG/ODD/NF matrix and execution log |
+| [release-notes.md](./release-notes.md) | What's new |
+| [reports/](./reports/) | Compliance reports |
 
 Rulebook: [idealchop/river-ai-rules](https://github.com/idealchop/river-ai-rules) (v1.0.1).
