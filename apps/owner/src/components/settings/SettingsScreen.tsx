@@ -2,7 +2,7 @@
 
 import { CoinIcon } from "@river-apps/icons";
 import {
-  ChevronLeft, ChevronRight, CreditCard, History, LogOut, MapPin, Package, Pencil, Star, Store,
+  ChevronLeft, ChevronRight, CreditCard, History, LogOut, MapPin, Package, Pencil, Sparkles, Star, Store,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -59,6 +59,7 @@ const SHOP_LISTING_LINK = { href: "/partner/shop", icon: Store, title: "Shop lis
 
 const HUB_LINKS = [
   { href: "/profile/services", icon: Package, title: "Services", subtitle: "Products, prices and POS catalog" },
+  { href: "/settings/import", icon: Sparkles, title: "Import records", subtitle: "AI reads your logbook, Excel or PDF" },
   { href: "/settings/billing", icon: CreditCard, title: "Plan & billing", subtitle: `Partner · Pro ${PAID_PER_MO} · Lifetime` },
 ] as const;
 

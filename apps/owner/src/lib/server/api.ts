@@ -111,7 +111,7 @@ export function logApiError(route: string, err: unknown) {
 }
 
 /** Generic limiter for non-key routes (e.g. dev tools). Returns Retry-After seconds when over the limit. */
-export function rateLimit(bucket: string, limit: number, windowMs = LIMITS.windowMs): number | null {
+export function rateLimit(bucket: string, limit: number, windowMs: number = LIMITS.windowMs): number | null {
   return take(`x:${bucket}`, limit, windowMs);
 }
 
