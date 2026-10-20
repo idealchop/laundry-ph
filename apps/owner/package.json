@@ -17,7 +17,6 @@
     "@river-apps/icons": "workspace:*",
     "@river-apps/tokens": "workspace:*",
     "@river-apps/ui": "workspace:*",
-    "fflate": "0.8.2",
     "firebase": "12.6.0",
     "firebase-admin": "13.10.0",
     "lucide-react": "1.51.0",
