@@ -170,7 +170,7 @@ function Overview({ report }: { report: ReturnType<typeof salesReport> }) {
         </div>
         <p className="relative mt-3 text-[12.5px] font-semibold text-on-ink-muted">
           {money(totals.averageCentavos)} average
-          {report.pieces > 0 ? ` · ${report.pieces} pcs` : ""}
+          {report.pieces > 0 ? ` · ${report.pieces} pcs` : ""}{report.loads > 0 ? ` · ${report.loads} ${report.loads === 1 ? "load" : "loads"}` : ""}
           {` · ${report.customers} ${report.customers === 1 ? "customer" : "customers"}`}
           {totals.unpaidCentavos > 0 ? ` · ${money(totals.unpaidCentavos)} unpaid` : ""}
         </p>

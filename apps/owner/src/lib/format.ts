@@ -14,7 +14,8 @@ export function money(centavos: number): string {
 }
 
 /** "6.5 kg", "12 pcs" */
-export function qty(value: number, unit: "kg" | "pc"): string {
+export function qty(value: number, unit: "kg" | "pc" | "load"): string {
+  if (unit === "load") return `${value} ${value === 1 ? "load" : "loads"}`;
   return unit === "kg" ? `${value} kg` : `${value} ${value === 1 ? "pc" : "pcs"}`;
 }
 

@@ -14,7 +14,7 @@ import { ORDER_STATUS_LABEL, type OrderStatus } from "@/data/types";
 
 interface View {
   shopName: string; branchName: string; expiresAt: number; staffName: string | null; mineToday: number;
-  services: { id: string; name: string; icon?: IconName; unit: "kg" | "pc"; priceCentavos: number }[];
+  services: { id: string; name: string; icon?: IconName; unit: "kg" | "pc" | "load"; priceCentavos: number }[];
   defaults: { serviceId: string; kg: number; pieces: number };
   walkIns: { used: number; limit: number; left: number } | null;
   queue: { id: string; ref: string; status: OrderStatus; customer: string; detail: string; next: OrderStatus | null }[];
@@ -95,9 +95,19 @@ export function LocationLinkScreen({ token }: { token: string }) {
             <ServiceSlider
               options={view.services.map((s) => ({ id: s.id, label: s.name, icon: <Icon3D name={s.icon ?? "washer"} size={34} />, meta: `${money(s.priceCentavos)}/${s.unit}` }))}
               value={serviceId}
-              onChange={setServiceId}
+              onChange={(id) => { setServiceId(id); const nx = view.services.find((x) => x.id === id); if (nx?.unit === "load") setQty("1"); else if (svc?.unit === "load") setQty("6"); }}
             />
-            <Input size="md" label={svc?.unit === "pc" ? "Pieces" : "Kilos"} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
+            {svc?.unit === "load" ? (
+              <div className="flex items-center justify-between rounded-[14px] bg-grey-100 px-3 py-2">
+                <span className="text-[14px] font-bold">Loads <span className="font-semibold text-muted">· {money(svc.priceCentavos)} each</span></span>
+                <span className="flex items-center gap-2">
+                  <button type="button" aria-label="One load less" disabled={Number(qty) <= 1} onClick={() => setQty(String(Math.max(1, Math.round(Number(qty) || 1) - 1)))} className="size-10 rounded-full bg-surface text-[20px] font-bold shadow-card disabled:opacity-40">−</button>
+                  <b className="w-6 text-center text-[17px] tabular-nums">{Math.max(1, Math.round(Number(qty) || 1))}</b>
+                  <button type="button" aria-label="One load more" onClick={() => setQty(String(Math.min(20, Math.round(Number(qty) || 1) + 1)))} className="size-10 rounded-full bg-surface text-[20px] font-bold shadow-card">+</button>
+                </span>
+              </div>
+            ) : <Input size="md" label={svc?.unit === "pc" ? "Pieces" : "Kilos"} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />}
+            {svc?.unit === "load" ? <p className="-mt-1 px-1 text-[13px] font-semibold text-muted">Total {money(Math.max(1, Math.round(Number(qty) || 1)) * svc.priceCentavos)}</p> : null}
             <Input size="md" label="Customer name (optional)" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
             <Button type="submit" fullWidth disabled={busy || !serviceId}>{busy ? "Adding…" : "Add walk-in"}</Button>
             {note ? <p className="text-[13px] font-semibold" role="status">{note}</p> : null}

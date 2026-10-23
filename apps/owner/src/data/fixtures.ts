@@ -73,7 +73,7 @@ export const catalog: Catalog = {
     { id: "softener", name: "Fabric softener", priceCentavos: 2_000 },
     { id: "rinse", name: "Extra rinse", priceCentavos: 1_500, icon: "drop" },
     { id: "stain", name: "Stain removal", priceCentavos: 4_000, icon: "sparkle" },
-    { id: "sameday", name: "Same-day", priceCentavos: 5_000 },
+    { id: "rush", name: "Rush", priceCentavos: 5_000 },
   ],
   clothesTypes: structuredClone(DEFAULT_CLOTHES_TYPES),
   minKg: 5,

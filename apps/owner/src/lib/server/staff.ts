@@ -12,6 +12,7 @@ import { buildWalkInOrder, formatRef, makeTicketId, nextStatus, ticketStage, toP
 import { ORDER_FLOW } from "@/data/types";
 import { PARTNER_WALKINS_PER_DAY, walkInLimit, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 import { adminDb } from "./admin";
+import { normUnit, withRush } from "@/lib/units";
 import { auditInTx } from "./audit";
 
 /** Same switch the rules read: config/flags.allFeaturesUnlocked in this database (cached 60 s). */
@@ -35,9 +36,9 @@ const strip = <T extends Record<string, unknown>>(o: T) => Object.fromEntries(Ob
 function normCatalog(d: DocumentData): Catalog {
   const opt = (o: DocumentData): CatalogOption => ({ ...(o as CatalogOption), priceCentavos: cents(o, "priceCentavos") });
   return {
-    services: (d.services ?? []).map((s: DocumentData) => ({ ...(s as CatalogService), priceCentavos: cents(s, "priceCentavos") })),
+    services: (d.services ?? []).map((s: DocumentData) => ({ ...(s as CatalogService), unit: normUnit(s.unit), priceCentavos: cents(s, "priceCentavos") })),
     detergents: (d.detergents ?? []).map(opt),
-    addOns: (d.addOns ?? []).map(opt),
+    addOns: withRush((d.addOns ?? []).map(opt)),
     clothesTypes: normalizeClothesTypes(d.clothesTypes),
     minKg: num(d.minKg, 0),
     returnSlots: d.returnSlots ?? [],

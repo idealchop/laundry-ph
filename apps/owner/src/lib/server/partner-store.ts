@@ -23,7 +23,7 @@ const iso = (v: unknown): string | null => (v instanceof Timestamp ? v.toDate().
 
 /* ---------- shops ---------- */
 
-export interface PublicService { id: string; name: string; unit: "kg" | "pc"; priceCentavos: number }
+export interface PublicService { id: string; name: string; unit: "kg" | "pc" | "load"; priceCentavos: number }
 export interface PublicOption { id: string; name: string; priceCentavos: number }
 /** Enabled clothes types. regular = service price; per_kg_surcharge = + priceCentavos per kg; per_piece = priceCentavos per piece (or pair). */
 export interface PublicClothesType { id: string; name: string; pricing: ClothesPricing; priceCentavos: number; unit: "kg" | "pc" | "pair" | null }
@@ -53,7 +53,7 @@ function toPublicShop(snap: DocumentSnapshot, catalog: DocumentData | undefined)
   const lng = num(L?.lng, NaN);
   const services: PublicService[] = (Array.isArray(catalog?.services) ? catalog!.services : [])
     .filter((s: DocumentData) => s && typeof s.id === "string" && typeof s.name === "string")
-    .map((s: DocumentData) => ({ id: s.id, name: s.name, unit: s.unit === "pc" ? "pc" : "kg", priceCentavos: cents(s, "priceCentavos", "price") }));
+    .map((s: DocumentData) => ({ id: s.id, name: s.name, unit: s.unit === "pc" ? "pc" : s.unit === "load" ? "load" : "kg", priceCentavos: cents(s, "priceCentavos", "price") }));
   const opts = (list: unknown): PublicOption[] =>
     (Array.isArray(list) ? list : [])
       .filter((o: DocumentData) => o && typeof o.id === "string")

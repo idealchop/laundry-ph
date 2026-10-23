@@ -183,7 +183,7 @@ export interface Order {
   customerId?: string | null;
   serviceId: string;
   serviceName: string;
-  unit: "kg" | "pc";
+  unit: "kg" | "pc" | "load";
   /** Entered quantity (kg or pieces). */
   quantity: number;
   /** Billed quantity after the minimum-kg rule. */
@@ -331,8 +331,8 @@ export interface VerifiedBooking {
 export interface CatalogService {
   id: string;
   name: string;
-  unit: "kg" | "pc";
-  /** Per kg or per piece. */
+  unit: "kg" | "pc" | "load";
+  /** Per kg, per load, or per piece. */
   priceCentavos: Centavos;
   icon: IconName;
 }

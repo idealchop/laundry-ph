@@ -18,6 +18,7 @@ import { BasketFill, basketLabel } from "./BasketFill";
 const KG_STEP = 0.5;
 const KG_MAX = 50;
 const PC_MAX = 200;
+const LOAD_MAX = 20;
 /** Pieces that make a "full basket" for per-piece services. */
 const PC_FULL = 30;
 /** − / + press feedback: shrink + darker fill while held; colour-only when reduced motion is on. */
@@ -88,6 +89,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   const [serviceId, setServiceId] = useState(bookedService ?? d.serviceId);
   const [kg, setKg] = useState(booking?.estKg ? Math.min(KG_MAX, Math.round(booking.estKg / KG_STEP) * KG_STEP) : d.kg);
   const [pieces, setPieces] = useState(d.pieces);
+  const [loads, setLoads] = useState(1);
   const [qtyText, setQtyText] = useState<string | null>(null);
   const [detergentId, setDetergentId] = useState(() => defaultDetergentId(catalog));
   /** POS starts with no add-ons; the counter picks them per order. */
@@ -113,9 +115,10 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
 
   const service = catalog.services.find((s) => s.id === serviceId) ?? catalog.services[0]!;
   const perKg = service.unit === "kg";
-  const quantity = perKg ? kg : pieces;
+  const perLoad = service.unit === "load";
+  const quantity = perKg ? kg : perLoad ? loads : pieces;
   const step = perKg ? KG_STEP : 1;
-  const max = perKg ? KG_MAX : PC_MAX;
+  const max = perKg ? KG_MAX : perLoad ? LOAD_MAX : PC_MAX;
   const q = useMemo(
     () => quote(catalog, { serviceId, quantity, detergentId, addOnIds, clothesTypeId, typePieces }),
     [catalog, serviceId, quantity, detergentId, addOnIds, clothesTypeId, typePieces],
@@ -126,7 +129,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   const appliedType = q.clothesType;
   const byPiece = appliedType?.pricing === "per_piece";
   /** Basket is "full" at twice the minimum (at least 8 kg); per-piece services fill at PC_FULL pieces. */
-  const fullAt = perKg ? Math.max(catalog.minKg * 2, 8) : PC_FULL;
+  const fullAt = perKg ? Math.max(catalog.minKg * 2, 8) : perLoad ? 3 : PC_FULL;
   const basketFill = quantity / fullAt;
   const roundingCentavos = q.totalCentavos > 0 ? q.totalCentavos - q.subtotalCentavos : 0;
   const returnLabel = catalog.returnSlots.find((r) => r.id === returnSlotId)?.label ?? "";
@@ -166,6 +169,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   const setQuantity = (v: number) => {
     const clean = Math.min(max, Math.max(0, Math.round(v / step) * step));
     if (perKg) setKg(clean);
+    else if (perLoad) setLoads(clean);
     else setPieces(clean);
   };
   /** Step the quantity from − / +, with a light haptic tick and a quick pop on the number. */
@@ -196,7 +200,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
     setCustomer("");
   };
   const reset = () => {
-    setCustomer(""); setPicked(null); setAddingCustomer(false); setServiceId(d.serviceId); setKg(d.kg); setPieces(d.pieces); setDetergentId(defaultDetergentId(catalog));
+    setCustomer(""); setPicked(null); setAddingCustomer(false); setServiceId(d.serviceId); setKg(d.kg); setPieces(d.pieces); setLoads(1); setDetergentId(defaultDetergentId(catalog));
     setAddOnIds([]); setClothesTypeId(REGULAR_CLOTHES_ID); setTypePieces(1); setReturnSlotId(d.returnSlotId); setFulfillment("pickup"); setOpenOptions(null); setPickingReturn(false); setCreated(null); setQtyText(null); setError(null); setCopied(false); setShowBreakdown(false);
   };
 
@@ -307,8 +311,8 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
               <div ref={qtyField} className="flex min-w-0 flex-1 items-center justify-between gap-3">
                 <div className="flex min-w-0 flex-col items-start gap-1">
                   <p id="qty-label" className="text-[13px] leading-none">
-                    <span className="font-semibold text-ink">{perKg ? "Weight" : "Pieces"}</span>
-                    <span className="font-semibold text-muted"> · {byPiece ? "Optional, priced per piece" : perKg ? `Min. ${catalog.minKg} kg` : "Per piece"}</span>
+                    <span className="font-semibold text-ink">{perKg ? "Weight" : perLoad ? "Loads" : "Pieces"}</span>
+                    <span className="font-semibold text-muted"> · {byPiece ? "Optional, priced per piece" : perKg ? `Min. ${catalog.minKg} kg` : perLoad ? `${money(service.priceCentavos)} per load` : "Per piece"}</span>
                   </p>
                   <label className="flex max-w-full cursor-text items-baseline gap-1">
                     {/* Auto-width: an invisible copy of the text sizes the grid cell, so the input hugs the digits. */}
@@ -332,13 +336,13 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
                         onBlur={() => { setQtyText(null); setQuantity(quantity); }}
                       />
                     </span>
-                    <span className="flex-none text-[15px] font-bold text-muted" aria-hidden>{perKg ? "kg" : "pcs"}</span>
+                    <span className="flex-none text-[15px] font-bold text-muted" aria-hidden>{perKg ? "kg" : perLoad ? (quantity === 1 ? "load" : "loads") : "pcs"}</span>
                   </label>
                 </div>
                 <div className="flex flex-none items-center gap-2">
-                  <IconButton type="button" label={perKg ? "Less 0.5 kg" : "One piece less"} variant="soft" icon={<Minus size={18} strokeWidth={2.2} />}
+                  <IconButton type="button" label={perKg ? "Less 0.5 kg" : perLoad ? "One load less" : "One piece less"} variant="soft" icon={<Minus size={18} strokeWidth={2.2} />}
                     className={`${STEP_BTN} size-11 flex-none border border-line lg:size-12`} disabled={quantity <= 0} onClick={() => stepBy(-1)} />
-                  <IconButton type="button" label={perKg ? "More 0.5 kg" : "One piece more"} variant="soft" icon={<Plus size={18} strokeWidth={2.2} />}
+                  <IconButton type="button" label={perKg ? "More 0.5 kg" : perLoad ? "One load more" : "One piece more"} variant="soft" icon={<Plus size={18} strokeWidth={2.2} />}
                     className={`${STEP_BTN} size-11 flex-none border border-line lg:size-12`} disabled={quantity >= max} onClick={() => stepBy(1)} />
                 </div>
               </div>

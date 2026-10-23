@@ -33,3 +33,24 @@ describe("live hero", () => {
     expect(liveWork([{ status: "ready", stageTimes: {}, updatedAt: 1 }])).toEqual({ count: 0, since: null });
   });
 });
+
+import { quote } from "@/lib/pricing";
+import { catalog as fxCatalog } from "@/data/fixtures";
+import { withRush } from "@/lib/units";
+import { qty } from "@/lib/format";
+
+describe("per load + rush", () => {
+  const cat = { ...fxCatalog, services: [...fxCatalog.services, { id: "load", name: "Full load", unit: "load" as const, priceCentavos: 18_000, icon: "washer" as const }] };
+  it("TC-LOAD-01 per-load price is loads × price, no kg minimum", () => {
+    const q = quote(cat, { serviceId: "load", quantity: 3, detergentId: "shop", addOnIds: [] });
+    expect(q.totalCentavos).toBe(54_000);
+    expect(q.minimumApplied).toBe(false);
+    expect(qty(1, "load")).toBe("1 load");
+    expect(qty(3, "load")).toBe("3 loads");
+  });
+  it("TC-RUSH-01 Same day is replaced by Rush, keeping its price", () => {
+    const out = withRush([{ id: "sameday", name: "Same-day", priceCentavos: 7_000 }, { id: "rinse", name: "Extra rinse", priceCentavos: 1_500 }]);
+    expect(out.map((a) => a.name)).toEqual(["Extra rinse", "Rush"]);
+    expect(out.find((a) => a.name === "Rush")!.priceCentavos).toBe(7_000);
+  });
+});

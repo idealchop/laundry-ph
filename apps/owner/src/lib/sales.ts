@@ -27,6 +27,7 @@ export interface SalesReport {
   compare: string;
   totals: SalesTotals;
   pieces: number;
+  loads: number;
   previousSalesCentavos: number;
   /** Hours today, or one row per day for 7 and 30 days. Oldest first. */
   series: SalesRow[];
@@ -60,11 +61,16 @@ function pieceCount(orders: Order[]): number {
   return orders.reduce((sum, o) => sum + (o.unit === "pc" ? o.quantity : 0), 0);
 }
 
-function detail(orders: number, kg: number, pieces: number): string {
+function loadCount(orders: Order[]): number {
+  return orders.reduce((sum, o) => sum + (o.unit === "load" ? o.quantity : 0), 0);
+}
+
+function detail(orders: number, kg: number, pieces: number, loads = 0): string {
   const n = `${orders} ${orders === 1 ? "order" : "orders"}`;
   const bits = [n];
   if (kg > 0) bits.push(`${Math.round(kg * 10) / 10} kg`);
   if (pieces > 0) bits.push(`${pieces} ${pieces === 1 ? "pc" : "pcs"}`);
+  if (loads > 0) bits.push(`${loads} ${loads === 1 ? "load" : "loads"}`);
   return bits.join(" · ");
 }
 
@@ -72,7 +78,7 @@ function rowsFrom(map: Map<string, Order[]>): SalesRow[] {
   return [...map.entries()]
     .map(([label, list]) => {
       const t = salesTotals(list);
-      return { label, orders: t.orders, salesCentavos: t.salesCentavos, detail: detail(t.orders, t.kg, pieceCount(list)) };
+      return { label, orders: t.orders, salesCentavos: t.salesCentavos, detail: detail(t.orders, t.kg, pieceCount(list), loadCount(list)) };
     })
     .filter((row) => row.orders > 0)
     .sort((a, b) => b.salesCentavos - a.salesCentavos || b.orders - a.orders);
@@ -105,7 +111,7 @@ export function salesReport(orders: Order[], range: SalesRange, now = Date.now()
     ? [...hours].sort((a, b) => a - b).map((hour) => {
       const list = counted.filter((o) => manilaHour(o.createdAt) === hour);
       const t = salesTotals(list);
-      return { label: hourLabel(hour), orders: t.orders, salesCentavos: t.salesCentavos, detail: detail(t.orders, t.kg, pieceCount(list)) };
+      return { label: hourLabel(hour), orders: t.orders, salesCentavos: t.salesCentavos, detail: detail(t.orders, t.kg, pieceCount(list), loadCount(list)) };
     })
     : Array.from({ length: spec.days }, (_, i) => {
       const start = startOfShopDay(now, i - (spec.days - 1));
@@ -117,7 +123,7 @@ export function salesReport(orders: Order[], range: SalesRange, now = Date.now()
         label: spec.days === 7 ? weekday(at) : shortDate(at),
         orders: t.orders,
         salesCentavos: t.salesCentavos,
-        detail: detail(t.orders, t.kg, pieceCount(list)),
+        detail: detail(t.orders, t.kg, pieceCount(list), loadCount(list)),
       };
     });
 
@@ -128,7 +134,7 @@ export function salesReport(orders: Order[], range: SalesRange, now = Date.now()
     label,
     orders: list.length,
     salesCentavos: centavos,
-    detail: detail(list.length, list.reduce((s, o) => s + o.kg, 0), pieceCount(list)),
+    detail: detail(list.length, list.reduce((s, o) => s + o.kg, 0), pieceCount(list), loadCount(list)),
   });
 
   const addOnMap = new Map<string, { orders: number; salesCentavos: number }>();
@@ -145,6 +151,7 @@ export function salesReport(orders: Order[], range: SalesRange, now = Date.now()
     compare: spec.compare,
     totals,
     pieces: pieceCount(counted),
+    loads: loadCount(counted),
     previousSalesCentavos: previous.salesCentavos,
     series,
     seriesKind: range === "today" ? "hour" : "day",

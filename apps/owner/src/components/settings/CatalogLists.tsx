@@ -113,7 +113,7 @@ export function ServiceList({ services, disabled, busy, error, onSave, onRemove 
       <ListCard addLabel="Add service" disabled={disabled}
         onAdd={() => open({ id: `svc-${Date.now()}`, name: "", unit: "kg", priceCentavos: 3_500, icon: "washer" }, "add")}>
         {services.map((s) => (
-          <Row key={s.id} icon={safeIcon(s.icon, "washer")} name={s.name} price={`${money(s.priceCentavos)}/${s.unit}`} onOpen={() => open(s)} />
+          <Row key={s.id} icon={safeIcon(s.icon, "washer")} name={s.name} price={`${money(s.priceCentavos)}/${s.unit === "kg" ? "kg" : s.unit}`} onOpen={() => open(s)} />
         ))}
       </ListCard>
       {edit && v ? (
@@ -125,9 +125,9 @@ export function ServiceList({ services, disabled, busy, error, onSave, onRemove 
             <Input size="md" label="Name" value={v.name} maxLength={40} placeholder="e.g. Wash-Dry-Fold" onChange={(e) => set({ name: e.target.value })} />
             <div><span className={fieldLabel}>Icon</span><IconPicker label="Service icon" icons={SERVICE_ICONS} value={safeIcon(v.icon, "washer")} onChange={(icon) => set({ icon })} /></div>
             <div><span className={fieldLabel}>Priced</span>
-              <Segmented label="Priced" value={v.unit} onChange={(unit) => set({ unit })} options={[{ value: "kg", label: "Per kg" }, { value: "pc", label: "Per piece" }]} />
+              <Segmented label="Priced" value={v.unit} onChange={(unit) => set({ unit })} options={[{ value: "kg", label: "Per kilo" }, { value: "load", label: "Per load" }, ...(v.unit === "pc" ? [{ value: "pc" as const, label: "Per piece" }] : [])]} />
             </div>
-            <Input size="md" label={`Price per ${v.unit === "kg" ? "kg" : "piece"} (₱)`} inputMode="decimal" value={pesosFromCentavos(v.priceCentavos)}
+            <Input size="md" label={`Price per ${v.unit === "kg" ? "kilo" : v.unit === "load" ? "load" : "piece"} (₱)`} inputMode="decimal" value={pesosFromCentavos(v.priceCentavos)}
               onChange={(e) => set({ priceCentavos: centavosFromPesos(e.target.value) })} />
           </form>
         </EditSheet>

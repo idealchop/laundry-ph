@@ -43,7 +43,7 @@ export interface Quote {
  */
 export function quote(catalog: Catalog, sel: PosSelection): Quote {
   const service = catalog.services.find((s) => s.id === sel.serviceId) ?? catalog.services[0]!;
-  const qty = Math.max(0, sel.quantity);
+  const qty = Math.max(0, service.unit === "load" ? Math.round(sel.quantity) : sel.quantity);
   const type = (catalog.clothesTypes ?? []).find((t) => t.id === sel.clothesTypeId && t.enabled && t.id !== REGULAR_CLOTHES_ID && t.pricing !== "regular") ?? null;
   // A per-kg surcharge only makes sense on a per-kg service.
   const clothesType = type && type.pricing === "per_kg_surcharge" && service.unit !== "kg" ? null : type;
@@ -51,7 +51,7 @@ export function quote(catalog: Catalog, sel: PosSelection): Quote {
   const typePieces = perPiece ? Math.max(0, Math.round(sel.typePieces ?? 0)) : 0;
   const minimumApplied = !perPiece && service.unit === "kg" && qty > 0 && qty < catalog.minKg;
   const billedQuantity = minimumApplied ? catalog.minKg : qty;
-  const unitLabel = service.unit === "kg" ? "kg" : "pc";
+  const unitLabel = service.unit === "kg" ? "kg" : service.unit === "load" ? (billedQuantity === 1 ? "load" : "loads") : "pc";
   const lines: QuoteLine[] = [];
   if (perPiece) {
     // The load is priced by pieces (e.g. comforters ₱150/pc) instead of by weight.

@@ -116,7 +116,7 @@ export function buildWalkInOrder(catalog: Catalog, input: NewWalkInOrder, ctx: O
     serviceName: q.service.name,
     // Per-piece clothes types bill pieces; the weight (if entered) is still kept in `kg`.
     unit: byPiece ? "pc" : q.service.unit,
-    quantity: byPiece ? q.typePieces : input.quantity,
+    quantity: byPiece ? q.typePieces : q.service.unit === "load" ? q.billedQuantity : input.quantity,
     billedQuantity: byPiece ? q.typePieces : q.billedQuantity,
     kg: perKg ? input.quantity : 0,
     detergent: q.detergent ? { id: q.detergent.id, name: q.detergent.name, priceCentavos: q.detergent.priceCentavos } : null,
@@ -140,7 +140,7 @@ export function buildWalkInOrder(catalog: Catalog, input: NewWalkInOrder, ctx: O
     fulfillment: input.fulfillment === "delivery" ? "delivery" : "pickup",
     detail: byPiece
       ? `${pieceLabel(q.typePieces, q.clothesType!.pieceUnit)} · ${q.clothesType!.name}`
-      : `${qty(input.quantity, q.service.unit)} · ${q.service.name}${q.clothesType ? ` · ${q.clothesType.name.split(" /")[0]}` : ""}`,
+      : `${qty(q.service.unit === "load" ? q.billedQuantity : input.quantity, q.service.unit)} · ${q.service.name}${q.clothesType ? ` · ${q.clothesType.name.split(" /")[0]}` : ""}`,
     stageTimes: { received: ctx.now },
     createdAt: ctx.now,
     updatedAt: ctx.now,

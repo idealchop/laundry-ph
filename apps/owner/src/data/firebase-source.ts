@@ -16,6 +16,7 @@
  *   shops/{shopId}/bookings/{id}             River Mobile bookings (created by the Partner API; members move status)
  *   public_tickets/{ticketId}                PublicTicket projection (no phone / address), get-only for the public
  */
+import { normUnit, withRush } from "@/lib/units";
 import { normalizeClothesTypes, REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import {
   Timestamp, collection, deleteField, doc, getDoc, getDocs, increment, limit, onSnapshot, orderBy, query, runTransaction,
@@ -79,7 +80,7 @@ function toOrder(snap: DocumentSnapshot): Order {
     customerId: d.customerId ?? null,
     serviceId: String(d.serviceId ?? ""),
     serviceName: String(d.serviceName ?? d.detail ?? ""),
-    unit: d.unit === "pc" ? "pc" : "kg",
+    unit: normUnit(d.unit),
     quantity: num(d.quantity, num(d.kg)),
     billedQuantity: num(d.billedQuantity, num(d.kg)),
     kg: num(d.kg),
@@ -197,9 +198,9 @@ function toCustomer(snap: DocumentSnapshot): Customer {
 function normCatalog(d: DocumentData): Catalog {
   const opt = (o: DocumentData): CatalogOption => ({ ...(o as CatalogOption), priceCentavos: cents(o, "priceCentavos", "price") });
   return {
-    services: (d.services ?? []).map((s: DocumentData) => ({ ...(s as CatalogService), priceCentavos: cents(s, "priceCentavos", "price") })),
+    services: (d.services ?? []).map((s: DocumentData) => ({ ...(s as CatalogService), unit: normUnit(s.unit), priceCentavos: cents(s, "priceCentavos", "price") })),
     detergents: (d.detergents ?? []).map(opt),
-    addOns: (d.addOns ?? []).map(opt),
+    addOns: withRush((d.addOns ?? []).map(opt)),
     clothesTypes: normalizeClothesTypes(d.clothesTypes),
     minKg: num(d.minKg, 0),
     returnSlots: d.returnSlots ?? [],
@@ -642,7 +643,7 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
       const services = next.services.map((s) => ({
         id: String(s.id || "").trim() || `svc-${Date.now()}`,
         name: String(s.name || "").trim(),
-        unit: s.unit === "pc" ? "pc" : "kg",
+        unit: normUnit(s.unit),
         priceCentavos: Math.max(0, Math.round(Number(s.priceCentavos) || 0)),
         icon: s.icon,
       }));
@@ -654,7 +655,7 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         priceCentavos: Math.max(0, Math.round(Number(o.priceCentavos) || 0)),
         ...(o.icon ? { icon: o.icon } : {}),
       }));
-      const addOns = (next.addOns ?? []).map((o) => ({
+      const addOns = withRush(next.addOns ?? []).map((o) => ({
         id: o.id,
         name: String(o.name || "").trim(),
         ...(o.short ? { short: o.short } : {}),

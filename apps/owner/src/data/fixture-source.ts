@@ -1,3 +1,4 @@
+import { normUnit, withRush } from "@/lib/units";
 import { dayKey } from "@/lib/format";
 import { PARTNER_WALKINS_PER_DAY, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 /**
@@ -91,7 +92,7 @@ export function createFixtureDataSource(): LaundryDataSource {
       const services = next.services.map((s) => ({
         id: s.id.trim() || `svc-${Date.now()}`,
         name: s.name.trim(),
-        unit: s.unit === "pc" ? "pc" as const : "kg" as const,
+        unit: normUnit(s.unit),
         priceCentavos: Math.max(0, Math.round(s.priceCentavos)),
         icon: s.icon,
       }));
@@ -99,7 +100,7 @@ export function createFixtureDataSource(): LaundryDataSource {
       const detergents = (next.detergents ?? []).map((o) => ({
         id: o.id, name: o.name.trim(), ...(o.short ? { short: o.short } : {}), priceCentavos: Math.max(0, Math.round(o.priceCentavos)), ...(o.icon ? { icon: o.icon } : {}),
       }));
-      const addOns = (next.addOns ?? []).map((o) => ({
+      const addOns = withRush(next.addOns ?? []).map((o) => ({
         id: o.id, name: o.name.trim(), ...(o.short ? { short: o.short } : {}), priceCentavos: Math.max(0, Math.round(o.priceCentavos)), ...(o.icon ? { icon: o.icon } : {}),
       }));
       const defaults = {
