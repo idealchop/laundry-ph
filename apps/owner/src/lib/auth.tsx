@@ -136,13 +136,27 @@ export const useAuth = () => useContext(AuthContext);
 let pending: { phoneE164: string; confirmation: ConfirmationResult; sentAt: number } | null = null;
 let verifier: RecaptchaVerifier | null = null;
 
-/** Sends the SMS code using an invisible reCAPTCHA attached to the Send button. */
-export async function sendPhoneCode(phoneE164: string, buttonId: string) {
+function resetVerifier() {
+  try { verifier?.clear(); } catch { /* already gone */ }
+  verifier = null;
+}
+
+/**
+ * Sends a 6-digit code by SMS (Firebase phone auth), same as Barbers.ph. reCAPTCHA runs invisibly on a
+ * hidden container (`containerId`), never a checkbox or puzzle in normal use. The verifier is rebuilt on
+ * every attempt and cleared on any error or expiry, so a retry gets a fresh token.
+ */
+export async function sendPhoneCode(phoneE164: string, containerId: string) {
   const auth = getFirebaseAuth();
-  verifier?.clear();
-  verifier = new RecaptchaVerifier(auth, buttonId, { size: "invisible" });
-  const confirmation = await signInWithPhoneNumber(auth, phoneE164, verifier);
-  pending = { phoneE164, confirmation, sentAt: Date.now() };
+  resetVerifier();
+  verifier = new RecaptchaVerifier(auth, containerId, { size: "invisible", "expired-callback": resetVerifier });
+  try {
+    const confirmation = await signInWithPhoneNumber(auth, phoneE164, verifier);
+    pending = { phoneE164, confirmation, sentAt: Date.now() };
+  } catch (err) {
+    resetVerifier();
+    throw err;
+  }
 }
 
 export const pendingPhone = () => pending;

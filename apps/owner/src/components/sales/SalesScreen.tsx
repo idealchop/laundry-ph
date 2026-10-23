@@ -1,91 +1,153 @@
 "use client";
 
-import { Icon3D } from "@river-apps/icons";
+import { CoinIcon, Icon3D } from "@river-apps/icons";
+import { Check } from "lucide-react";
 import { RowsSkeleton } from "@/components/common/Skeleton";
-import { Card, EmptyState, SegmentedControl, cn } from "@river-apps/ui";
+import { Card, EmptyState, cn } from "@river-apps/ui";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { money, startOfShopDay } from "@/lib/format";
-import { salesDelta, salesReport, SALES_RANGES, type SalesRange, type SalesRow, type SalesView } from "@/lib/sales";
+import { salesDelta, salesReport, SALES_RANGES, type SalesRange, type SalesRow } from "@/lib/sales";
+import { ordersBetween } from "@/lib/orders";
+import { staffStats, type StaffRow } from "@/lib/staff-performance";
 import { useLocationFilter } from "@/lib/shop-locations";
 import { useBoardOrders, useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
 import { ShellBack } from "../shell/PageBack";
 import { ErrorNote } from "../ui";
 
-const VIEWS: { value: SalesView; label: string }[] = [
-  { value: "overview", label: "Overview" },
-  { value: "services", label: "Services" },
-  { value: "payments", label: "Payments" },
-  { value: "shop", label: "Shop" },
+// Barbers.ph parity: three tabs (Collection default, Performance, Sales group) plus a "My Staff" pill.
+type View = "collection" | "performance" | "groups" | "staff";
+const VIEWS: { value: View; label: string }[] = [
+  { value: "collection", label: "Collection" },
+  { value: "performance", label: "Performance" },
+  { value: "groups", label: "Sales group" },
 ];
+const MEDAL = ["🥇", "🥈", "🥉"];
 
-/** Sales for the laundry: money, what was washed, how it was paid, and how the shop ran. */
+/** Sales: Collection / Performance / Sales group, filtered by location and a compact date chip. History opens from here only. */
 export function SalesScreen() {
   const { shop } = useShop();
   const [now] = useState(() => Date.now());
   const [range, setRange] = useState<SalesRange>("today");
-  const [view, setView] = useState<SalesView>("overview");
+  const [view, setView] = useState<View>("collection");
   const since = useMemo(() => startOfShopDay(now, -59), [now]);
   const { orders, error, loading } = useBoardOrders(since);
   const loc = useLocationFilter();
-  const here = orders.filter((o) => loc.keep(o.branchId));
+  const here = useMemo(() => orders.filter((o) => loc.keep(o.branchId)), [orders, loc]);
   const report = useMemo(() => salesReport(here, range, now), [here, range, now]);
   const spec = SALES_RANGES.find((r) => r.value === range) ?? SALES_RANGES[0]!;
+  const from = startOfShopDay(now, -(spec.days - 1));
+  const inRange = useMemo(() => ordersBetween(here, from), [here, from]);
+  const branchName = (id: string) => loc.branches.find((b) => b.id === id)?.name ?? (id === "home" ? shop.name : "");
+  const staff = staffStats(inRange, branchName);
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("view");
+    if (v === "performance" || v === "groups" || v === "staff") queueMicrotask(() => setView(v));
+  }, []);
 
   return (
-    <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[980px] lg:px-[30px] lg:pt-6">
-      <header className="flex flex-wrap items-end gap-x-6 border-b border-line px-1">
-        <div className="flex items-center gap-[11px] pb-3">
+    <div className="mx-auto w-full max-w-[402px] px-4 pb-8 pt-4 lg:max-w-[980px] lg:px-[30px] lg:pt-6">
+      <header className="border-b border-line px-1 pb-3">
+        <div className="flex items-center gap-1">
           <ShellBack />
-          <span aria-hidden className="inline-flex size-14 flex-none items-center justify-center">
-            <Icon3D name="coin" size={56} className="drop-shadow-[0_10px_14px_rgba(10,10,10,0.16)]" />
-          </span>
-          <div className="flex flex-col leading-[1.2]">
-            <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">Sales</h1>
-            <p className="mt-0.5 text-[14px] font-semibold text-muted">
-              {spec.label} · {shop.name}{loc.placeLabel ? ` · ${loc.placeLabel}` : ""} <SampleNote className="ml-1 align-middle" />
-            </p>
-          </div>
+          <h1 className="flex items-center gap-1.5 text-[28px] font-extrabold leading-none tracking-[-0.03em]">
+            <CoinIcon size={28} /> Sales
+          </h1>
+          <button type="button" aria-pressed={view === "staff"} onClick={() => setView(view === "staff" ? "collection" : "staff")}
+            className={cn("ml-auto inline-flex min-h-11 flex-none items-center gap-1.5 rounded-full border py-1 pl-1.5 pr-3", view === "staff" ? "border-ink bg-ink text-on-ink" : "border-line")}>
+            <span aria-hidden className="inline-flex size-7 items-center justify-center rounded-full bg-grey-100 text-[16px]">🏆</span>
+            <span className="text-[13px] font-bold leading-none">My Staff</span>
+          </button>
         </div>
-        <div role="tablist" aria-label="Sales view" className="flex items-end gap-5">
-          {VIEWS.map((item) => {
-            const on = view === item.value;
-            return (
-              <button
-                key={item.value}
-                type="button"
-                role="tab"
-                aria-selected={on}
-                onClick={() => setView(item.value)}
-                className={cn(
-                  "-mb-px min-h-11 border-b-2 px-0.5 pb-2.5 pt-2 text-[15px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                  on ? "border-ink font-bold text-ink" : "border-transparent font-semibold text-muted hover:text-ink",
-                )}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
+        <p className="mt-1 px-1 text-[12.5px] font-semibold text-muted">{shop.name}{loc.placeLabel ? ` · ${loc.placeLabel}` : ""} <SampleNote className="ml-1 align-middle" /></p>
       </header>
 
-      <SegmentedControl
-        className="mt-4 w-fit"
-        label="Date range"
-        value={range}
-        onChange={setRange}
-        options={SALES_RANGES.map(({ value, label }) => ({ value, label }))}
-      />
+      <div role="tablist" aria-label="Sales view" className="mt-3 grid grid-cols-3 rounded-pill bg-grey-100 p-1">
+        {VIEWS.map((item) => (
+          <button key={item.value} type="button" role="tab" aria-selected={view === item.value} onClick={() => setView(item.value)}
+            className={cn("h-9 rounded-pill text-[13.5px] font-bold transition", view === item.value ? "bg-surface text-ink shadow-card" : "text-muted")}>{item.label}</button>
+        ))}
+      </div>
+
+      <div role="radiogroup" aria-label="Date range" className="mt-2.5 inline-flex gap-1">
+        {SALES_RANGES.map((r) => (
+          <button key={r.value} type="button" role="radio" aria-checked={range === r.value} onClick={() => setRange(r.value)}
+            className={cn("h-8 rounded-pill px-3 text-[12.5px] font-bold", range === r.value ? "bg-ink text-on-ink" : "bg-surface text-ink ring-1 ring-line")}>{r.label}</button>
+        ))}
+      </div>
 
       {error ? <ErrorNote className="mt-3">{error}</ErrorNote> : null}
-      {loading && orders.length === 0 ? <RowsSkeleton rows={4} /> : null}
-
-      {view === "overview" ? <Overview report={report} /> : null}
-      {view === "services" ? <Breakdown title="Services" empty="No services in this range." rows={report.services} total={report.totals.salesCentavos} /> : null}
-      {view === "payments" ? <Payments report={report} /> : null}
-      {view === "shop" ? <ShopView report={report} /> : null}
+      {loading && orders.length === 0 ? <RowsSkeleton rows={4} /> : (
+        <>
+          {view === "collection" ? <Collection report={report} staff={staff} /> : null}
+          {view === "performance" ? <Overview report={report} /> : null}
+          {view === "groups" ? (
+            <>
+              <Breakdown title="Services" empty="No services in this range." rows={report.services} total={report.totals.salesCentavos} />
+              <Payments report={report} />
+              <ShopView report={report} />
+            </>
+          ) : null}
+          {view === "staff" ? <StaffBoard rows={staff} /> : null}
+        </>
+      )}
+      <Link href="/history" className="mt-6 flex h-12 w-full items-center justify-center rounded-pill bg-surface text-[14.5px] font-bold text-ink ring-1 ring-line">
+        See each order in History
+      </Link>
     </div>
+  );
+}
+
+/** Collected (cash / GCash) vs uncollected, then who brought it in. No commission or remit in Laundry. */
+function Collection({ report, staff }: { report: ReturnType<typeof salesReport>; staff: StaffRow[] }) {
+  const { totals } = report;
+  const pay = report.payments.filter((p) => p.salesCentavos > 0);
+  return (
+    <>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <section aria-label="Collected" className="flex flex-col rounded-card bg-surface px-4 py-3.5 shadow-card">
+          <span className="text-[12.5px] font-semibold text-muted">Collected</span>
+          <b className="mt-0.5 text-[24px] font-extrabold leading-tight tracking-[-0.03em] tabular-nums">{money(totals.collectedCentavos)}</b>
+          <span className="mt-2 flex flex-col gap-0.5 text-[12.5px] font-semibold text-muted">
+            {pay.length ? pay.map((p) => <span key={p.label} className="flex justify-between gap-2"><span>{p.label}</span><b className="tabular-nums text-ink">{money(p.salesCentavos)}</b></span>) : <span>No payments yet</span>}
+          </span>
+        </section>
+        <section aria-label="Uncollected" className="flex flex-col rounded-card bg-surface px-4 py-3.5 shadow-card">
+          <span className="text-[12.5px] font-semibold text-muted">Uncollected</span>
+          <b className={cn("mt-0.5 text-[24px] font-extrabold leading-tight tracking-[-0.03em] tabular-nums", !totals.unpaidCentavos && "text-muted")}>{money(totals.unpaidCentavos)}</b>
+          <span className="mt-auto flex items-center gap-2 pt-3">
+            <span aria-hidden className={cn("inline-flex size-7 items-center justify-center rounded-full", totals.unpaidCentavos ? "bg-[#FFF4D6] text-[#8A5A00]" : "bg-[#E7F6EC] text-[#0B7A3E]")}>{totals.unpaidCentavos ? "!" : <Check size={14} strokeWidth={3} />}</span>
+            <span className="text-[12.5px] font-semibold text-muted">{totals.unpaidCentavos ? "Still unpaid" : "All paid"}</span>
+          </span>
+        </section>
+      </div>
+      <p className="mt-3 flex items-center justify-between rounded-card bg-surface px-4 py-3 text-[13.5px] font-semibold shadow-card">
+        <span>Sales <small className="block text-[12px] text-muted">{totals.orders} {totals.orders === 1 ? "order" : "orders"} · {totals.kg} kg · {salesDelta(totals.salesCentavos, report.previousSalesCentavos, report.compare)}</small></span>
+        <b className="text-[17px] tabular-nums">{money(totals.salesCentavos)}</b>
+      </p>
+      <StaffBoard rows={staff} title="By staff" />
+    </>
+  );
+}
+
+/** Staff ranking (Barbers "My Barbers" leaderboard): orders, kilos and sales per person; no commission. */
+function StaffBoard({ rows, title = "Staff leaderboard" }: { rows: StaffRow[]; title?: string }) {
+  return (
+    <section className="mt-3 rounded-card bg-surface shadow-card">
+      <h2 className="px-4 pt-4 text-[16px] font-bold">{title}</h2>
+      {rows.length ? (
+        <ol className="mt-1">
+          {rows.map((r, i) => (
+            <li key={r.key} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0">
+              <span className={cn("inline-flex size-8 flex-none items-center justify-center rounded-full font-extrabold", i < 3 ? "text-[20px]" : "bg-grey-100 text-[13px] text-muted")}>{i < 3 ? MEDAL[i] : i + 1}</span>
+              <span className="min-w-0 flex-1"><b className="block truncate text-[14.5px]">{r.name}</b><small className="block truncate text-[12px] font-semibold text-muted">{r.orders} {r.orders === 1 ? "order" : "orders"} · {r.kg} kg · {money(r.collectedCentavos)} collected</small></span>
+              <b className="flex-none tabular-nums">{money(r.salesCentavos)}</b>
+            </li>
+          ))}
+        </ol>
+      ) : <p className="px-4 pb-4 pt-2 text-[13px] font-semibold text-muted">No orders in this range.</p>}
+    </section>
   );
 }
 
@@ -127,9 +189,6 @@ function Overview({ report }: { report: ReturnType<typeof salesReport> }) {
         ) : null}
       </Card>
     </div>
-    <Link href="/history" className="mt-4 inline-flex min-h-11 items-center text-[14px] font-bold underline decoration-grey-300 underline-offset-[3px]">
-      See each order in History
-    </Link>
     </>
   );
 }

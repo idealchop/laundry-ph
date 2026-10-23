@@ -210,6 +210,10 @@ export interface Order {
   createdAt: number;
   updatedAt: number;
   createdBy?: string;
+  /** Owner note (Edit order). */
+  notes?: string | null;
+  /** Who changed this order's details, oldest first (server-written). */
+  editLog?: { at: number; by: string; role: string; changes: string[] }[];
   sample?: boolean;
   /** River Mobile booking this order came from. */
   bookingId?: string;

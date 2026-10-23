@@ -4,7 +4,7 @@
  * ShopProvider: signed-in shop from Firestore, or in-memory sample for guests
  * (River Mobile browse-first). Mutations go through useAction → AuthGate.
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   dataMode, type Booking, type BookingScope, type Customer, type LaundryDataSource, type Membership, type Order, type Shop, type WatchOrdersOptions,
 } from "@/data";
@@ -66,19 +66,39 @@ function guestReady(reload: () => void): ShopState {
   };
 }
 
+/** Last good owner snapshot on this device (fast launch): an installed PWA paints it at once, then refreshes. */
+const FAST_KEY = "lp.fast";
+type Fast = { uid: string; member: Membership; shop: Shop };
+const readFast = (): Fast | null => { try { const r = localStorage.getItem(FAST_KEY); return r ? (JSON.parse(r) as Fast) : null; } catch { return null; } };
+const writeFast = (f: Fast | null) => { try { if (f) localStorage.setItem(FAST_KEY, JSON.stringify(f)); else localStorage.removeItem(FAST_KEY); } catch { /* blocked */ } };
+const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 export function ShopProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading, isGuest, enterAsGuest } = useAuth();
   const [state, setState] = useState<ShopState>({ status: "loading" });
   const [nonce, setNonce] = useState(0);
   const reload = useCallback(() => setNonce((n) => n + 1), []);
+  const fastShown = useRef<string | null>(null);
+
+  // Before first paint: show the cached shop for the last signed-in owner while auth and Firestore catch up.
+  useIsoLayoutEffect(() => {
+    const f = readFast();
+    if (!f || dataMode() === "fixtures") return;
+    const source = createFirebaseDataSource(f.member.shopId);
+    activeSource = source;
+    fastShown.current = f.uid;
+    setState({ status: "ready", shop: f.shop, member: f.member, source, isSample: f.shop.sample === true, isGuest: false, reload });
+  }, [reload]);
 
   useEffect(() => {
     let cancelled = false;
     async function run() {
       if (authLoading) {
-        setState({ status: "loading" });
+        if (!fastShown.current) setState({ status: "loading" });
         return;
       }
+      const background = !!user && fastShown.current === user.uid;
+      if (!user || (fastShown.current && fastShown.current !== user.uid)) { fastShown.current = null; writeFast(null); }
 
       // No Firebase user → browse sample shop as guest (auto-enter + persist).
       if (!user) {
@@ -104,13 +124,13 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setState({ status: "loading" });
-      activeSource = null;
+      if (!background) { setState({ status: "loading" }); activeSource = null; }
       try {
         const member = await resolveMembership(user.uid);
         if (cancelled) return;
         if (!member) {
           const demoShop = await getJoinableDemoShop();
+          writeFast(null);
           if (!cancelled) setState({ status: "onboarding", demoShop, reload });
           return;
         }
@@ -118,10 +138,12 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         const shop = await source.getShop();
         if (!cancelled) {
           activeSource = source;
+          writeFast({ uid: user.uid, member, shop });
           setState({ status: "ready", shop, member, source, isSample: shop.sample === true, isGuest: false, reload });
         }
       } catch (err) {
-        if (!cancelled) setState({ status: "error", message: firestoreErrorMessage(err), reload });
+        // Offline with a cached shop: keep showing it.
+        if (!cancelled && !background) setState({ status: "error", message: firestoreErrorMessage(err), reload });
       }
     }
     void run();

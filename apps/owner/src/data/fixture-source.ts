@@ -174,6 +174,14 @@ export function createFixtureDataSource(): LaundryDataSource {
         return { ...o, status, stageTimes, updatedAt: Date.now() };
       });
     },
+    async editOrder(id, e) {
+      patch(id, (o) => ({
+        ...o, customer: { ...o.customer, name: e.customerName.trim() || "Walk-in customer", phone: e.customerPhone.trim() || undefined },
+        totalCentavos: e.totalCentavos, notes: e.notes.trim() || null,
+        paymentStatus: e.paid ? "paid" : "unpaid", paymentMethod: e.paid ? e.paymentMethod : null, paidCentavos: e.paid ? e.totalCentavos : 0, updatedAt: Date.now(),
+        editLog: [...(o.editLog ?? []), { at: Date.now(), by: "You", role: "owner", changes: ["Details edited"] }],
+      }));
+    },
     async markOrderPaid(id, method) {
       patch(id, (o) => ({ ...o, paymentStatus: "paid", paymentMethod: method, paidCentavos: o.totalCentavos, updatedAt: Date.now() }));
     },

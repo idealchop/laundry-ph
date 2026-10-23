@@ -12,9 +12,11 @@ export function backFallback(pathname: string, home: string): string {
   if (pathname === "/community" || pathname === "/orders") return home;
   if (pathname.startsWith("/orders/")) return "/orders";
   if (pathname.startsWith("/bookings")) return "/orders?channel=online";
+  if (pathname.startsWith("/settings/shops/")) return "/settings/shops";
   if (pathname.startsWith("/profile/") || pathname.startsWith("/settings/")) return "/profile";
   if (pathname.startsWith("/partner/")) return "/partner";
-  if (pathname === "/history" || pathname === "/qr") return "/profile";
+  if (pathname === "/history") return "/sales";
+  if (pathname === "/qr") return "/profile";
   return home;
 }
 

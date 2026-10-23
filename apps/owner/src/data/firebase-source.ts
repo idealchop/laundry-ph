@@ -99,6 +99,8 @@ function toOrder(snap: DocumentSnapshot): Order {
     createdAt,
     updatedAt: ms(d.updatedAt) ?? createdAt,
     createdBy: d.createdBy,
+    notes: typeof d.notes === "string" ? d.notes : null,
+    ...(Array.isArray(d.editLog) ? { editLog: d.editLog as Order["editLog"] } : {}),
     sample: d.sample === true,
     ...(typeof d.bookingId === "string" ? { bookingId: d.bookingId } : {}),
     ...(typeof d.branchId === "string" && d.branchId ? { branchId: d.branchId } : {}),
@@ -321,8 +323,26 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
     return catalogCache;
   };
 
-  const watch = <T,>(q: Query, map: (s: DocumentSnapshot) => T, onData: (rows: T[]) => void, onError: (e: Error) => void): Unsubscribe =>
-    onSnapshot(q, (snap) => onData(snap.docs.map(map)), (e) => onError(new Error(firestoreErrorMessage(e))));
+  /**
+   * Live query with a device cache (fast launch): the last rows for this query paint at once on open,
+   * then the snapshot listener refreshes them in the background.
+   */
+  const watch = <T,>(q: Query, map: (s: DocumentSnapshot) => T, onData: (rows: T[]) => void, onError: (e: Error) => void, cacheKey?: string): Unsubscribe => {
+    const key = cacheKey ? `lp.cache.${shopId}.${cacheKey}` : null;
+    let live = false;
+    if (key) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) { const rows = JSON.parse(raw) as T[]; queueMicrotask(() => { if (!live) onData(rows); }); }
+      } catch { /* no cache */ }
+    }
+    return onSnapshot(q, (snap) => {
+      live = true;
+      const rows = snap.docs.map(map);
+      if (key) { try { localStorage.setItem(key, JSON.stringify(rows)); } catch { /* full */ } }
+      onData(rows);
+    }, (e) => onError(new Error(firestoreErrorMessage(e))));
+  };
 
   return {
     mode: "firebase",
@@ -364,7 +384,8 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
       if (opts.openOnly) q = query(ordersCol(), where("status", "in", OPEN));
       else if (opts.sinceMs != null) q = query(ordersCol(), where("createdAt", ">=", Timestamp.fromMillis(opts.sinceMs)), orderBy("createdAt", "desc"));
       else q = query(ordersCol(), orderBy("createdAt", "desc"), limit(200));
-      return watch(q, toOrder, (rows) => onData(rows.sort((a, b) => b.createdAt - a.createdAt)), onError);
+      const ck = opts.openOnly ? "orders.open" : opts.sinceMs != null ? `orders.since.${Math.floor(opts.sinceMs / 86_400_000)}` : "orders.recent";
+      return watch(q, toOrder, (rows) => onData(rows.sort((a, b) => b.createdAt - a.createdAt)), onError, ck);
     },
     watchOrder(orderId, onData, onError) {
       return onSnapshot(doc(ordersCol(), orderId), (s) => onData(s.exists() ? toOrder(s) : null), (e) => onError(new Error(firestoreErrorMessage(e))));
@@ -507,7 +528,7 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
       const q = scope === "open"
         ? query(bookingsCol(), where("status", "in", BOOKING_OPEN))
         : query(bookingsCol(), where("status", "in", BOOKING_DONE), orderBy("updatedAt", "desc"), limit(100));
-      return watch(q, toBooking, (rows) => onData(scope === "open" ? sortOpenBookings(rows) : rows), onError);
+      return watch(q, toBooking, (rows) => onData(scope === "open" ? sortOpenBookings(rows) : rows), onError, `bookings.${scope}`);
     },
     async getBooking(bookingId) {
       const snap = await getDoc(doc(bookingsCol(), bookingId));
@@ -520,6 +541,17 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
       if (to === "declined") body.declineReason = note;
       if (to === "cancelled") { body.cancelReason = note; body.cancelledBy = "shop"; }
       await updateDoc(doc(bookingsCol(), bookingId), body);
+    },
+    async editOrder(orderId, e) {
+      const user = getFirebaseAuth().currentUser;
+      if (!user) throw new Error("Please sign in again.");
+      const res = await fetch(`/api/shop/orders/${encodeURIComponent(orderId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}` },
+        body: JSON.stringify({ shopId, ...e }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+      if (!res.ok) throw new Error(json.error?.message ?? `Could not save the order (${res.status}).`);
     },
     async createTestBooking() {
       const user = getFirebaseAuth().currentUser;

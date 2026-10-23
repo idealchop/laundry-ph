@@ -23,7 +23,7 @@ export default function PhoneNumberPage() {
     setBusy(true);
     setError(null);
     try {
-      await sendPhoneCode(e164, "send-code");
+      await sendPhoneCode(e164, "phone-recaptcha");
       router.push("/sign-in/code");
     } catch (err) {
       setError(authErrorMessage(err));
@@ -56,7 +56,8 @@ export default function PhoneNumberPage() {
           </div>
         </div>
         <div className="mt-auto px-6 pb-10 pt-6">
-          <Button id="send-code" type="submit" fullWidth disabled={busy || !e164}>{busy ? "Sending…" : "Send code"}</Button>
+          <div id="phone-recaptcha" aria-hidden />
+          <Button type="submit" fullWidth disabled={busy || !e164}>{busy ? "Sending…" : "Send code"}</Button>
         </div>
       </form>
     </AuthScreen>

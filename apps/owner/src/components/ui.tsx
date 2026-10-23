@@ -3,12 +3,14 @@
 import { CheckIcon, DryerIcon, FoldedClothesIcon, LaundryBasketIcon, WasherIcon } from "@river-apps/icons";
 import { Badge, cn } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
+import { AppLoader } from "@/components/common/AppLoader";
 import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { ORDER_STATUS_LABEL, type Order, type OrderStatus } from "@/data";
 import { actionLabel, nextStatus } from "@/lib/orders";
 
 export function Spinner({ label = "Loading", fullScreen = false }: { label?: string; fullScreen?: boolean }) {
+  if (fullScreen) return <AppLoader label={label} />;
   return (
     <div role="status" className={cn("flex items-center justify-center", fullScreen ? "min-h-dvh bg-canvas" : "py-10")}>
       <span className="size-8 animate-spin rounded-full border-[3px] border-grey-200 border-t-ink" />

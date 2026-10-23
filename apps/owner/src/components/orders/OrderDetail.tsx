@@ -2,7 +2,7 @@
 
 import { pieceLabel } from "@/lib/clothes";
 import { FormSkeleton } from "@/components/common/Skeleton";
-import { Copy, ExternalLink, Phone, User } from "lucide-react";
+import { Copy, ExternalLink, History, Pencil, Phone, Plus, User, X } from "lucide-react";
 import { CoinIcon, EWalletIcon } from "@river-apps/icons";
 import { Avatar, Card, CardHeader, EmptyState, MonoText, StatusDot } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
@@ -38,8 +38,9 @@ export function OrderDetailScreen() {
 }
 
 export function OrderDetail({ order }: { order: Order }) {
-  const { } = useShop();
+  const { member } = useShop();
   const action = useAction();
+  const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [now] = useState(() => Date.now());
   /** Stepper: Received → Washing → Drying → Folding → Ready → Claimed (walk-in) / Delivered (River Mobile). */
@@ -191,6 +192,16 @@ export function OrderDetail({ order }: { order: Order }) {
           </Card>
         </div>
       </div>
+      {order.notes ? (
+        <Card className="mt-4 px-4 py-3.5">
+          <b className="text-[16px]">Notes</b>
+          <p className="mt-1.5 whitespace-pre-wrap text-[14px] font-medium text-ink-2">{order.notes}</p>
+        </Card>
+      ) : null}
+      <EditLog order={order} />
+      {editing ? <EditForm order={order} onDone={() => setEditing(false)} /> : member.role === "owner" ? (
+        <Button data-auth="action" className="mt-3" fullWidth variant="secondary" leadingIcon={<Pencil size={16} strokeWidth={2} />} onClick={() => setEditing(true)}>Edit information</Button>
+      ) : null}
       <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-[70] flex justify-center px-4 lg:bottom-8">
         {undo ? (
           <div role="status" className="pointer-events-auto flex min-h-12 items-center gap-3 rounded-pill bg-ink py-1.5 pl-4 pr-1.5 text-on-ink shadow-raised">
@@ -239,6 +250,90 @@ function CustomerCard({ order, anonymous }: { order: Order; anonymous: boolean }
             </a>
           ) : null}
         </div>
+      )}
+    </Card>
+  );
+}
+
+const whenAt = (ms: number) => new Date(ms).toLocaleString("en-US", { timeZone: "Asia/Manila", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+/** Edit information (Barbers.ph parity): customer, amount, payment and a note. No commission or tip in Laundry. */
+function EditForm({ order, onDone }: { order: Order; onDone: () => void }) {
+  const action = useAction();
+  const anon = order.customer.name.trim().toLowerCase() === "walk-in customer";
+  const [name, setName] = useState(anon ? "" : order.customer.name);
+  const [phone, setPhone] = useState(order.customer.phone ?? "");
+  const [price, setPrice] = useState(String(order.totalCentavos / 100));
+  const [paid, setPaid] = useState(order.paymentStatus === "paid");
+  const [method, setMethod] = useState<"cash" | "gcash">(order.paymentMethod === "gcash" ? "gcash" : "cash");
+  const [notes, setNotes] = useState(order.notes ?? "");
+  const [showNotes, setShowNotes] = useState(Boolean(order.notes));
+  const field = "h-10 w-full min-w-0 bg-transparent px-3 text-[16px] font-semibold outline-none placeholder:font-medium placeholder:text-muted sm:text-[14.5px]";
+  const box = "rounded-[12px] bg-grey-100";
+  const seg = (on: boolean) => `h-8 flex-1 rounded-[9px] px-2.5 text-[13px] font-bold transition-colors ${on ? "bg-surface text-ink shadow-card" : "text-muted"}`;
+  const save = async () => {
+    const totalCentavos = Math.max(0, Math.round(Number(price.replace(/[^\d.]/g, "")) * 100) || 0);
+    const ok = await action.run(async (s) => { await s.editOrder(order.id, { customerName: name, customerPhone: phone, totalCentavos, paid, paymentMethod: method, notes }); return true; }, "Sign in to edit this order.");
+    if (ok === true) onDone();
+  };
+  return (
+    <Card className="mt-4 px-4 pb-4 pt-3">
+      <div className="flex items-center justify-between">
+        <b className="text-[15.5px] tracking-[-0.01em]">Edit information</b>
+        <button type="button" aria-label="Close edit" onClick={onDone} className="-mr-1.5 inline-flex size-9 items-center justify-center rounded-full text-muted active:bg-grey-100"><X size={18} strokeWidth={2.2} /></button>
+      </div>
+      <div className={`mt-2 divide-y divide-line ${box}`}>
+        <input aria-label="Customer name" value={name} placeholder="Customer name" onChange={(e) => setName(e.target.value)} className={field} />
+        <input aria-label="Phone" inputMode="tel" value={phone} placeholder="Phone (optional)" onChange={(e) => setPhone(e.target.value)} className={field} />
+      </div>
+      <div className="mt-2.5 flex gap-2">
+        <p className={`flex h-10 min-w-0 flex-[1.4] items-center truncate px-3 text-[14.5px] font-semibold ${box}`}>{order.detail || order.serviceName}</p>
+        <label className={`flex flex-1 items-center pl-3 ${box}`}>
+          <span aria-hidden className="text-[14.5px] font-bold text-muted">₱</span>
+          <input aria-label="Amount (₱)" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, ""))} className={`${field} pl-1 tabular-nums`} />
+        </label>
+      </div>
+      <div className="mt-2.5 flex gap-2">
+        <div role="radiogroup" aria-label="Payment" className={`flex flex-1 gap-1 p-1 ${box}`}>
+          <button type="button" role="radio" aria-checked={paid} onClick={() => setPaid(true)} className={seg(paid)}>Paid</button>
+          <button type="button" role="radio" aria-checked={!paid} onClick={() => setPaid(false)} className={seg(!paid)}>Unpaid</button>
+        </div>
+        {paid ? (
+          <div role="radiogroup" aria-label="Method" className={`flex flex-1 gap-1 p-1 ${box}`}>
+            <button type="button" role="radio" aria-checked={method === "cash"} onClick={() => setMethod("cash")} className={seg(method === "cash")}>Cash</button>
+            <button type="button" role="radio" aria-checked={method === "gcash"} onClick={() => setMethod("gcash")} className={seg(method === "gcash")}>GCash</button>
+          </div>
+        ) : null}
+      </div>
+      {showNotes ? (
+        <textarea aria-label="Notes" autoFocus={!order.notes} value={notes} maxLength={500} rows={2} onChange={(e) => setNotes(e.target.value)} placeholder="Note" className={`mt-2.5 block w-full resize-none px-3 py-2.5 text-[16px] font-medium outline-none placeholder:text-muted sm:text-[14.5px] ${box}`} />
+      ) : (
+        <button type="button" className="mt-1.5 inline-flex h-8 items-center gap-1 px-1 text-[13px] font-bold text-ink-2" onClick={() => setShowNotes(true)}><Plus size={14} strokeWidth={2.4} aria-hidden />Add note</button>
+      )}
+      {action.error ? <ErrorNote className="mt-2">{action.error}</ErrorNote> : null}
+      <Button data-auth="action" fullWidth className="mt-3" loading={action.busy} onClick={() => void save()}>Save</Button>
+    </Card>
+  );
+}
+
+/** Every change to this order's details, newest first (written by the server). */
+function EditLog({ order }: { order: Order }) {
+  const log = (order.editLog ?? []).slice().reverse();
+  return (
+    <Card className="mt-4 px-4 py-3.5">
+      <div className="flex items-center justify-between"><b className="text-[16px]">Activity</b><History size={17} strokeWidth={2} className="text-muted" aria-hidden /></div>
+      {log.length === 0 ? <p className="mt-1.5 text-[13px] font-semibold text-muted">No edits. Changes to this order show here with who made them.</p> : (
+        <ol className="mt-2 flex flex-col">
+          {log.map((e, i) => (
+            <li key={`${e.at}-${i}`} className="border-b border-line py-2.5 last:border-b-0">
+              <div className="flex items-baseline justify-between gap-3">
+                <b className="text-[14px]">{e.by}<span className="ml-1 text-[12px] font-semibold text-muted">{e.role === "owner" ? "Owner" : "Staff"}</span></b>
+                <small className="flex-none text-[12px] font-semibold text-muted">{whenAt(e.at)}</small>
+              </div>
+              <ul className="mt-0.5 text-[13px] font-medium text-ink-2">{e.changes.map((c) => <li key={c}>{c}</li>)}</ul>
+            </li>
+          ))}
+        </ol>
       )}
     </Card>
   );

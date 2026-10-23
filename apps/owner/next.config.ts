@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+
+// App version shown in Settings; same source /api/version reports. One build id per build.
+const APP_VERSION: string = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).version;
+const BUILD_ID = process.env.BUILD_ID_OVERRIDE || Date.now().toString(36);
 
 /**
  * Firebase web config. On App Hosting, FIREBASE_WEBAPP_CONFIG is injected at build
@@ -33,7 +38,7 @@ const nextConfig: NextConfig = {
   // Monorepo root, so Turbopack can resolve the vendored kit packages in ../../packages.
   turbopack: { root: fileURLToPath(new URL("../..", import.meta.url)) },
   // COMPANION_ENABLED=1 (apphosting.dev.yaml) turns the AI Companion on; copied for the browser at build time.
-  env: { ...webConfigEnv(), NEXT_PUBLIC_COMPANION_ENABLED: process.env.COMPANION_ENABLED ?? process.env.NEXT_PUBLIC_COMPANION_ENABLED ?? "",
+  env: { ...webConfigEnv(), NEXT_PUBLIC_APP_VERSION: APP_VERSION, NEXT_PUBLIC_BUILD_ID: BUILD_ID, NEXT_PUBLIC_COMPANION_ENABLED: process.env.COMPANION_ENABLED ?? process.env.NEXT_PUBLIC_COMPANION_ENABLED ?? "",
     NEXT_PUBLIC_ALL_FEATURES_UNLOCKED: process.env.ALL_FEATURES_UNLOCKED ?? process.env.NEXT_PUBLIC_ALL_FEATURES_UNLOCKED ?? "" },
   ...(staticExport
     ? {

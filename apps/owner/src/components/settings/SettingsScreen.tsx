@@ -2,13 +2,14 @@
 
 import { CoinIcon } from "@river-apps/icons";
 import {
-  ChevronLeft, ChevronRight, CreditCard, History, LogOut, MapPin, Package, Pencil, Star, Store,
+  ChevronLeft, ChevronRight, CreditCard, LogOut, MapPin, Package, Pencil, Star, Store,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Avatar, Badge, Card, ListItem, Topbar, cn } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
+import { AppVersion } from "@/components/common/AppVersion";
 import type { Shop } from "@/data";
 import { useAuthGate } from "@/components/auth/AuthGateProvider";
 import { locationCount, locationCountLabel, money } from "@/lib/format";
@@ -191,9 +192,6 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
           <b className="block px-1 pt-3 text-[16px]">Setup</b>
           <ul className="mt-1">
             {[
-              shop.tier === "partner"
-                ? { href: "/partner/orders?tab=history", icon: History, title: "History", subtitle: "Past bookings" }
-                : { href: "/history", icon: History, title: "History", subtitle: "Past orders and bookings" },
               ...(shop.tier === "partner" ? [SHOP_LISTING_LINK, ...HUB_LINKS] : HUB_LINKS),
             ].map((it) => {
               const Icon = it.icon;
@@ -245,6 +243,7 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
             <small className="text-[13px] font-medium text-muted">Leave this shop on this device</small>
           </span>
         </button>
+        <AppVersion className="lg:col-span-2" />
       </div>
     </div>
   );

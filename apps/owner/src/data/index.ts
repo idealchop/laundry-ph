@@ -32,6 +32,15 @@ export interface WatchOrdersOptions {
   openOnly?: boolean;
 }
 
+export interface OrderEdit {
+  customerName: string;
+  customerPhone: string;
+  totalCentavos: number;
+  paid: boolean;
+  paymentMethod: PaymentMethod;
+  notes: string;
+}
+
 export interface LaundryDataSource {
   readonly mode: DataMode;
   readonly shopId: string;
@@ -57,6 +66,8 @@ export interface LaundryDataSource {
   createWalkInOrder(input: NewWalkInOrder): Promise<Order>;
   setOrderStatus(orderId: string, status: OrderStatus): Promise<void>;
   markOrderPaid(orderId: string, method: PaymentMethod): Promise<void>;
+  /** Owner edit (Barbers.ph parity): customer, amount, payment and notes. Saved server-side with an audit entry. */
+  editOrder(orderId: string, patch: OrderEdit): Promise<void>;
 
   /**
    * Live River Mobile bookings. "open" = requested / accepted / received (soonest slot first);

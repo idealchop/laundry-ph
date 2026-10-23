@@ -154,7 +154,8 @@ function AuthGateSheetOpen({
                 autoFocus
                 error={error ?? undefined}
               />
-              <Button id={btnId} type="submit" fullWidth disabled={busy || !e164} leadingIcon={<ChatIcon size={20} />}>
+              <div id={btnId} aria-hidden />
+              <Button type="submit" fullWidth disabled={busy || !e164} leadingIcon={<ChatIcon size={20} />}>
                 {busy ? "Sending…" : "Continue with phone"}
               </Button>
               <Button
