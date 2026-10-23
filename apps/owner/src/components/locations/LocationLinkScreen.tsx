@@ -10,6 +10,11 @@ import { useCallback, useState } from "react";
 import { useVisiblePoll } from "@/lib/visible-poll";
 import { money } from "@/lib/format";
 import { PAID_PER_MO } from "@/lib/plans";
+import { useInstallHidden } from "@/lib/pwa";
+import { InstallPanel } from "@/components/pwa/InstallPanel";
+import { STAFF_FEATURES } from "@/components/pwa/InstallScreen";
+import { BottomSheet } from "@/components/common/BottomSheet";
+import { RiverIcon } from "@/components/common/RiverIcon";
 import { SupplySlider } from "@/components/pos/SupplySlider";
 import { ORDER_STATUS_LABEL, type OrderStatus } from "@/data/types";
 
@@ -33,6 +38,8 @@ export function LocationLinkScreen({ token }: { token: string }) {
   const [serviceId, setServiceId] = useState("");
   const [qty, setQty] = useState("6");
   const [busy, setBusy] = useState(false);
+  const [install, setInstall] = useState(false);
+  const installHidden = useInstallHidden(token);
   const [used, setUsed] = useState<Record<string, string>>({});
   const [note, setNote] = useState<string | null>(null);
   const [capHit, setCapHit] = useState<string | null>(null);
@@ -123,6 +130,13 @@ export function LocationLinkScreen({ token }: { token: string }) {
         )}
       </section>
 
+      {installHidden ? null : (
+        <button type="button" onClick={() => setInstall(true)} className="mt-4 flex w-full items-center gap-3 rounded-card bg-surface px-4 py-3 text-left shadow-card">
+          <RiverIcon name="home" size={32} />
+          <span className="min-w-0 flex-1"><b className="block text-[14.5px]">Install app</b><small className="block text-[12.5px] font-semibold text-muted">Open this counter from your home screen</small></span>
+        </button>
+      )}
+      {install ? <BottomSheet title="Install app" onClose={() => setInstall(false)} tall><InstallPanel token={token} features={STAFF_FEATURES} /></BottomSheet> : null}
       <section className="mt-5">
         <h2 className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">Queue</h2>
         {view.queue.length === 0 ? (

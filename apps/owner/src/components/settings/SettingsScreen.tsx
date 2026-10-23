@@ -2,6 +2,7 @@
 
 import { CoinIcon } from "@river-apps/icons";
 import { RiverIcon } from "@/components/common/RiverIcon";
+import { useInstallHidden } from "@/lib/pwa";
 import {
   ChevronLeft, ChevronRight, CreditCard, LogOut, MapPin, Package, Pencil, Star, Store,
 } from "lucide-react";
@@ -59,6 +60,8 @@ function shopBio(shop: Shop): string {
 /** Partner shops reach their River Mobile listing from here (it's no longer in the Partner nav). */
 const SHOP_LISTING_LINK = { href: "/partner/shop", icon: Store, river: "online-shop" as const, title: "Shop listing", subtitle: "How River Mobile shows your shop" } as const;
 
+const INSTALL_LINK = { href: "/settings/install", icon: Package, river: "home" as const, title: "Install app", subtitle: "Open Laundry.ph from your home screen" } as const;
+
 const HUB_LINKS = [
   { href: "/profile/services", icon: Package, river: "items" as const, title: "Services", subtitle: "Products, prices and POS catalog" },
   { href: "/settings/billing", icon: CreditCard, river: "payments" as const, title: "Plan & billing", subtitle: `Partner · Pro ${PAID_PER_MO} · Lifetime` },
@@ -67,6 +70,7 @@ const HUB_LINKS = [
 /** Shop profile hub: Oceanus header, Credits, Features, Edit shop, setup links, logout. */
 export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) {
   const { shop, isGuest } = useShop();
+  const installHidden = useInstallHidden();
   const { openAuthCta, isAuthenticated } = useAuthGate();
   const searchParams = useSearchParams();
   const [view, setView] = useState<"hub" | "credits">(() => (searchParams.get("credits") === "1" ? "credits" : "hub"));
@@ -194,6 +198,7 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
           <ul className="mt-1">
             {[
               ...(shop.tier === "partner" ? [SHOP_LISTING_LINK, ...HUB_LINKS] : HUB_LINKS),
+              ...(installHidden ? [] : [INSTALL_LINK]),
             ].map((it) => {
               const Icon = it.icon;
               return (

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "@river-apps/tokens/fonts.css";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
+import { PwaHost } from "@/components/pwa/PwaHost";
 
 export const metadata: Metadata = {
   title: { default: "Laundry.ph", template: "%s · Laundry.ph" },
@@ -29,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: "try{if(sessionStorage.getItem('laundry-ph-auth-redirect')==='1')document.documentElement.setAttribute('data-auth-redirect','')}catch(e){}" }} />
       </head>
       <body className="font-sans text-ink antialiased">
-        <Providers>{children}</Providers>
+        <Providers>{children}<PwaHost /></Providers>
       </body>
     </html>
   );
