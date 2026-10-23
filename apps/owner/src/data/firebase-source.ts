@@ -99,6 +99,7 @@ function toOrder(snap: DocumentSnapshot): Order {
     createdAt,
     updatedAt: ms(d.updatedAt) ?? createdAt,
     createdBy: d.createdBy,
+    ...(typeof d.staffId === "string" ? { staffId: d.staffId, staffName: String(d.staffName ?? "Staff") } : {}),
     notes: typeof d.notes === "string" ? d.notes : null,
     ...(Array.isArray(d.editLog) ? { editLog: d.editLog as Order["editLog"] } : {}),
     sample: d.sample === true,

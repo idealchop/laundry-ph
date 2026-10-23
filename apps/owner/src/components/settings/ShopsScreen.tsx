@@ -10,36 +10,12 @@ import { bookingUrl } from "@/lib/shop-qr";
 import { Input } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
 import { reverseGeocodePin } from "@/lib/geocode";
-import { HOME_LOCATION_ID, ensureBranchLink, readLocationStore, useShopLocations } from "@/lib/shop-locations";
+import { HOME_LOCATION_ID, ensureHomeBranch, useShopLocations, type ShopBranch } from "@/lib/shop-locations";
+import { ShareStaffLink, StaffAvatar } from "./StaffSection";
 import { useShop } from "@/lib/shop";
-import { publishStaffLink } from "@/lib/staff-links";
 import type { ShopLocation } from "@/data";
 import { PageBack } from "../shell/PageBack";
 import { LocationPicker } from "./LocationPicker";
-
-export function CopyShopLink({ id }: { id: string }) {
-  const [label, setLabel] = useState("Copy link");
-  const { shop, source, isGuest } = useShop();
-  return (
-    <Button size="sm" variant="secondary" onClick={async () => {
-      const path = ensureBranchLink(id);
-      if (!path) return;
-      // Publish the token so the staff page (server) can find this shop. Guests/fixtures stay local.
-      const branch = readLocationStore().branches.find((b) => b.id === id);
-      if (branch && source.mode === "firebase" && !isGuest) {
-        try { await publishStaffLink(shop, branch); } catch (e) { setLabel((e as Error).message); return; }
-      }
-      const url = `${window.location.origin}${path}`;
-      navigator.clipboard?.writeText(url).then(
-        () => {
-          setLabel("Copied");
-          window.setTimeout(() => setLabel("Copy link"), 1500);
-        },
-        () => setLabel(path),
-      );
-    }}>{label}</Button>
-  );
-}
 
 /** Manage locations (Barbers.ph parity): one card per shop with its QR and Edit shop; add in a sheet; on/off with a confirm. */
 export function ShopsScreen() {
@@ -73,6 +49,9 @@ export function ShopsScreen() {
     }
   }
 
+  useEffect(() => { if (ready && !branches.some((b) => b.id === HOME_LOCATION_ID)) ensureHomeBranch(shop); }, [ready, branches, shop]);
+  const shown = enabled ? branches : branches.filter((b) => b.id === HOME_LOCATION_ID);
+
   if (!ready) return <AppLoader />;
   return (
     <div className="mx-auto w-full max-w-[402px] px-4 pb-8 pt-4 lg:max-w-[720px] lg:px-[30px] lg:pt-6">
@@ -81,15 +60,13 @@ export function ShopsScreen() {
           <PageBack fallback="/profile" />
           <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">Manage locations</h1>
         </div>
-        <p className="mt-0.5 pl-11 text-[14px] font-semibold text-muted">{enabled ? "Each shop has its own QR. Tap Edit shop for its details, pin and staff link." : "Turn this on when you run more than one shop."}</p>
+        <p className="mt-0.5 pl-11 text-[14px] font-semibold text-muted">Each shop has its own booking QR. Tap Edit shop for its details, pin and staff.</p>
       </header>
       {note ? <p className="mt-3 rounded-card bg-grey-100 px-4 py-3 text-[13.5px] font-semibold" role="status">{note}</p> : null}
       {error && !adding ? <p className="mt-3 text-[13.5px] font-semibold">{error}</p> : null}
 
-      {enabled ? (
-        <>
-          <ul className="mt-4 flex flex-col gap-3">
-            {branches.map((branch) => (
+      <ul className="mt-4 flex flex-col gap-3">
+            {shown.map((branch) => (
               <li key={branch.id} className="rounded-card bg-surface px-3.5 py-3.5 shadow-card">
                 <div className="flex items-start gap-3">
                   <div className="min-w-0 flex-1">
@@ -97,11 +74,14 @@ export function ShopsScreen() {
                     <p className="mt-0.5 text-[13px] font-medium text-muted">{branch.area || branch.address || "No pin yet"}</p>
                     <Link href={`/settings/shops/edit?id=${encodeURIComponent(branch.id)}`} className="mt-3 inline-flex h-8 items-center rounded-pill px-3.5 text-[12.5px] font-bold ring-1 ring-ink">Edit shop</Link>
                   </div>
-                  <BranchQr shopId={shop.id} branchId={branch.id} name={branch.name} onOpen={() => { setView(branch.id); router.push("/qr"); }} />
+                  <BranchQr shopId={shop.id} branchId={branch.id} name={branch.name} onOpen={() => { if (enabled) setView(branch.id); router.push("/qr"); }} />
                 </div>
+                <BranchStaff branch={branch} />
               </li>
             ))}
-          </ul>
+      </ul>
+      {enabled ? (
+        <>
           <Button className="mt-4" fullWidth variant="secondary" leadingIcon={<Plus size={17} strokeWidth={2.2} />} onClick={() => { setError(""); setAdding(true); }}>Add another shop</Button>
           <div className="mt-6 rounded-card bg-surface px-4 py-4 shadow-card">
             <b className="block text-[15px]">Multiple shops is on</b>
@@ -110,7 +90,7 @@ export function ShopsScreen() {
           </div>
         </>
       ) : (
-        <div className="mt-4 rounded-card bg-surface px-4 py-4 shadow-card">
+        <div className="mt-6 rounded-card bg-surface px-4 py-4 shadow-card">
           <b className="block text-[16px]">One shop</b>
           <p className="mt-1 text-[13.5px] font-medium text-muted">Turn this on when you run more than one shop. The shop you have now becomes the first one.</p>
           <Button className="mt-4" fullWidth onClick={() => setConfirmMulti("on")}>Turn on multiple shops</Button>
@@ -185,5 +165,22 @@ function BranchQr({ shopId, branchId, name, onOpen }: { shopId: string; branchId
       {/* eslint-disable-next-line @next/next/no-img-element -- data URL */}
       {src ? <img src={src} alt="" width={92} height={92} className="block size-[92px]" /> : <span className="block size-[92px]" />}
     </button>
+  );
+}
+
+/** Compact staff list on a location card: initial + name, Share only (manage them in Edit shop). */
+function BranchStaff({ branch }: { branch: ShopBranch }) {
+  const staff = branch.staff ?? [];
+  if (!staff.length) return <p className="mt-3 border-t border-line pt-2.5 text-[12.5px] font-semibold text-muted">No staff yet. Add them in Edit shop.</p>;
+  return (
+    <ul className="mt-3 grid gap-2 border-t border-line pt-2.5">
+      {staff.map((m) => (
+        <li key={m.id} className="flex items-center gap-2.5">
+          <StaffAvatar name={m.name} size={28} />
+          <b className="min-w-0 flex-1 truncate text-[13.5px]">{m.name}</b>
+          <ShareStaffLink compact branch={branch} member={m} />
+        </li>
+      ))}
+    </ul>
   );
 }

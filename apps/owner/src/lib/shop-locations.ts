@@ -21,6 +21,16 @@ export interface ShopBranch {
   linkToken?: string;
   /** When that link stops working. A new link is needed each month. */
   linkExpiresAt?: number;
+  /** Staff at this location, each with their own link + QR (Barbers.ph barber links, no commission). */
+  staff?: StaffMember[];
+}
+
+export interface StaffMember {
+  id: string;
+  name: string;
+  /** Private code in this person's link (/l/{token}); never expires, Reset makes a new one. */
+  linkToken: string;
+  addedAt: number;
 }
 
 interface Store {
@@ -295,4 +305,47 @@ export function useLocationFilter() {
   const shops = useShopLocations();
   const keep = (branchId?: string) => inLocation(branchId, shops.enabled, shops.viewingAll, shops.scopeId);
   return { ...shops, keep };
+}
+
+/** The first shop as a location, without turning multiple shops on (so a single shop can have staff too). */
+export function ensureHomeBranch(shop: Shop) {
+  const store = readLocationStore();
+  if (store.branches.some((b) => b.id === HOME_LOCATION_ID)) return;
+  writeStore({ ...store, shopName: store.shopName || shop.name, branches: [homeBranch(shop), ...store.branches] });
+}
+
+export function staffLinkPath(token: string) {
+  return branchLinkPath(token);
+}
+
+/** Add a staff member to one location. Returns the new member or an error. */
+export function addStaff(branchId: string, rawName: string): { member?: StaffMember; error?: string } {
+  const name = rawName.trim().slice(0, 40);
+  if (name.length < 2) return { error: "Enter the staff member’s name." };
+  const store = readLocationStore();
+  const branch = store.branches.find((b) => b.id === branchId);
+  if (!branch) return { error: "This location is gone." };
+  if ((branch.staff ?? []).some((m) => m.name.toLowerCase() === name.toLowerCase())) return { error: `${name} is already here.` };
+  const member: StaffMember = { id: `st-${Date.now().toString(36)}`, name, linkToken: newLinkToken(), addedAt: Date.now() };
+  updateBranch(branchId, { staff: [...(branch.staff ?? []), member] });
+  return { member };
+}
+
+export function updateStaff(branchId: string, id: string, patch: Partial<Omit<StaffMember, "id">>) {
+  const branch = readLocationStore().branches.find((b) => b.id === branchId);
+  if (!branch) return;
+  updateBranch(branchId, { staff: (branch.staff ?? []).map((m) => (m.id === id ? { ...m, ...patch, id } : m)) });
+}
+
+export function removeStaff(branchId: string, id: string) {
+  const branch = readLocationStore().branches.find((b) => b.id === branchId);
+  if (!branch) return;
+  updateBranch(branchId, { staff: (branch.staff ?? []).filter((m) => m.id !== id) });
+}
+
+/** A fresh token for one staff member (the old link stops working once revoked on the server). */
+export function resetStaffToken(branchId: string, id: string): string {
+  const linkToken = newLinkToken();
+  updateStaff(branchId, id, { linkToken });
+  return linkToken;
 }

@@ -9,10 +9,10 @@ import { AppLoader } from "@/components/common/AppLoader";
 import { Button } from "@/components/common/Button";
 import type { ShopLocation } from "@/data";
 import { reverseGeocodePin } from "@/lib/geocode";
-import { HOME_LOCATION_ID, branchLinkExpired, linkExpiryLabel, useShopLocations, type ShopBranch } from "@/lib/shop-locations";
+import { HOME_LOCATION_ID, useShopLocations, type ShopBranch } from "@/lib/shop-locations";
 import { PageBack } from "../shell/PageBack";
 import { LocationPicker } from "./LocationPicker";
-import { CopyShopLink } from "./ShopsScreen";
+import { StaffSection } from "./StaffSection";
 
 /** Manage Shop (Barbers.ph parity, no commission): one location's details, pin, staff link and price list. */
 export function ManageShopScreen() {
@@ -85,12 +85,7 @@ function Editor({ branch }: { branch: ShopBranch }) {
         <ChevronRight size={18} className="flex-none text-subtle" aria-hidden />
       </Link>
 
-      <section className="mt-4 rounded-card bg-surface px-4 py-4 shadow-card" aria-label="Staff link">
-        <b className="text-[16px]">Staff link</b>
-        <p className="mt-1 text-[13px] font-medium text-muted">Staff open this link to add walk-ins and move orders for {branch.name}. No account needed.
-          {branch.linkExpiresAt ? ` ${branchLinkExpired(branch) ? "Expired" : "Expires"} ${linkExpiryLabel(branch.linkExpiresAt)}.` : ""}</p>
-        <div className="mt-3"><CopyShopLink id={branch.id} /></div>
-      </section>
+      <StaffSection branch={branch} />
 
       <section className="mt-4 rounded-card bg-surface px-4 py-4 shadow-card" aria-label="Shop details">
         <div className="flex items-start justify-between gap-3">

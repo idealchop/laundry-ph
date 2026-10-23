@@ -5,6 +5,7 @@ import { ServiceSlider } from "@/components/kit-extensions";
 import { HeroPhoto } from "@/components/home/HeroPhoto";
 import { Input } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
+import { AppLoader } from "@/components/common/AppLoader";
 import { useCallback, useState } from "react";
 import { useVisiblePoll } from "@/lib/visible-poll";
 import { money } from "@/lib/format";
@@ -12,7 +13,7 @@ import { PAID_PER_MO } from "@/lib/plans";
 import { ORDER_STATUS_LABEL, type OrderStatus } from "@/data/types";
 
 interface View {
-  shopName: string; branchName: string; expiresAt: number;
+  shopName: string; branchName: string; expiresAt: number; staffName: string | null; mineToday: number;
   services: { id: string; name: string; icon?: IconName; unit: "kg" | "pc"; priceCentavos: number }[];
   defaults: { serviceId: string; kg: number; pieces: number };
   walkIns: { used: number; limit: number; left: number } | null;
@@ -60,11 +61,11 @@ export function LocationLinkScreen({ token }: { token: string }) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-[402px] flex-col bg-canvas px-5 pt-16">
         <h1 className="text-[28px] font-extrabold tracking-[-0.03em]">{error.includes("expired") ? "This link expired" : "This link is not active"}</h1>
-        <p className="mt-2 text-[15px] font-medium text-ink-2">{error} Shop links expire each month.</p>
+        <p className="mt-2 text-[15px] font-medium text-ink-2">{error} Ask the owner to share your link again.</p>
       </main>
     );
   }
-  if (!view) return <main className="mx-auto min-h-dvh max-w-[402px] bg-canvas px-4 pt-8"><p className="text-[14px] font-semibold text-muted">Loading…</p></main>;
+  if (!view) return <AppLoader />;
 
   const svc = view.services.find((s) => s.id === serviceId);
   const atCap = Boolean(capHit) || (view.walkIns != null && view.walkIns.left <= 0);
@@ -74,9 +75,9 @@ export function LocationLinkScreen({ token }: { token: string }) {
       <header className="relative isolate overflow-hidden rounded-banner bg-black px-5 py-5 text-white">
         <HeroPhoto className="-right-6" />
         <div className="relative z-10 min-w-0 pr-28">
-          <p className="truncate text-[12.5px] font-medium text-white/65">Staff link · {view.branchName}</p>
+          <p className="truncate text-[12.5px] font-medium text-white/65">{view.staffName ? `Hi, ${view.staffName}` : "Staff link"} · {view.branchName}</p>
           <h1 className="mt-1 truncate text-[20px] font-extrabold leading-tight tracking-[-0.025em]">{view.shopName}</h1>
-          {view.walkIns ? <p className="mt-1.5 text-[13px] font-medium text-white/65">{view.walkIns.left} of {view.walkIns.limit} walk-ins left today</p> : <p className="mt-1.5 text-[13px] font-medium text-white/65">Add walk-ins and move orders</p>}
+          <p className="mt-1.5 text-[13px] font-medium text-white/65">{view.staffName ? `${view.mineToday} walk-in${view.mineToday === 1 ? "" : "s"} by you today` : "Add walk-ins and move orders"}{view.walkIns ? ` · ${view.walkIns.left} of ${view.walkIns.limit} left` : ""}</p>
         </div>
       </header>
 

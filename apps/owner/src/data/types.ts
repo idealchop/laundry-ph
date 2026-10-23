@@ -210,6 +210,9 @@ export interface Order {
   createdAt: number;
   updatedAt: number;
   createdBy?: string;
+  /** Staff member whose link made this order (Performance ranks them). */
+  staffId?: string;
+  staffName?: string;
   /** Owner note (Edit order). */
   notes?: string | null;
   /** Who changed this order's details, oldest first (server-written). */

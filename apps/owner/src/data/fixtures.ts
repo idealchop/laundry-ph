@@ -97,11 +97,11 @@ export const customers: Customer[] = [
 /** Sample orders placed relative to `now` so "today" always has data. */
 export function sampleOrders(now = Date.now()): Order[] {
   const H = 3600_000;
-  const specs: { no: number; ago: number; input: NewWalkInOrder; status: Order["status"]; paid?: boolean }[] = [
-    { no: 418, ago: 5 * H, status: "drying", input: { customer: { id: "c2", name: "Joy Pascual" }, serviceId: "wdf", quantity: 6.5, detergentId: "shop", addOnIds: ["softener"], returnSlotId: "today" } },
-    { no: 417, ago: 6 * H, status: "folding", input: { customer: { name: "Ben Torres" }, serviceId: "wd", quantity: 8, detergentId: "hypo", addOnIds: [], returnSlotId: "today" } },
+  const specs: { no: number; ago: number; input: NewWalkInOrder; status: Order["status"]; paid?: boolean; staff?: [string, string] }[] = [
+    { no: 418, ago: 5 * H, status: "drying", staff: ["st-liza", "Liza"], input: { customer: { id: "c2", name: "Joy Pascual" }, serviceId: "wdf", quantity: 6.5, detergentId: "shop", addOnIds: ["softener"], returnSlotId: "today" } },
+    { no: 417, ago: 6 * H, status: "folding", staff: ["st-mark", "Mark"], input: { customer: { name: "Ben Torres" }, serviceId: "wd", quantity: 8, detergentId: "hypo", addOnIds: [], returnSlotId: "today" } },
     { no: 416, ago: 7 * H, status: "ready", paid: true, input: { customer: { name: "Rico Dela Cruz" }, serviceId: "wdf", quantity: 5, detergentId: "shop", addOnIds: ["stain"], returnSlotId: "today" } },
-    { no: 415, ago: 3 * H, status: "washing", input: { customer: { name: "Ana Lim" }, serviceId: "wd", quantity: 4, detergentId: "own", addOnIds: ["rinse"], returnSlotId: "tomorrow" } },
+    { no: 415, ago: 3 * H, status: "washing", staff: ["st-liza", "Liza"], input: { customer: { name: "Ana Lim" }, serviceId: "wd", quantity: 4, detergentId: "own", addOnIds: ["rinse"], returnSlotId: "tomorrow" } },
     { no: 414, ago: 26 * H, status: "claimed", paid: true, input: { customer: { id: "c4", name: "Grace Villanueva" }, serviceId: "wdf", quantity: 7, detergentId: "shop", addOnIds: ["softener"], returnSlotId: "today" } },
     { no: 413, ago: 50 * H, status: "claimed", paid: true, input: { customer: { id: "c1", name: "Maria Santos" }, serviceId: "press", quantity: 12, detergentId: "shop", addOnIds: [], returnSlotId: "today" } },
   ];
@@ -114,6 +114,7 @@ export function sampleOrders(now = Date.now()): Order[] {
     flow.slice(0, flow.indexOf(s.status) + 1).forEach((st, i) => { stageTimes[st] = createdAt + i * 40 * 60_000; });
     return {
       ...o, id: `sample-${s.no}`, status: s.status, stageTimes, updatedAt: Math.max(...Object.values(stageTimes)),
+      ...(s.staff ? { createdBy: `staff:${s.staff[0]}`, staffId: s.staff[0], staffName: s.staff[1] } : {}),
       ...(s.paid ? { paymentStatus: "paid" as const, paymentMethod: "cash" as const, paidCentavos: o.totalCentavos } : {}),
     };
   });

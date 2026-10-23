@@ -45,7 +45,7 @@ function normCatalog(d: DocumentData): Catalog {
   };
 }
 
-export interface StaffLink { token: string; shopId: string; branchId: string; branchName: string; shopName: string; expiresAt: number }
+export interface StaffLink { token: string; shopId: string; branchId: string; branchName: string; shopName: string; expiresAt: number; staffId?: string; staffName?: string }
 
 export async function resolveLink(token: string): Promise<StaffLink> {
   if (!/^[a-z0-9]{20,40}$/.test(token)) throw new StaffError(404, "This link is not active.");
@@ -57,8 +57,12 @@ export async function resolveLink(token: string): Promise<StaffLink> {
   // The owner must still own the shop.
   const shop = await adminDb().collection("shops").doc(d.shopId).get();
   if (!shop.exists || shop.data()?.ownerUid !== d.ownerUid) throw new StaffError(404, "This link is not active.");
-  return { token, shopId: d.shopId, branchId: String(d.branchId ?? "home"), branchName: String(d.branchName ?? ""), shopName: String(shop.data()?.name ?? d.shopName ?? ""), expiresAt };
+  return { token, shopId: d.shopId, branchId: String(d.branchId ?? "home"), branchName: String(d.branchName ?? ""), shopName: String(shop.data()?.name ?? d.shopName ?? ""), expiresAt,
+    ...(typeof d.staffId === "string" && d.staffId ? { staffId: d.staffId, staffName: String(d.staffName ?? "Staff") } : {}) };
 }
+
+/** Who an order made through this link is credited to: the staff member, else the location link. */
+export const actorOf = (link: StaffLink) => (link.staffId ? `staff:${link.staffId}` : `staff-link:${link.branchId}`);
 
 const shopRef = (id: string) => adminDb().collection("shops").doc(id);
 
@@ -84,8 +88,11 @@ export async function staffView(link: StaffLink) {
     .sort((a, b) => ms(a.createdAt) - ms(b.createdAt))
     .slice(0, 50)
     .map((o) => ({ id: o.id, ref: String(o.ref), status: o.status as OrderStatus, source: o.source === "river-mobile" ? "river-mobile" : "walk-in", customer: String(o.customer?.name ?? "Walk-in customer").slice(0, 40), detail: String(o.detail ?? o.serviceName ?? ""), next: nextStatus({ status: o.status, source: o.source }) }));
+  const actor = actorOf(link);
+  const mineToday = orders.docs.filter((d) => d.data().createdBy === actor && ms(d.data().createdAt) >= start && d.data().status !== "cancelled").length;
   return {
     shopName: link.shopName, branchName: link.branchName, expiresAt: link.expiresAt,
+    staffName: link.staffName ?? null, mineToday,
     services: cat.services.map((s) => ({ id: s.id, name: s.name, icon: s.icon, unit: s.unit, priceCentavos: s.priceCentavos })),
     defaults: cat.defaults,
     walkIns: Number.isFinite(limit) ? { used, limit: PARTNER_WALKINS_PER_DAY, left: Math.max(0, PARTNER_WALKINS_PER_DAY - used) } : null,
@@ -123,16 +130,16 @@ export async function staffWalkIn(link: StaffLink, input: StaffWalkInInput) {
         detergentId: catalog.defaults.detergentId || catalog.detergents[0]?.id || "", addOnIds: [],
         returnSlotId: catalog.defaults.returnSlotId || catalog.returnSlots[0]?.id || "",
         branchId: link.branchId === "home" ? undefined : link.branchId,
-      }, { shopId: link.shopId, ref: refCode, queueNo, ticketId, uid: `staff-link:${link.branchId}`, now, sample: shop.sample === true });
+      }, { shopId: link.shopId, ref: refCode, queueNo, ticketId, uid: actorOf(link), now, sample: shop.sample === true });
     } catch (e) { throw new StaffError(400, (e as Error).message); }
     const order: Order = { ...built, id: orderRef.id };
     tx.set(ref.collection("meta").doc("counters"), { nextTicketNo: no + 1, queueDate: day, queueNo, updatedAt: FieldValue.serverTimestamp() });
     tx.set(ref.collection("usage").doc(day), { walkIns: used + 1, updatedAt: FieldValue.serverTimestamp() });
-    tx.set(orderRef, strip({ ...built, createdBy: `staff-link:${link.branchId}`, staffLink: true, stageTimes: { received: FieldValue.serverTimestamp() }, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(), sample: built.sample ? true : undefined } as Record<string, unknown>));
+    tx.set(orderRef, strip({ ...built, createdBy: actorOf(link), staffLink: true, ...(link.staffId ? { staffId: link.staffId, staffName: link.staffName } : {}), stageTimes: { received: FieldValue.serverTimestamp() }, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(), sample: built.sample ? true : undefined } as Record<string, unknown>));
     const t = toPublicTicket(order, { name: String(shop.name ?? ""), sample: shop.sample === true });
     const { id: _id, ...ticket } = t; void _id;
     tx.set(db.collection("public_tickets").doc(ticketId), strip({ ...ticket, stageTimes: { received: FieldValue.serverTimestamp() }, updatedAt: FieldValue.serverTimestamp(), sample: ticket.sample ? true : undefined } as Record<string, unknown>));
-    auditInTx(tx, link.shopId, `staff-link:${link.branchId}`, "order.create", orderRef);
+    auditInTx(tx, link.shopId, actorOf(link), "order.create", orderRef);
     return { id: orderRef.id, ref: refCode, ticketId, left: Number.isFinite(walkInLimit(tier, unlocked)) ? Math.max(0, PARTNER_WALKINS_PER_DAY - used - 1) : null };
   });
 }
@@ -147,14 +154,14 @@ export async function staffAdvance(link: StaffLink, orderId: string) {
     if (!o || (o.branchId || "home") !== link.branchId) throw new StaffError(404, "Order not found.");
     const to = nextStatus({ status: o.status, source: o.source });
     if (!to) throw new StaffError(409, "This order is already done.");
-    tx.update(ref, { status: to, [`stageTimes.${to}`]: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(), updatedBy: `staff-link:${link.branchId}` });
+    tx.update(ref, { status: to, [`stageTimes.${to}`]: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(), updatedBy: actorOf(link) });
     if (typeof o.ticketId === "string") {
       const done = to === "claimed" || to === "delivered" ? to : null;
       const patch: DocumentData = { stage: ticketStage(to), done, updatedAt: FieldValue.serverTimestamp() };
       if ((ORDER_FLOW as string[]).includes(to)) patch[`stageTimes.${to}`] = FieldValue.serverTimestamp();
       tx.update(db.collection("public_tickets").doc(o.ticketId), patch);
     }
-    auditInTx(tx, link.shopId, `staff-link:${link.branchId}`, `order.status.${to}`, ref);
+    auditInTx(tx, link.shopId, actorOf(link), `order.status.${to}`, ref);
     return { id: orderId, status: to };
   });
 }
