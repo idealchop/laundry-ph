@@ -1,7 +1,7 @@
 "use client";
 
 import { pieceLabel } from "@/lib/clothes";
-import { FormSkeleton } from "@/components/common/Skeleton";
+import { AppLoader } from "@/components/common/AppLoader";
 import { Copy, ExternalLink, History, Pencil, Phone, Plus, User, X } from "lucide-react";
 import { CoinIcon, EWalletIcon } from "@river-apps/icons";
 import { Avatar, Card, CardHeader, EmptyState, MonoText, StatusDot } from "@river-apps/ui";
@@ -24,7 +24,7 @@ const UNDO_MS = 5000;
 export function OrderDetailScreen() {
   const id = useSearchParams().get("id");
   const { order, error, loading } = useOrder(id);
-  if (loading) return <FormSkeleton />;
+  if (loading) return <AppLoader />;
   if (!order) {
     return (
       <div className="mx-auto w-full max-w-[560px] px-4 pt-6">

@@ -8,8 +8,7 @@ import { signOut, useAuth } from "@/lib/auth";
 import { useShopState } from "@/lib/shop";
 import { AuthScreen } from "./AuthScreen";
 import { Onboarding } from "./Onboarding";
-import { usePathname } from "next/navigation";
-import { HomeSkeleton, ListSkeleton } from "./common/Skeleton";
+import { AppLoader } from "./common/AppLoader";
 
 /**
  * Renders the owner shell once a shop is ready.
@@ -18,8 +17,8 @@ import { HomeSkeleton, ListSkeleton } from "./common/Skeleton";
 export function ShopGate({ children }: { children: ReactNode }) {
   const s = useShopState();
   const { isAuthenticated } = useAuth();
-  const pathname = usePathname() || "/";
-  const skeleton = pathname === "/home" || pathname === "/partner" ? <HomeSkeleton /> : <ListSkeleton />;
+  // Boot: the River mark loader (Barbers.ph parity). Cached screens (lp.fast) skip this entirely.
+  const skeleton = <AppLoader />;
   if (!s || s.status === "loading") return skeleton;
   if (s.status === "onboarding") {
     // Only after a real sign-in — guests never land here.

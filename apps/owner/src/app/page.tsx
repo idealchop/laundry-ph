@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { HomeSkeleton } from "@/components/common/Skeleton";
+import { AppLoader } from "@/components/common/AppLoader";
 
 /**
  * Entry: go straight to Home. Guests browse without signing in; the login sheet
@@ -13,5 +13,5 @@ export default function EntryPage() {
   useEffect(() => {
     router.replace("/home");
   }, [router]);
-  return <HomeSkeleton />;
+  return <AppLoader />;
 }

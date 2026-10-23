@@ -1,7 +1,7 @@
 "use client";
 
 import { ScanLine, Search } from "lucide-react";
-import { FormSkeleton } from "@/components/common/Skeleton";
+import { AppLoader } from "@/components/common/AppLoader";
 import { Avatar, Card, EmptyState, Input, MonoText, StatusDot, SuccessState } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -78,7 +78,7 @@ function LookupForm({ initial }: { initial: string }) {
 function ResolvedOrder({ orderId }: { orderId: string }) {
   const { order } = useOrder(orderId);
   const action = useAction();
-  if (!order) return <FormSkeleton />;
+  if (!order) return <AppLoader />;
   const next = nextStatus(order);
   return (
     <>

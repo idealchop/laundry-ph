@@ -1,6 +1,6 @@
 "use client";
 
-import { FormSkeleton } from "@/components/common/Skeleton";
+import { AppLoader } from "@/components/common/AppLoader";
 import { useState } from "react";
 import { Card, Input } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
@@ -58,7 +58,7 @@ export function ServicesScreen() {
     return Boolean(ok);
   }
 
-  if (q.loading && !draft) return <FormSkeleton />;
+  if (q.loading && !draft) return <AppLoader />;
   if (q.error && !draft) {
     return (
       <>

@@ -13,7 +13,6 @@ import { quote } from "@/lib/pricing";
 import { suppliesOf } from "@/lib/supplies";
 import { Chip, ServiceSlider } from "../kit-extensions";
 import { FocusHeader } from "../FocusHeader";
-import { ErrorNote } from "../ui";
 import { BasketFill } from "./BasketFill";
 import { SupplySlider } from "./SupplySlider";
 
@@ -42,13 +41,13 @@ function OptionDisclosure({ id, label, summary, aside, open, onToggle, children 
   id: string; label: string; summary: string; aside?: string; open: boolean; onToggle: () => void; children: ReactNode;
 }) {
   return (
-    <div className="rounded-tile border border-line bg-surface">
+    <div>
       <button
         type="button"
         aria-expanded={open}
         aria-controls={id}
         onClick={onToggle}
-        className="flex min-h-[52px] w-full items-center gap-2 rounded-tile px-3.5 text-left [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="flex min-h-[48px] w-full items-center gap-2 px-3.5 text-left [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <span className="min-w-0 flex-1 truncate text-[14px]">
           <b className="font-bold text-ink">{label}</b>
@@ -264,7 +263,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
         className="flex flex-1 flex-col"
         onSubmit={(e) => { e.preventDefault(); void submit(); }}
       >
-        <div className="flex flex-col gap-3 px-5 pb-48 pt-1 lg:pb-4">
+        <div className="flex flex-col gap-3 px-5 pb-44 pt-1 lg:pb-4">
           {booking ? (
             <p role="note" className="rounded-tile bg-[#E6F0FF] px-3.5 py-2.5 text-[13px] font-semibold text-[#1D4ED8]">
               River Mobile booking <span className="font-mono">{booking.ref}</span> · weigh the laundry, then record the sale to turn it into an order.
@@ -301,10 +300,10 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
           <div>
             {/* Product-card row: basket left (96px), details left-aligned 16px to its right, vertically centred. */}
             <div className="flex items-center gap-4" role="group" aria-labelledby="qty-label">
-              <div className="flex w-[96px] flex-none flex-col items-center">
+              <div className="flex w-[72px] flex-none flex-col items-center">
                 {/* The art keeps ~15px of headroom for the rising heap; pull it up so the visible basket is what's centred. */}
-                <BasketFill fill={basketFill} size={96} className="-mt-[15px]" />
-                  <div className="relative mt-2 h-1 w-[4.75rem] overflow-hidden rounded-full bg-grey-200" aria-hidden>
+                <BasketFill fill={basketFill} size={72} className="-mt-[11px]" />
+                  <div className="relative mt-1.5 h-1 w-[3.5rem] overflow-hidden rounded-full bg-grey-200" aria-hidden>
                   <span
                     className="absolute inset-y-0 left-0 w-full origin-left rounded-full bg-ink transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none"
                     style={{ transform: `scaleX(${Math.min(1, basketFill).toFixed(3)})` }}
@@ -362,6 +361,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
           </div>
 
           <div className="grid items-start gap-3 lg:grid-cols-3">
+          <div className="divide-y divide-line overflow-hidden rounded-tile bg-grey-50 lg:col-span-3">
           {clothesTypes.length > 1 ? (
             <div>
               <OptionDisclosure
@@ -434,6 +434,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
           >
             <SupplySlider className="w-full" items={supplies} used={usedQty} onChange={setUsedQty} />
           </OptionDisclosure>
+          </div>
 
           <div className="lg:col-span-3">
             <span id="ful-label" className="sr-only">Fulfillment</span>
@@ -447,9 +448,9 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
                     role="radio"
                     aria-checked={on}
                     onClick={() => setFulfillment(f.id)}
-                    className={`flex min-h-[52px] items-center justify-center gap-2.5 rounded-[11px] px-2 text-left [-webkit-tap-highlight-color:transparent] transition-[background-color,box-shadow,color] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${on ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"}`}
+                    className={`flex min-h-[44px] items-center justify-center gap-2 rounded-[11px] px-2 text-left [-webkit-tap-highlight-color:transparent] transition-[background-color,box-shadow,color] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${on ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"}`}
                   >
-                    <span className={`inline-flex size-8 flex-none items-center justify-center rounded-full transition-colors ${on ? "bg-ink text-white" : "bg-grey-200 text-ink-2"}`} aria-hidden>{f.icon}</span>
+                    <span className={`inline-flex size-7 flex-none items-center justify-center rounded-full transition-colors ${on ? "bg-ink text-white" : "bg-grey-200 text-ink-2"}`} aria-hidden>{f.icon}</span>
                     <span className="flex min-w-0 flex-col leading-tight">
                       <b className="text-[14px] font-bold">{f.label}</b>
                     </span>
@@ -457,7 +458,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
                 );
               })}
             </div>
-            <div className="mt-2 flex min-h-11 items-center gap-2 px-1 text-[13.5px] font-semibold text-ink-2">
+            <div className="mt-1 flex min-h-10 items-center gap-2 px-1 text-[13px] font-semibold text-ink-2">
               <CalendarDays size={17} strokeWidth={1.75} className="flex-none text-muted" aria-hidden />
               <span className="min-w-0 flex-1 truncate">{fulfillment === "delivery" ? "Deliver" : "Ready"} {returnLabel}</span>
               <button type="button" onClick={() => setPickingReturn((v) => !v)} aria-expanded={pickingReturn}
@@ -477,7 +478,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
         </div>
 
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface lg:static">
-          <div className="mx-auto w-full max-w-[560px] px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-3 lg:max-w-none">
+          <div className="relative mx-auto w-full max-w-[560px] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2.5 lg:max-w-none">
             <div
               id={breakdownId}
               className={`grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none ${showBreakdown ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
@@ -524,7 +525,11 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
               </span>
               <b className="text-[26px] font-extrabold tracking-[-0.03em]" aria-live="polite">{money(q.totalCentavos)}</b>
             </div>
-            {error ? <ErrorNote className="mb-2">{error}</ErrorNote> : null}
+            {error ? (
+              <div role="alert" className="pointer-events-none absolute inset-x-0 -top-12 flex justify-center px-5">
+                <span className="max-w-full truncate rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-on-ink shadow-popover">{error}</span>
+              </div>
+            ) : null}
             <Button type="submit" fullWidth disabled={q.totalCentavos <= 0 || saving} leadingIcon={<Plus size={20} strokeWidth={2.2} />}>{saving ? "Saving…" : "Record Sale"}</Button>
           </div>
         </div>

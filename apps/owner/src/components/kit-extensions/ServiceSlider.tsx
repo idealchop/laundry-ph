@@ -42,14 +42,13 @@ export function ServiceSlider({ options, value, onChange, label = "Service", vis
           return (
             <button key={o.id} type="button" role="radio" aria-checked={on} onClick={() => onChange(o.id)}
               style={{ width: `${100 / Math.min(visible, options.length)}%` }}
-              className="group flex flex-none snap-center flex-col items-center gap-1.5 rounded-[14px] pb-1 outline-none [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+              className={cn("group flex flex-none snap-center flex-col items-center gap-1.5 rounded-[16px] py-2 outline-none transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink", on ? "bg-grey-100" : "hover:bg-grey-50")}>
               <span className="transition-transform duration-100 group-active:scale-90 motion-reduce:transition-none motion-reduce:group-active:scale-100">
-                <IconTile size={48} tone={on ? "white" : "grey"}
-                  className={cn(on ? "ring-2 ring-ink ring-offset-2 ring-offset-surface" : "transition-colors group-hover:bg-grey-200")}>
+                <IconTile size={48} tone={on ? "white" : "grey"} className={cn(on ? "shadow-card" : "")}>
                   {o.icon}
                 </IconTile>
               </span>
-              <b className="max-w-full truncate px-1 text-[11.5px] font-bold leading-none">{o.label}</b>
+              <b className={cn("max-w-full truncate px-1 text-[11.5px] leading-none", on ? "font-extrabold" : "font-semibold text-ink-2")}>{o.label}</b>
               {o.meta ? <small className="text-[10.5px] font-semibold leading-none text-muted">{o.meta}</small> : null}
             </button>
           );

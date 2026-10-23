@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { FormSkeleton } from "@/components/common/Skeleton";
+import { AppLoader } from "@/components/common/AppLoader";
 import { firestoreErrorMessage } from "@/data/firebase-source";
 import type { NewWalkInOrder } from "@/data";
 import { Button } from "@/components/common/Button";
@@ -21,7 +21,7 @@ export function NewOrderScreen() {
   const limit = walkInLimit(shop.tier);
   const capped = Number.isFinite(limit);
   const used = useShopQuery((s) => (capped && !bookingId ? s.getWalkInsToday() : Promise.resolve(0)), [capped, bookingId]);
-  if (catalog.loading || booking.loading) return <FormSkeleton />;
+  if (catalog.loading || booking.loading) return <AppLoader />;
   if (!catalog.data) {
     return (
       <>

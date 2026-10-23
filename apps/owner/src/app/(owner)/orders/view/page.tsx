@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { FormSkeleton } from "@/components/common/Skeleton";
+import { AppLoader } from "@/components/common/AppLoader";
 import { OrderDetailScreen } from "@/components/orders/OrderDetail";
 
 export const metadata = { title: "Order" };
@@ -7,7 +7,7 @@ export const metadata = { title: "Order" };
 /** Order detail (`/orders/view?id=<orderId>`; a query param keeps the static export working). */
 export default function OrderViewPage() {
   return (
-    <Suspense fallback={<FormSkeleton />}>
+    <Suspense fallback={<AppLoader />}>
       <OrderDetailScreen />
     </Suspense>
   );
