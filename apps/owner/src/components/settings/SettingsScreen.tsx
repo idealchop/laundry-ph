@@ -1,6 +1,7 @@
 "use client";
 
 import { CoinIcon } from "@river-apps/icons";
+import { RiverIcon } from "@/components/common/RiverIcon";
 import {
   ChevronLeft, ChevronRight, CreditCard, LogOut, MapPin, Package, Pencil, Star, Store,
 } from "lucide-react";
@@ -56,11 +57,11 @@ function shopBio(shop: Shop): string {
 }
 
 /** Partner shops reach their River Mobile listing from here (it's no longer in the Partner nav). */
-const SHOP_LISTING_LINK = { href: "/partner/shop", icon: Store, title: "Shop listing", subtitle: "How River Mobile shows your shop" } as const;
+const SHOP_LISTING_LINK = { href: "/partner/shop", icon: Store, river: "online-shop" as const, title: "Shop listing", subtitle: "How River Mobile shows your shop" } as const;
 
 const HUB_LINKS = [
-  { href: "/profile/services", icon: Package, title: "Services", subtitle: "Products, prices and POS catalog" },
-  { href: "/settings/billing", icon: CreditCard, title: "Plan & billing", subtitle: `Partner · Pro ${PAID_PER_MO} · Lifetime` },
+  { href: "/profile/services", icon: Package, river: "items" as const, title: "Services", subtitle: "Products, prices and POS catalog" },
+  { href: "/settings/billing", icon: CreditCard, river: "payments" as const, title: "Plan & billing", subtitle: `Partner · Pro ${PAID_PER_MO} · Lifetime` },
 ] as const;
 
 /** Shop profile hub: Oceanus header, Credits, Features, Edit shop, setup links, logout. */
@@ -201,7 +202,7 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
                     <ListItem
                       variant="row"
                       className="py-2"
-                      leading={<span className="inline-flex size-10 items-center justify-center rounded-tile bg-grey-100"><Icon size={18} strokeWidth={1.75} /></span>}
+                      leading={"river" in it ? <RiverIcon name={it.river} size={36} /> : <span className="inline-flex size-10 items-center justify-center rounded-tile bg-grey-100"><Icon size={18} strokeWidth={1.75} /></span>}
                       title={it.title}
                       subtitle={it.subtitle}
                       trailing={<ChevronRight size={20} strokeWidth={1.75} className="text-subtle" />}

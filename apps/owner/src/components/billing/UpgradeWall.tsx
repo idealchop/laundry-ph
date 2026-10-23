@@ -1,6 +1,6 @@
 "use client";
+import { RiverIcon } from "@/components/common/RiverIcon";
 
-import { Icon3D } from "@river-apps/icons";
 import { EmptyState } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
 import { PLAN_OPTIONS } from "@/lib/plans";
@@ -14,7 +14,7 @@ export function UpgradeWall({ feature }: { feature?: string }) {
   return (
     <div className="mx-auto flex min-h-[60dvh] w-full max-w-[560px] items-center px-4 py-8">
       <EmptyState
-        illustration={<Icon3D name="ewallet" size={84} />}
+        illustration={<RiverIcon name="payments" size={84} />}
         title="Pro feature"
         description={
           feature

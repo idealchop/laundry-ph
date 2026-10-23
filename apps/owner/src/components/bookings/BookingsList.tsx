@@ -1,6 +1,6 @@
 "use client";
+import { RiverIcon } from "@/components/common/RiverIcon";
 
-import { Icon3D } from "@river-apps/icons";
 import { RowsSkeleton } from "@/components/common/Skeleton";
 import { EmptyState } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
@@ -77,14 +77,14 @@ export function BookingsList({ scope, emptyAction }: { scope: BookingScope; empt
       {rows.length === 0 && !error ? (
         scope === "open" ? (
           <EmptyState
-            illustration={<Icon3D name="basket" size={84} />}
+            illustration={<RiverIcon name="bookings" size={84} />}
             title="No bookings yet"
             description="When River Mobile customers book your shop, they’ll show up here."
             action={emptyAction}
           />
         ) : (
           <EmptyState
-            illustration={<Icon3D name="folded" size={84} />}
+            illustration={<RiverIcon name="bookings" size={84} />}
             title="No past bookings yet"
             description="Completed, declined and cancelled bookings will be listed here."
           />

@@ -1,8 +1,8 @@
 "use client";
+import { RiverIcon } from "@/components/common/RiverIcon";
 
 import { EmptyState } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
-import { Icon3D } from "@river-apps/icons";
 import type { ReactNode } from "react";
 import { signOut, useAuth } from "@/lib/auth";
 import { useShopState } from "@/lib/shop";
@@ -30,7 +30,7 @@ export function ShopGate({ children }: { children: ReactNode }) {
       <AuthScreen>
         <div className="flex flex-1 flex-col justify-center px-6">
           <EmptyState
-            illustration={<Icon3D name="shield" size={84} />}
+            illustration={<RiverIcon name="settings" size={84} />}
             title="We couldn’t open your shop"
             description={s.message}
             action={

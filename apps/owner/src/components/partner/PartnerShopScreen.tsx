@@ -1,9 +1,9 @@
 "use client";
+import { RiverIcon } from "@/components/common/RiverIcon";
 
 import { MapPin } from "lucide-react";
 import { Badge, Card, EmptyState, ListItem, Topbar } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
-import { Icon3D } from "@river-apps/icons";
 import { useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
 import { ShellBack } from "../shell/PageBack";
@@ -44,7 +44,7 @@ export function PartnerShopScreen() {
         ) : (
           <EmptyState
             className="mt-3 border-0 py-6"
-            illustration={<Icon3D name="washer" size={64} />}
+            illustration={<RiverIcon name="online-shop" size={64} />}
             title="Add your address"
             description="River Mobile needs a street address and map pin to list your shop nearby."
             action={<Button href="/settings" size="md">Open settings</Button>}
