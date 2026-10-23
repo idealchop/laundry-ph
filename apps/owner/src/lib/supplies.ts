@@ -56,7 +56,9 @@ export const supplyAddOns = (supplies: Supply[]): CatalogOption[] =>
 /** Apply the merged list to a catalog: customer items become add-ons; the separate detergent pick goes away. */
 export function withSupplies<T extends Catalog>(c: T): T {
   const supplies = suppliesOf(c);
-  return { ...c, supplies, addOns: supplyAddOns(supplies), detergents: [], defaults: { ...c.defaults, detergentId: "", addOnIds: [] } };
+  // Wash & Dry shows the dryer icon (older shops saved it with the bubbles/washer icon).
+  const services = (c.services ?? []).map((sv) => (/dry/i.test(sv.name) && !/fold/i.test(sv.name) && sv.icon === "bubbles" ? { ...sv, icon: "dryer" as const } : sv));
+  return { ...c, services, supplies, addOns: supplyAddOns(supplies), detergents: [], defaults: { ...c.defaults, detergentId: "", addOnIds: [] } };
 }
 
 export const supplyLabel = (s: Pick<Supply, "name" | "brand">) => (s.brand ? `${s.name} · ${s.brand}` : s.name);

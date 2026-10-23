@@ -60,6 +60,7 @@ export function ShopsScreen() {
           <PageBack fallback="/profile" />
           <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">Manage locations</h1>
         </div>
+        <p className="ml-12 mt-0.5 text-[14px] font-semibold text-muted">{enabled ? "Each shop has its own day, staff and QR." : "Turn this on when you run more than one shop."}</p>
       </header>
       {note ? <p className="mt-3 rounded-card bg-grey-100 px-4 py-3 text-[13.5px] font-semibold" role="status">{note}</p> : null}
       {error && !adding ? <p className="mt-3 text-[13.5px] font-semibold">{error}</p> : null}
@@ -90,7 +91,7 @@ export function ShopsScreen() {
       ) : (
         <div className="mt-6 rounded-card bg-surface px-4 py-4 shadow-card">
           <b className="block text-[16px]">One shop</b>
-          <p className="mt-1 text-[13.5px] font-medium text-muted">For more than one shop.</p>
+          <p className="mt-1 text-[13.5px] font-medium text-muted">Turn this on when you run more than one shop. The shop you have now becomes the first one.</p>
           <Button className="mt-4" fullWidth onClick={() => setConfirmMulti("on")}>Turn on multiple shops</Button>
         </div>
       )}

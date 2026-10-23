@@ -39,7 +39,7 @@ export const machines: Machine[] = [
 export const pickupRequests: PickupRequest[] = [
   { id: "p1", kind: "pickup", serviceName: "Wash-Dry-Fold", icon: "basket", window: "10:00–11:00 AM", estimateKg: 6, estimateCentavos: 25_000, customer: { name: "Maria S.", avatar: "peach" }, area: "Kapitolyo", distanceKm: 1.2, isNew: true },
   { id: "p2", kind: "dropoff", serviceName: "Press only", icon: "iron", window: "1:30 PM", pieces: 12, ref: "LDY-0421", customer: { name: "Paolo R.", avatar: "indigo" }, isNew: true },
-  { id: "p3", kind: "pickup", serviceName: "Wash & Dry", icon: "bubbles", window: "3:00 PM", estimateKg: 8, customer: { name: "Ana L.", avatar: "butter" }, isNew: false },
+  { id: "p3", kind: "pickup", serviceName: "Wash & Dry", icon: "dryer", window: "3:00 PM", estimateKg: 8, customer: { name: "Ana L.", avatar: "butter" }, isNew: false },
 ];
 
 export const verifiedBooking: VerifiedBooking = {
@@ -61,7 +61,7 @@ export const verifiedBooking: VerifiedBooking = {
 export const catalog: Catalog = {
   services: [
     { id: "wdf", name: "Wash-Dry-Fold", unit: "kg", priceCentavos: 3_500, icon: "washer" },
-    { id: "wd", name: "Wash & Dry", unit: "kg", priceCentavos: 3_000, icon: "bubbles" },
+    { id: "wd", name: "Wash & Dry", unit: "kg", priceCentavos: 3_000, icon: "dryer" },
     { id: "press", name: "Press only", unit: "pc", priceCentavos: 1_500, icon: "iron" },
   ],
   detergents: [

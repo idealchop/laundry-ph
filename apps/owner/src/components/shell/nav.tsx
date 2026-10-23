@@ -5,14 +5,14 @@ import type { NavItem } from "@river-apps/ui";
 /** Paid desktop sidebar. */
 export const PAID_NAV: NavItem[] = [
   { key: "home", label: "Home", href: "/home", icon: <RiverIcon name="home" size={24} /> },
-  { key: "orders", label: "Orders", href: "/orders", icon: <RiverIcon name="orders" size={24} /> },
+  { key: "orders", label: "Queue", href: "/orders", icon: <RiverIcon name="orders" size={24} /> },
   { key: "community", label: "Moments", href: "/community", icon: <RiverIcon name="messages" size={30} /> },
 ];
 
 /** Paid mobile tabs (3) — Profile is reached via the home avatar, not the bottom bar. */
 export const PAID_TABS: NavItem[] = [
   { key: "home", label: "Home", href: "/home", icon: <RiverIcon name="home" size={30} /> },
-  { key: "orders", label: "Orders", href: "/orders", icon: <RiverIcon name="orders" size={30} /> },
+  { key: "orders", label: "Queue", href: "/orders", icon: <RiverIcon name="orders" size={30} /> },
   { key: "community", label: "Moments", href: "/community", icon: <RiverIcon name="messages" size={30} /> },
 ];
 

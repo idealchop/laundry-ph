@@ -241,6 +241,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   return (
     <>
       <FocusHeader
+        title={booking ? "Booking" : "Walk-in"}
         backHref={booking ? "/orders" : "/home"}
         trailing={
           addingCustomer || picked ? (

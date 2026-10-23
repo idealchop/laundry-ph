@@ -99,16 +99,20 @@ export function OrderBoard() {
   if (loading && orders.length === 0) return <ListSkeleton />;
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
-      <header className="flex items-center justify-between gap-3 border-b border-line px-1 pb-3">
+      <header className="flex items-center justify-between gap-3 px-1 pb-3">
         <div className="flex min-w-0 items-center gap-1.5">
           {channel === "online" ? (
-            <button type="button" aria-label="Back to orders" onClick={() => setChannel("walk-ins")}
+            <button type="button" aria-label="Back to queue" onClick={() => setChannel("walk-ins")}
               className="inline-flex size-11 flex-none items-center justify-center rounded-full bg-grey-100 text-ink hover:bg-grey-200">
               <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
             </button>
-          ) : <ChannelArt />}
+          ) : (
+            <Link href="/home" aria-label="Back to home" className="inline-flex size-11 flex-none items-center justify-center rounded-full text-ink hover:bg-grey-100">
+              <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
+            </Link>
+          )}
           <div className="min-w-0 leading-[1.2]">
-            <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">{channel === "online" ? "Online" : "Orders"}</h1>
+            <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">{channel === "online" ? "Online" : "Queue"}</h1>
             <p className="mt-0.5 truncate text-[14px] font-semibold text-muted">
               {channel === "walk-ins"
                 ? <>{dayDone.length} completed{isToday ? ` · ${counts.progress + counts.ready} open` : ` · ${dayText}`}</>
@@ -217,13 +221,6 @@ export function OrderBoard() {
 }
 
 /** Laundry basket, kept beside the Orders title on both tabs. */
-function ChannelArt() {
-  return (
-    <span aria-hidden className="inline-flex size-14 flex-none items-center justify-center">
-      <Icon3D name="basket" size={56} className="drop-shadow-[0_10px_14px_rgba(10,10,10,0.16)]" />
-    </span>
-  );
-}
 
 const timeOf = (ms: number) => new Date(ms).toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" });
 

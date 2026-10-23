@@ -7,6 +7,8 @@ import { ShopHeader } from "../common/ShopHeader";
 import { RowsSkeleton, Sk, StatsSkeleton } from "../common/Skeleton";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
+import { RiverIcon } from "@/components/common/RiverIcon";
 import type { Booking, DaySummary, Shop } from "@/data";
 import { money } from "@/lib/format";
 import { PAID_PER_MO } from "@/lib/plans";
@@ -67,12 +69,32 @@ function Pickups({ bookings, loading, error, canConvert, moreHref, max = 3, twoU
   );
 }
 
-function Stats({ today, className }: { today: DaySummary; className?: string }) {
+function Stats({ today, online, className }: { today: DaySummary; online: number; className?: string }) {
   return (
     <div className={`grid grid-cols-3 gap-2.5 lg:gap-5 ${className ?? ""}`}>
-      <StatCard className="pb-3" label="In queue" value={String(today.inQueue)} />
-      <StatCard className="pb-3" label="Ready" value={String(today.ready)} />
-      <StatCard className="pb-3" label="Unpaid" value={money(today.unpaidCentavos)} />
+      <StatCard className="pb-3" label="Customers" value={String(today.orders)} />
+      <StatCard className="pb-3" label="Online" value={String(online)} />
+      <StatCard className="pb-3" label="To Claim" value={money(today.unpaidCentavos)} />
+    </div>
+  );
+}
+
+/** Barbers.ph Home: two big tiles under the stats (Manage shops, Services). */
+function HubTiles({ className }: { className?: string }) {
+  const tiles = [
+    { href: "/settings/shops", icon: "shop" as const, title: "Manage shops", sub: "Locations, staff, QR" },
+    { href: "/profile/services", icon: "washer" as const, title: "Services", sub: "Prices and supplies" },
+  ];
+  return (
+    <div className={`grid grid-cols-2 gap-3 ${className ?? ""}`}>
+      {tiles.map((t) => (
+        <Link key={t.href} href={t.href} className="relative rounded-card bg-surface p-4 shadow-card active:scale-[0.99]">
+          <ChevronRight size={16} className="absolute right-3 top-3 text-muted" aria-hidden />
+          <RiverIcon name={t.icon} size={40} />
+          <b className="mt-2 block text-[16px]">{t.title}</b>
+          <small className="block truncate text-[12.5px] font-semibold text-muted">{t.sub}</small>
+        </Link>
+      ))}
     </div>
   );
 }
@@ -112,9 +134,10 @@ export function HomeLayout(p: HomeLayoutProps) {
       <div className="mx-auto w-full max-w-[560px] pb-4 lg:hidden">
         <ShopHeader shop={shop} className="px-4 pt-1" />
         {switching ? <Sk className="mx-4 mt-1 h-[150px] rounded-banner" /> : <HomeHeroMobile shop={shop} today={today} showWalkIn={canWalkIn} live={p.live} />}
-        {switching ? <StatsSkeleton className="mx-4 mt-3" /> : <Stats today={today} className="mx-4 mt-3" />}
+        {switching ? <StatsSkeleton className="mx-4 mt-3" /> : <Stats today={today} online={fresh} className="mx-4 mt-3" />}
         <CompanionCard className="mx-4 mt-3" />
-        <SectionHeader className="px-4 pb-1 pt-4" title="Pickups to accept" aside={pickupsAside} />
+        <HubTiles className="mx-4 mt-3" />
+        <SectionHeader className="px-4 pb-1 pt-4" title="Bookings to accept" aside={pickupsAside} />
         <div className="mx-4">{pickups(3, false)}</div>
         {p.footer ? <div className="mx-4 mt-3">{p.footer}</div> : null}
       </div>
@@ -126,10 +149,11 @@ export function HomeLayout(p: HomeLayoutProps) {
           {switching ? <Sk className="h-[248px] rounded-banner" /> : <HomeHeroDesktop shop={shop} today={today} showWalkIn={canWalkIn} live={p.live} />}
           {switching ? <Sk className="h-[248px] rounded-card" /> : <DailyTarget today={today} />}
         </div>
-        {switching ? <StatsSkeleton className="mt-5" /> : <Stats today={today} className="mt-5" />}
+        {switching ? <StatsSkeleton className="mt-5" /> : <Stats today={today} online={fresh} className="mt-5" />}
         <CompanionCard className="mt-5" />
+        <HubTiles className="mt-5" />
         <Card padding="none" className="mt-5 px-[18px] pb-4 pt-4">
-          <CardHeader className="mb-3" title="Pickups to accept" subtitle={pickupsAside} action={<Link href={p.onlineHref} className={linkCls}>All bookings</Link>} />
+          <CardHeader className="mb-3" title="Bookings to accept" subtitle={pickupsAside} action={<Link href={p.onlineHref} className={linkCls}>All bookings</Link>} />
           {pickups(4, true)}
         </Card>
         {p.footer ? <div className="mt-5">{p.footer}</div> : null}

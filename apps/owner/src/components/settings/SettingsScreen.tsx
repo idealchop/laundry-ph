@@ -4,7 +4,7 @@ import { CoinIcon } from "@river-apps/icons";
 import { RiverIcon } from "@/components/common/RiverIcon";
 import { useInstallHidden } from "@/lib/pwa";
 import {
-  ChevronLeft, ChevronRight, CreditCard, LogOut, MapPin, Package, Pencil, Star, Store,
+  ChevronLeft, ChevronRight, CreditCard, LogOut, MapPin, Package, Pencil, Store,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -31,14 +31,6 @@ import { ShopQrPromo } from "../qr/ShopQrPromo";
 import { FeatureList } from "./FeaturesScreen";
 import { PAID_PER_MO, hasProFeatures } from "@/lib/plans";
 
-/** Soft @handle from shop name (Oceanus-style). */
-function shopHandle(name: string): string {
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "")
-    .slice(0, 18);
-  return `@${slug || "laundryph"}`;
-}
 
 function locationLine(shop: Shop): string | null {
   return (
@@ -63,7 +55,8 @@ const SHOP_LISTING_LINK = { href: "/partner/shop", icon: Store, river: "shop" as
 const INSTALL_LINK = { href: "/settings/install", icon: Package, river: "install" as const, title: "Install app", subtitle: "Open Laundry.ph from your home screen" } as const;
 
 const HUB_LINKS = [
-  { href: "/profile/services", icon: Package, river: "washer" as const, title: "Services", subtitle: "Products, prices and POS catalog" },
+  { href: "/profile/services", icon: Package, river: "washer" as const, title: "Services", subtitle: "Prices, supplies and add-ons" },
+  { href: "/history", icon: Package, river: "calendar" as const, title: "History", subtitle: "Past orders and bookings" },
   { href: "/settings/billing", icon: CreditCard, river: "wallet" as const, title: "Plan & billing", subtitle: `Partner · Pro ${PAID_PER_MO} · Lifetime` },
 ] as const;
 
@@ -76,7 +69,6 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
   const [view, setView] = useState<"hub" | "credits">(() => (searchParams.get("credits") === "1" ? "credits" : "hub"));
   const [partnerOn, setPartnerOn] = useState(false);
   const photo = shop.photoUrls?.[0];
-  const handle = shopHandle(shop.name);
   const shops = useShopLocations();
   const mark = useShopMark(shop.id, Math.max(1, locationCount(shop.area, Boolean(shop.location))));
   const place = shops.viewingAll
@@ -120,51 +112,35 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
         subtitle={<>Your shop on Laundry.ph <SampleNote className="ml-1 align-middle" /></>}
       />
 
+      {/* Barbers.ph shop card: 3D shop tile, name + partner star, edit pencil, location count, then the about line. */}
       <section className="mt-4 rounded-card bg-surface px-4 py-4 shadow-card">
         <div className="flex items-center gap-3.5">
-          <Avatar
-            name={shop.name}
-            preset={mark.logoUrl || photo ? undefined : shop.ownerAvatar}
-            src={mark.logoUrl || photo}
-            size={72}
-            decorative={false}
-            className="flex-none shadow-tile ring-1 ring-line"
-          />
+          {mark.logoUrl || photo ? (
+            <Avatar name={shop.name} src={mark.logoUrl || photo} size={60} decorative={false} className="flex-none ring-1 ring-line" />
+          ) : (
+            <span className="inline-flex size-[60px] flex-none items-center justify-center rounded-[18px] bg-grey-100"><RiverIcon name="shop" size={46} /></span>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <h2 className="min-w-0 text-[18px] font-extrabold leading-[1.2] tracking-[-0.02em] text-ink sm:text-[20px]">{shop.name}</h2>
-              <button
-                type="button"
-                aria-expanded={partnerOn}
-                aria-label="River partner"
-                onClick={() => setPartnerOn((on) => !on)}
-                className="inline-flex size-6 flex-none items-center justify-center rounded-full bg-ink text-white"
-              >
+              <h2 className="min-w-0 truncate text-[18px] font-extrabold leading-[1.2] tracking-[-0.02em] text-ink">{shop.name}</h2>
+              <button type="button" aria-expanded={partnerOn} aria-label="River partner" onClick={() => setPartnerOn((on) => !on)}
+                className="inline-flex size-6 flex-none items-center justify-center rounded-full bg-ink text-white">
                 <svg width={13} height={13} viewBox="0 0 24 24" aria-hidden><path d="M12 2.5l2.9 6 6.6.8-4.9 4.6 1.3 6.5L12 17.2l-5.9 3.2 1.3-6.5L2.5 9.3l6.6-.8Z" fill="currentColor" /></svg>
               </button>
             </div>
             {partnerOn ? <p className="mt-0.5 text-[12.5px] font-bold">River partner</p> : null}
-            <p className="mt-0.5 text-[13.5px] font-semibold text-muted">{handle}</p>
-            <p className="mt-1.5 inline-flex flex-wrap items-center gap-x-1.5 text-[12.5px] font-semibold text-muted">
-              <Star size={13} strokeWidth={2.25} className="fill-ink text-ink" aria-hidden />
-              <b className="font-extrabold text-ink">4.8</b>
-              <span aria-hidden>·</span>
-              <span>{locationCountLabel(locations)}</span>
-            </p>
+            <p className="mt-0.5 text-[13px] font-semibold text-muted">{locationCountLabel(locations)}</p>
+            {signedIn ? null : (
+              <button type="button" onClick={() => openAuthCta("Sign in to update your shop.")} className="mt-2 rounded-pill bg-ink px-3 py-1.5 text-[12.5px] font-bold text-on-ink">Sign in</button>
+            )}
           </div>
+          {signedIn ? (
+            <Link href="/profile/edit" aria-label="Update shop" className="inline-flex size-9 flex-none items-center justify-center self-start rounded-full bg-grey-100"><Pencil size={15} strokeWidth={1.9} aria-hidden /></Link>
+          ) : null}
         </div>
-        {signedIn ? (
-          <Button className="mt-3" href="/profile/edit" size="xs" leadingIcon={<Pencil size={14} strokeWidth={1.75} />}>Update shop</Button>
-        ) : (
-          <Button className="mt-3" size="md" fullWidth variant="secondary" onClick={() => openAuthCta("Sign in to update your shop.")}>Sign up or log in</Button>
-        )}
         <div className="mt-3 border-t border-line pt-3">
           <p className="text-[13.5px] font-medium leading-snug text-ink/80">{bio}</p>
-          {place ? (
-            <p className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-semibold text-muted">
-              <MapPin size={14} strokeWidth={1.75} aria-hidden />{place}
-            </p>
-          ) : null}
+          {place ? <p className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-semibold text-muted"><MapPin size={14} strokeWidth={1.75} aria-hidden />{place}</p> : null}
         </div>
       </section>
 

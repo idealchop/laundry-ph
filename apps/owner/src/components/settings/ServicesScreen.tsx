@@ -8,6 +8,7 @@ import type { Catalog } from "@/data";
 import { DEFAULT_CLOTHES_TYPES } from "@/lib/clothes";
 import { catalog as defaultCatalog } from "@/data/fixtures";
 import { FocusHeader } from "@/components/FocusHeader";
+import { PageBack } from "@/components/shell/PageBack";
 import { useAction, useShop, useShopQuery } from "@/lib/shop";
 import { ErrorNote } from "../ui";
 import { ClothesTypeList, ServiceList, SuppliesList } from "./CatalogLists";
@@ -70,15 +71,17 @@ export function ServicesScreen() {
 
   return (
     <>
-      <FocusHeader
-        title="Services"
-        backHref="/profile"
-        trailing={
+      {/* Barbers.ph header: back, big title, one-line subtitle; Save stays at the right. */}
+      <header className="px-5 pt-4">
+        <div className="flex items-center gap-1">
+          <PageBack fallback="/profile" />
+          <h1 className="min-w-0 flex-1 text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">Services</h1>
           <Button type="button" size="sm" className="min-w-[4.5rem]" disabled={busy || readOnly} onClick={() => void onSave()}>
             {busy ? "Saving…" : "Save"}
           </Button>
-        }
-      />
+        </div>
+        <p className="ml-12 mt-0.5 text-[14px] font-semibold text-muted">Your services, clothes types and supplies.</p>
+      </header>
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-10 pt-2">
 
         {readOnly ? (

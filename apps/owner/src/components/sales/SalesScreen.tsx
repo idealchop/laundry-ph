@@ -127,7 +127,10 @@ export function SalesScreen() {
 /** Collected (cash / GCash) vs uncollected, then who brought it in. No commission or remit in Laundry. */
 function Collection({ report, staff }: { report: ReturnType<typeof salesReport>; staff: StaffRow[] }) {
   const { totals } = report;
-  const pay = report.payments.filter((p) => p.salesCentavos > 0 && !/unpaid/i.test(p.label));
+  const paid = report.payments.filter((p) => p.salesCentavos > 0 && !/unpaid/i.test(p.label));
+  // Barbers.ph: Cash and GCash always listed under Collected (₱0 when none), then any other method.
+  const amt = (re: RegExp) => paid.filter((p) => re.test(p.label)).reduce((a, p) => a + p.salesCentavos, 0);
+  const pay = [{ label: "Cash", salesCentavos: amt(/^cash/i) }, { label: "GCash", salesCentavos: amt(/gcash/i) }, ...paid.filter((p) => !/^cash|gcash/i.test(p.label))];
   return (
     <>
       <div className="mt-4 grid grid-cols-2 gap-3">
@@ -135,7 +138,7 @@ function Collection({ report, staff }: { report: ReturnType<typeof salesReport>;
           <span className="text-[12.5px] font-semibold text-muted">Collected</span>
           <b className="mt-0.5 text-[24px] font-extrabold leading-tight tracking-[-0.03em] tabular-nums">{money(totals.collectedCentavos)}</b>
           <span className="mt-2 flex flex-col gap-0.5 text-[12.5px] font-semibold text-muted">
-            {pay.length ? pay.map((p) => <span key={p.label} className="flex justify-between gap-2"><span>{p.label}</span><b className="tabular-nums text-ink">{money(p.salesCentavos)}</b></span>) : <span>No payments yet</span>}
+            {pay.map((p) => <span key={p.label} className="flex justify-between gap-2"><span>{p.label}</span><b className="tabular-nums text-ink">{money(p.salesCentavos)}</b></span>)}
           </span>
         </section>
         <section aria-label="Uncollected" className="flex flex-col rounded-card bg-surface px-4 py-3.5 shadow-card">
