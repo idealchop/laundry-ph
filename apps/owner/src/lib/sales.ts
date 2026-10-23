@@ -29,6 +29,7 @@ export interface SalesReport {
   pieces: number;
   loads: number;
   previousSalesCentavos: number;
+  previousOrders: number;
   /** Hours today, or one row per day for 7 and 30 days. Oldest first. */
   series: SalesRow[];
   seriesKind: "hour" | "day";
@@ -153,6 +154,7 @@ export function salesReport(orders: Order[], range: SalesRange, now = Date.now()
     pieces: pieceCount(counted),
     loads: loadCount(counted),
     previousSalesCentavos: previous.salesCentavos,
+    previousOrders: previous.orders,
     series,
     seriesKind: range === "today" ? "hour" : "day",
     services: group(counted, (o) => o.serviceName),

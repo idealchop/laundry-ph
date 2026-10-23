@@ -99,14 +99,15 @@ export function SalesScreen() {
           {view === "collection" ? <Collection report={report} staff={staff} /> : null}
           {view === "performance" ? (
             <>
-              <ProfitLine sales={report.totals.salesCentavos} costs={costs} partial={costPartial} />
-              <Overview report={report} />
+              <PerfKpis report={report} />
+              <div className="mt-3"><ProfitLine sales={report.totals.salesCentavos} costs={costs} partial={costPartial} /></div>
+              <StaffBoard rows={staff} title="Top staff" />
+              <SalesChart report={report} />
               <Breakdown title="Services" empty="No orders." rows={report.services} total={report.totals.salesCentavos} />
               <SuppliesUsed rows={usage} />
               <Expenses items={expenses} canEdit={member?.role === "owner"} busy={act.busy} error={act.error}
                 onAdd={async (e) => Boolean(await act.run(async (src) => { await src.addExpense({ ...e, branchId: loc.enabled && !loc.viewingAll ? loc.scopeId : null }); expQ.reload(); return true; }))}
                 onRemove={(id) => void act.run(async (src) => { await src.removeExpense(id); expQ.reload(); return true; })} />
-              <StaffBoard rows={staff} title="Top staff" />
               <details className="group mt-3">
                 <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-1 text-[13.5px] font-bold text-ink-2">More<span aria-hidden className="transition-transform group-open:rotate-180">⌄</span></summary>
                 <ShopView report={report} />
@@ -175,54 +176,42 @@ function StaffBoard({ rows, title = "Staff leaderboard" }: { rows: StaffRow[]; t
   );
 }
 
-function Overview({ report }: { report: ReturnType<typeof salesReport> }) {
-  const { totals } = report;
-  const peak = report.series.reduce((best, row, i) => (row.salesCentavos > best.sales ? { i, sales: row.salesCentavos, label: row.label } : best), { i: -1, sales: 0, label: "" });
-  const quiet = report.series.filter((row) => row.salesCentavos === 0).length;
-  return (
-    <>
-    <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
-      <section className="relative overflow-hidden rounded-banner bg-ink px-5 py-5 text-on-ink">
-        <i aria-hidden className="pointer-events-none absolute -right-16 -top-24 size-[220px] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,.14),rgba(255,255,255,0)_68%)]" />
-        <p className="relative text-[13px] font-semibold text-on-ink-muted">Sales</p>
-        <p className="relative mt-1 text-[36px] font-extrabold leading-none tracking-[-0.04em]">{money(totals.salesCentavos)}</p>
-        <p className="relative mt-2 text-[13px] font-semibold text-on-ink-muted">{salesDelta(totals.salesCentavos, report.previousSalesCentavos, report.compare)}</p>
-        <div className="relative mt-5 grid grid-cols-3 gap-2">
-          <HeroStat label="Orders" value={String(totals.orders)} />
-          <HeroStat label="Collected" value={money(totals.collectedCentavos)} />
-          <HeroStat label="Washed" value={`${totals.kg} kg`} />
-        </div>
-        <p className="relative mt-3 text-[12.5px] font-semibold text-on-ink-muted">
-          {money(totals.averageCentavos)} average
-          {report.pieces > 0 ? ` · ${report.pieces} pcs` : ""}{report.loads > 0 ? ` · ${report.loads} ${report.loads === 1 ? "load" : "loads"}` : ""}
-          {` · ${report.customers} ${report.customers === 1 ? "customer" : "customers"}`}
-          {totals.unpaidCentavos > 0 ? ` · ${money(totals.unpaidCentavos)} unpaid` : ""}
-        </p>
-      </section>
+function deltaPct(a: number, b: number) { if (!b) return a ? null : 0; return Math.round(((a - b) / b) * 100); }
 
-      <Card padding="none" className="px-4 py-4">
-        <h2 className="text-[16px] font-bold">{report.seriesKind === "hour" ? "Sales by hour" : "Sales by day"}</h2>
-        <p className="mt-0.5 text-[12.5px] font-semibold text-muted">
-          {peak.sales > 0 ? `Busiest ${report.seriesKind === "hour" ? "at" : "on"} ${peak.label} · ${money(peak.sales)}` : "No sales in this range yet."}
-        </p>
-        <ColumnChart rows={report.seriesKind === "hour" ? (report.series.some((row) => row.salesCentavos > 0) ? report.series.filter((row) => row.salesCentavos > 0) : report.series) : report.series} />
-        {quiet > 0 && totals.orders > 0 ? (
-          <p className="mt-2 text-[12.5px] font-semibold text-muted">
-            {quiet} {report.seriesKind === "hour" ? (quiet === 1 ? "hour" : "hours") : quiet === 1 ? "day" : "days"} with no sales
-          </p>
-        ) : null}
-      </Card>
+function Kpi({ k, v, d, sub }: { k: string; v: string; d?: number | null; sub?: string }) {
+  return (
+    <div className="rounded-card bg-surface px-3.5 py-3 shadow-card">
+      <p className="text-[12px] font-semibold text-muted">{k}</p>
+      <b className="block text-[20px] tracking-[-0.02em] tabular-nums">{v}</b>
+      {d === undefined ? (sub ? <small className="text-[11.5px] font-semibold text-muted">{sub}</small> : null)
+        : d === null ? <small className="text-[11.5px] font-semibold text-muted">New</small>
+        : <small className={cn("text-[11.5px] font-bold", d > 0 ? "text-[#067647]" : d < 0 ? "text-[#D92D20]" : "text-muted")}>{d > 0 ? "↑" : d < 0 ? "↓" : ""}{d === 0 ? "Same" : `${Math.abs(d)}%`}</small>}
     </div>
-    </>
   );
 }
 
-function HeroStat({ label, value }: { label: string; value: string }) {
+/** Barbers.ph Performance KPIs: four cards, change vs last period. */
+function PerfKpis({ report }: { report: ReturnType<typeof salesReport> }) {
+  const t = report.totals;
+  const washed = [t.kg ? `${t.kg} kg` : "", report.loads ? `${report.loads} ${report.loads === 1 ? "load" : "loads"}` : "", report.pieces ? `${report.pieces} pcs` : ""].filter(Boolean);
   return (
-    <div className="min-w-0 rounded-[16px] bg-white/10 px-2.5 py-2.5">
-      <span className="block text-[11px] font-semibold text-on-ink-muted">{label}</span>
-      <b className="mt-0.5 block truncate text-[15px] font-extrabold tracking-[-0.02em] tabular-nums">{value}</b>
+    <div className="mt-4 grid grid-cols-2 gap-3">
+      <Kpi k="Sales" v={money(t.salesCentavos)} d={deltaPct(t.salesCentavos, report.previousSalesCentavos)} />
+      <Kpi k="Orders" v={String(t.orders)} d={deltaPct(t.orders, report.previousOrders)} />
+      <Kpi k="Collected" v={money(t.collectedCentavos)} sub={t.unpaidCentavos ? `${money(t.unpaidCentavos)} unpaid` : "All paid"} />
+      <Kpi k="Washed" v={washed[0] ?? "0 kg"} sub={washed.slice(1).join(" · ") || `${money(t.averageCentavos)} avg`} />
     </div>
+  );
+}
+
+function SalesChart({ report }: { report: ReturnType<typeof salesReport> }) {
+  const peak = report.series.reduce((best, row) => (row.salesCentavos > best.sales ? { sales: row.salesCentavos, label: row.label } : best), { sales: 0, label: "" });
+  return (
+    <Card padding="none" className="mt-3 px-4 py-4">
+      <h2 className="text-[16px] font-bold">{report.seriesKind === "hour" ? "Sales by hour" : "Sales by day"}</h2>
+      {peak.sales > 0 ? <p className="mt-0.5 text-[12.5px] font-semibold text-muted">Peak {peak.label} · {money(peak.sales)}</p> : null}
+      <ColumnChart rows={report.seriesKind === "hour" ? (report.series.some((row) => row.salesCentavos > 0) ? report.series.filter((row) => row.salesCentavos > 0) : report.series) : report.series} />
+    </Card>
   );
 }
 

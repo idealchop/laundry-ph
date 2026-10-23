@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, cn } from "@river-apps/ui";
+import { cn } from "@river-apps/ui";
 import { ChevronDown, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/common/Button";
@@ -14,15 +14,18 @@ const n2 = (n: number) => (Number.isInteger(n) ? n.toLocaleString("en-PH") : n.t
 /** One line: Sales · Costs · Profit. */
 export function ProfitLine({ sales, costs, partial }: { sales: number; costs: number; partial?: boolean }) {
   const profit = sales - costs;
+  const box = (k: string, v: string, red?: boolean) => (
+    <div className="min-w-0 rounded-[14px] bg-grey-100 px-3 py-2.5"><p className="text-[12px] font-semibold text-muted">{k}</p><b className={cn("block truncate text-[16px] tabular-nums", red && "text-[#D92D20]")}>{v}</b></div>
+  );
   return (
-    <Card padding="none" className="mt-4 grid grid-cols-3 divide-x divide-line px-1 py-3 text-center">
-      {[["Sales", money(sales)], [partial ? "Costs*" : "Costs", money(costs)], ["Profit", `${profit < 0 ? "−" : ""}${money(Math.abs(profit))}`]].map(([k, v], i) => (
-        <div key={k} className="min-w-0 px-2">
-          <span className="block text-[11.5px] font-semibold text-muted">{k}</span>
-          <b className={cn("block truncate text-[16px] font-extrabold tabular-nums", i === 2 && profit < 0 && "text-[#E5484D]")}>{v}</b>
-        </div>
-      ))}
-    </Card>
+    <section className="rounded-card bg-surface px-4 py-4 shadow-card">
+      <h2 className="text-[16px] font-bold">Profit</h2>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {box("Sales", money(sales))}
+        {box(partial ? "Costs*" : "Costs", money(costs))}
+        {box("Profit", `${profit < 0 ? "−" : ""}${money(Math.abs(profit))}`, profit < 0)}
+      </div>
+    </section>
   );
 }
 
