@@ -80,9 +80,6 @@ export function ServicesScreen() {
         }
       />
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-10 pt-2">
-        <p className="text-[13.5px] font-medium text-muted">
-          Products and prices for walk-in orders. Changes apply on the next New order ticket.
-        </p>
 
         {readOnly ? (
           <p className="rounded-tile bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-muted">
@@ -92,7 +89,7 @@ export function ServicesScreen() {
 
         <section aria-labelledby="services-h">
           <b id="services-h" className="block text-[16px]">Services</b>
-          <p className="mb-2 mt-0.5 text-[12.5px] font-medium text-muted">What the counter sells, priced per kg or per piece.</p>
+          <div className="mb-2" />
           <ServiceList services={catalog.services} disabled={readOnly} busy={busy} error={error}
             onSave={(svc) => persist((c) => ({
               ...c,
@@ -107,7 +104,7 @@ export function ServicesScreen() {
 
         <section aria-labelledby="clothes-types-h">
           <b id="clothes-types-h" className="block text-[16px]">Clothes types</b>
-          <p className="mb-2 mt-0.5 text-[12.5px] font-medium text-muted">Picked at the counter. Regular clothes is the default.</p>
+          <div className="mb-2" />
           <ClothesTypeList types={catalog.clothesTypes} disabled={readOnly} busy={busy} error={error}
             onSave={(t) => persist((c) => ({
               ...c,
@@ -117,8 +114,8 @@ export function ServicesScreen() {
         </section>
 
         <section aria-labelledby="supplies-h">
-          <b id="supplies-h" className="block text-[16px]">Supplies &amp; Add-ons</b>
-          <p className="mb-2 mt-0.5 text-[12.5px] font-medium text-muted">Tapped at Walk-in. Customer items add to the total; shop items just use stock.</p>
+          <b id="supplies-h" className="block text-[16px]">Supplies</b>
+          <div className="mb-2" />
           <SuppliesList supplies={suppliesOf(catalog)} disabled={readOnly} busy={busy} error={error}
             onSave={(it) => persist((c) => {
               const list = suppliesOf(c);
@@ -130,7 +127,7 @@ export function ServicesScreen() {
         <Card className="px-4 py-3.5">
           <Input
             size="md"
-            label="Minimum billed kilos"
+            label="Min. kilos"
             inputMode="decimal"
             value={String(catalog.minKg)}
             disabled={readOnly || busy}
@@ -142,7 +139,6 @@ export function ServicesScreen() {
               });
             }}
           />
-          <p className="mt-1.5 text-[12.5px] font-medium text-muted">Applied on per-kg services in New order.</p>
         </Card>
 
         {error ? <ErrorNote>{error}</ErrorNote> : null}

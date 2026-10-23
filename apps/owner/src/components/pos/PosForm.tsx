@@ -6,15 +6,15 @@ import { Icon3D } from "@river-apps/icons";
 import { Avatar, Badge, Input, IconButton, MonoText, SuccessState } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
 import type { Booking, Catalog, Customer, Fulfillment, NewWalkInOrder, Order } from "@/data";
-import { CLOTHES_PRICING_LABEL, pieceLabel, REGULAR_CLOTHES_ID } from "@/lib/clothes";
+import { pieceLabel, REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import { money } from "@/lib/format";
 import { parseCustomerText } from "@/lib/orders";
 import { quote } from "@/lib/pricing";
 import { suppliesOf } from "@/lib/supplies";
-import { Chip, FieldLabel, ServiceSlider } from "../kit-extensions";
+import { Chip, ServiceSlider } from "../kit-extensions";
 import { FocusHeader } from "../FocusHeader";
 import { ErrorNote } from "../ui";
-import { BasketFill, basketLabel } from "./BasketFill";
+import { BasketFill } from "./BasketFill";
 import { SupplySlider } from "./SupplySlider";
 
 const KG_STEP = 0.5;
@@ -220,7 +220,6 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
         <FocusHeader title="Ticket created" backHref="/home" trailing={queueBadge} />
         <SuccessState className="mt-6 px-6" title={`Ticket #${created.queueNo} is ready`}
           description={`${created.ref} · ${money(created.totalCentavos)} · ${created.customer.name}`}>
-          <p className="mt-3 max-w-[300px] text-[14px] font-medium text-muted">Saved to your shop. Share the ticket link so the customer can follow the order.</p>
           <button
             type="button"
             onClick={() => {
@@ -312,13 +311,11 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
                   />
                   {perKg ? <span className="absolute inset-y-0 w-0.5 bg-surface" style={{ left: `${Math.min(100, (catalog.minKg / fullAt) * 100)}%` }} /> : null}
                 </div>
-                <span className="mt-1.5 max-w-[96px] text-center text-[12px] font-semibold leading-none text-muted">{basketLabel(basketFill, q.minimumApplied)}</span>
               </div>
               <div ref={qtyField} className="flex min-w-0 flex-1 items-center justify-between gap-3">
                 <div className="flex min-w-0 flex-col items-start gap-1">
                   <p id="qty-label" className="whitespace-nowrap text-[13px] leading-none">
                     <span className="font-semibold text-ink">{perKg ? "Weight" : perLoad ? "Loads" : "Pieces"}</span>
-                    <span className="font-semibold text-muted"> · {byPiece ? "Optional, priced per piece" : perKg ? `Min. ${catalog.minKg} kg` : perLoad ? `${money(service.priceCentavos)}/load` : "Per piece"}</span>
                   </p>
                   <label className="flex max-w-full cursor-text items-baseline gap-1">
                     {/* Auto-width: an invisible copy of the text sizes the grid cell, so the input hugs the digits. */}
@@ -353,11 +350,10 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
                 </div>
               </div>
             </div>
-            {q.minimumApplied ? <p className="mt-1.5 text-[12.5px] font-semibold text-muted" role="status">Minimum charge of {catalog.minKg} kg applies.</p> : null}
           </div>
 
           <div role="group" aria-labelledby="svc-label">
-            <FieldLabel id="svc-label">Service</FieldLabel>
+            <span id="svc-label" className="sr-only">Service</span>
             <ServiceSlider
               options={catalog.services.map((s) => ({ id: s.id, label: s.name, icon: <Icon3D name={s.icon} size={34} />, meta: `${money(s.priceCentavos)}/${s.unit}` }))}
               value={serviceId}
@@ -370,7 +366,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
             <div>
               <OptionDisclosure
                 id={clothesId}
-                label="Clothes type"
+                label="Clothes"
                 summary={clothesType?.name ?? "Regular clothes"}
                 aside={!clothesType || clothesType.pricing === "regular" ? "Standard"
                   : clothesType.pricing === "per_piece" ? `${money(clothesType.priceCentavos)}/${clothesType.pieceUnit ?? "pc"}`
@@ -393,9 +389,6 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
                   );
                 })}
               </OptionDisclosure>
-              {clothesType && clothesType.pricing === "per_kg_surcharge" && !perKg ? (
-                <p className="mt-1.5 px-1 text-[12.5px] font-semibold text-muted">{CLOTHES_PRICING_LABEL.per_kg_surcharge} applies to per-kg services only.</p>
-              ) : null}
               {byPiece && appliedType ? (
                 <div className="mt-2 flex min-h-[52px] items-center gap-3 rounded-tile bg-grey-100 px-3.5 py-2" role="group" aria-label={`${appliedType.name} count`}>
                   <span className="min-w-0 flex-1 leading-tight">
@@ -433,7 +426,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
 
 <OptionDisclosure
             id={addId}
-            label="Supplies & add-ons"
+            label="Supplies"
             summary={pickedSupplies.length === 0 ? "None" : pickedSupplies.length <= 2 ? pickedSupplies.map((o) => o.name).join(", ") : `${pickedSupplies.length} used`}
             aside={addOnsCentavos > 0 ? `+${money(addOnsCentavos)}` : undefined}
             open={openOptions === "addons"}
@@ -443,7 +436,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
           </OptionDisclosure>
 
           <div className="lg:col-span-3">
-            <FieldLabel id="ful-label">Fulfillment</FieldLabel>
+            <span id="ful-label" className="sr-only">Fulfillment</span>
             <div role="radiogroup" aria-labelledby="ful-label" className="grid grid-cols-2 gap-1 rounded-tile bg-grey-100 p-1">
               {FULFILLMENT.map((f) => {
                 const on = f.id === fulfillment;
@@ -459,7 +452,6 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
                     <span className={`inline-flex size-8 flex-none items-center justify-center rounded-full transition-colors ${on ? "bg-ink text-white" : "bg-grey-200 text-ink-2"}`} aria-hidden>{f.icon}</span>
                     <span className="flex min-w-0 flex-col leading-tight">
                       <b className="text-[14px] font-bold">{f.label}</b>
-                      <small className="truncate text-[11.5px] font-semibold text-muted">{f.hint}</small>
                     </span>
                   </button>
                 );

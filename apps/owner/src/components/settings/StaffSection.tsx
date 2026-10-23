@@ -71,7 +71,6 @@ function StaffQr({ branch, member, onClose }: { branch: ShopBranch; member: Staf
         </div>
         {err ? <p className="mt-2 text-[13px] font-semibold" role="alert">{err}</p> : null}
         <p className="mt-2 max-w-[280px] break-all text-center text-[11.5px] font-semibold text-muted">{url}</p>
-        <p className="mt-1 text-center text-[12.5px] font-medium text-muted">Walk-ins they add are credited to {member.name} in Sales › Performance.</p>
       </div>
       <Button className="mt-4" fullWidth variant="secondary" onClick={onClose}>Done</Button>
     </Sheet>
@@ -97,7 +96,6 @@ export function StaffSection({ branch }: { branch: ShopBranch }) {
         <b className="text-[16px]">Staff</b>
         <button type="button" onClick={() => { setNote(""); setAdding(true); }} className="inline-flex h-9 items-center gap-1.5 rounded-pill bg-grey-100 px-3 text-[13px] font-bold"><UserPlus size={15} strokeWidth={2} />Add</button>
       </div>
-      <p className="mt-1 text-[13px] font-medium text-muted">Each person gets their own link and QR for {live.name}. No account needed.</p>
       {note ? <p className="mt-2 text-[13px] font-semibold" role="status">{note}</p> : null}
       {staff.length ? (
         <ul className="mt-3 divide-y divide-line">
@@ -112,7 +110,7 @@ export function StaffSection({ branch }: { branch: ShopBranch }) {
             </li>
           ))}
         </ul>
-      ) : <p className="mt-3 rounded-[14px] bg-grey-50 px-3 py-3 text-[13px] font-semibold text-muted ring-1 ring-line">No staff yet. Add the people who work the counter here.</p>}
+      ) : <p className="mt-3 rounded-[14px] bg-grey-50 px-3 py-3 text-[13px] font-semibold text-muted ring-1 ring-line">No staff yet.</p>}
 
       {adding ? (
         <Sheet title="Add staff" subtitle={live.name} onClose={() => setAdding(false)}>

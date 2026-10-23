@@ -113,11 +113,10 @@ export function LocationLinkScreen({ token }: { token: string }) {
             {svc?.unit === "load" ? <p className="-mt-1 px-1 text-[13px] font-semibold text-muted">Total {money(Math.max(1, Math.round(Number(qty) || 1)) * svc.priceCentavos)}</p> : null}
             {view.supplies?.length ? (
               <div>
-                <span className="mb-1.5 block px-1 text-[13px] font-bold">Supplies &amp; add-ons</span>
                 <SupplySlider items={view.supplies} used={used} onChange={setUsed} />
               </div>
             ) : null}
-            <Input size="md" label="Customer name (optional)" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
+            <Input size="md" label="Name" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
             <Button type="submit" fullWidth disabled={busy || !serviceId}>{busy ? "Adding…" : "Add walk-in"}</Button>
             {note ? <p className="text-[13px] font-semibold" role="status">{note}</p> : null}
           </form>

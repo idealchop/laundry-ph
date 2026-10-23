@@ -166,7 +166,7 @@ export function OrderDetail({ order }: { order: Order }) {
               <PaymentBadge order={order} />
             </div>
             {order.paymentStatus === "paid" ? (
-              <p className="mt-2 text-[14px] font-medium text-muted">Paid {money(order.paidCentavos)}. Thank you!</p>
+              <p className="mt-2 text-[14px] font-medium text-muted">Paid {money(order.paidCentavos)}</p>
             ) : (
               <>
                 <p className="mt-2 text-[14px] font-medium text-muted">Amount due <b className="text-ink">{money(due)}</b></p>
@@ -174,13 +174,11 @@ export function OrderDetail({ order }: { order: Order }) {
                   <Button variant="secondary" size="md" disabled={action.busy} onClick={() => void pay("cash")} leadingIcon={<CoinIcon size={24} />}>Paid cash</Button>
                   <Button variant="secondary" size="md" disabled={action.busy} onClick={() => void pay("gcash")} leadingIcon={<EWalletIcon size={24} />}>Paid GCash</Button>
                 </div>
-                <p className="mt-2 text-[12px] font-semibold text-muted">Records a payment you received. Online GCash checkout comes later.</p>
               </>
             )}
           </Card>
           <Card className="px-4 py-3.5">
             <b className="text-[16px]">Customer ticket</b>
-            <p className="mt-1 text-[13px] font-medium text-muted">Public page with live status. No login needed, no phone number shown.</p>
             <MonoText className="mt-2 block break-all text-[13px]">{order.ticketId}</MonoText>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <Button href={ticketPath} target="_blank" rel="noopener" size="md" variant="secondary" leadingIcon={<ExternalLink size={16} />}>Open</Button>
@@ -322,7 +320,7 @@ function EditLog({ order }: { order: Order }) {
   return (
     <Card className="mt-4 px-4 py-3.5">
       <div className="flex items-center justify-between"><b className="text-[16px]">Activity</b><History size={17} strokeWidth={2} className="text-muted" aria-hidden /></div>
-      {log.length === 0 ? <p className="mt-1.5 text-[13px] font-semibold text-muted">No edits. Changes to this order show here with who made them.</p> : (
+      {log.length === 0 ? <p className="mt-1.5 text-[13px] font-semibold text-muted">No edits yet.</p> : (
         <ol className="mt-2 flex flex-col">
           {log.map((e, i) => (
             <li key={`${e.at}-${i}`} className="border-b border-line py-2.5 last:border-b-0">

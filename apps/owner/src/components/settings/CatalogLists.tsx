@@ -225,7 +225,8 @@ export function SuppliesList({ supplies, disabled, busy, error, onSave, onRemove
   onRemove: (id: string) => Promise<boolean>;
 }) {
   const [edit, setEdit] = useState<{ mode: "edit" | "add"; value: Supply } | null>(null);
-  const open = (value: Supply, mode: "edit" | "add" = "edit") => !disabled && setEdit({ mode, value: { ...value } });
+  const [more, setMore] = useState(false);
+  const open = (value: Supply, mode: "edit" | "add" = "edit") => { if (disabled) return; setMore(false); setEdit({ mode, value: { ...value } }); };
   const set = (patch: Partial<Supply>) => setEdit((e) => (e ? { ...e, value: { ...e.value, ...patch } } : e));
   const v = edit?.value;
   return (
@@ -234,7 +235,7 @@ export function SuppliesList({ supplies, disabled, busy, error, onSave, onRemove
         onAdd={() => open({ id: `sup-${Date.now().toString(36)}`, name: "", unit: "ml", category: "Other", payer: "shop", priceCentavos: 0, defaultQty: 1, stock: 0 }, "add")}>
         {supplies.map((s) => (
           <Row key={s.id} icon={SUPPLY_ICON[s.category]} name={supplyLabel(s)}
-            sub={s.category === "Service" ? s.category : `${numText(s.stock)} ${unitText(s.unit, s.stock)} left`}
+            sub={s.category === "Service" ? undefined : `${numText(s.stock)} ${unitText(s.unit, s.stock)}`}
             tag={isLow(s) ? "Low" : undefined}
             price={s.payer === "customer" ? `+${money(s.priceCentavos)}` : "Shop"} onOpen={() => open(s)} />
         ))}
@@ -245,27 +246,28 @@ export function SuppliesList({ supplies, disabled, busy, error, onSave, onRemove
             onSave={async () => { if (await onSave({ ...v, name: v.name.trim(), brand: v.brand?.trim() || undefined })) setEdit(null); }}
             onRemove={edit.mode === "edit" ? async () => { if (await onRemove(v.id)) setEdit(null); } : undefined} />}>
           <form id="catalog-sheet-form" className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()}>
-            <div className="grid grid-cols-2 gap-2">
-              <Input size="md" label="Name" value={v.name} maxLength={40} placeholder="e.g. Fabcon" onChange={(e) => set({ name: e.target.value })} />
-              <Input size="md" label="Brand" value={v.brand ?? ""} maxLength={40} placeholder="e.g. Downy" onChange={(e) => set({ brand: e.target.value })} />
-            </div>
-            <div><span className={fieldLabel}>Category</span>
-              <Segmented label="Category" value={v.category} onChange={(category) => set({ category })} options={SUPPLY_CATEGORIES.map((c) => ({ value: c, label: c }))} />
-            </div>
-            <div><span className={fieldLabel}>Who pays</span>
-              <Segmented label="Who pays" value={v.payer} onChange={(payer) => set({ payer })} options={[{ value: "customer", label: "Customer" }, { value: "shop", label: "Shop" }]} />
-              <p className="mt-1.5 text-[12.5px] font-medium text-muted">{v.payer === "customer" ? "Paid add-on, added to the order total." : "Free to the customer, only deducts stock."}</p>
+            <Input size="md" label="Name" value={v.name} maxLength={40} placeholder="e.g. Fabcon" onChange={(e) => set({ name: e.target.value })} />
+            <div><span className={fieldLabel}>Paid by</span>
+              <Segmented label="Paid by" value={v.payer} onChange={(payer) => set({ payer })} options={[{ value: "customer", label: "Customer" }, { value: "shop", label: "Shop" }]} />
             </div>
             {v.payer === "customer" ? (
               <Input size="md" label="Price (₱)" inputMode="decimal" value={pesosFromCentavos(v.priceCentavos)} onChange={(e) => set({ priceCentavos: centavosFromPesos(e.target.value) })} />
             ) : null}
-            <div><span className={fieldLabel}>Unit</span>
-              <Segmented label="Unit" value={v.unit} onChange={(unit) => set({ unit })} options={SUPPLY_UNITS} />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Input size="md" label={`Per order (${unitText(v.unit)})`} inputMode="decimal" value={numText(v.defaultQty)} onChange={(e) => set({ defaultQty: Math.max(0, numFrom(e.target.value)) })} />
-              <Input size="md" label={`In stock (${unitText(v.unit)})`} inputMode="decimal" value={numText(v.stock)} onChange={(e) => set({ stock: numFrom(e.target.value) })} />
-            </div>
+            <Input size="md" label={`Stock (${unitText(v.unit)})`} inputMode="decimal" value={numText(v.stock)} onChange={(e) => set({ stock: numFrom(e.target.value) })} />
+            {more ? (
+              <>
+                <Input size="md" label="Brand" value={v.brand ?? ""} maxLength={40} placeholder="e.g. Downy" onChange={(e) => set({ brand: e.target.value })} />
+                <div><span className={fieldLabel}>Type</span>
+                  <Segmented label="Type" value={v.category} onChange={(category) => set({ category })} options={SUPPLY_CATEGORIES.map((c) => ({ value: c, label: c }))} />
+                </div>
+                <div><span className={fieldLabel}>Unit</span>
+                  <Segmented label="Unit" value={v.unit} onChange={(unit) => set({ unit })} options={SUPPLY_UNITS} />
+                </div>
+                <Input size="md" label={`Per order (${unitText(v.unit)})`} inputMode="decimal" value={numText(v.defaultQty)} onChange={(e) => set({ defaultQty: Math.max(0, numFrom(e.target.value)) })} />
+              </>
+            ) : (
+              <button type="button" onClick={() => setMore(true)} className="-mt-1 self-start text-[13.5px] font-bold underline underline-offset-[3px]">Brand, unit, amount</button>
+            )}
           </form>
         </EditSheet>
       ) : null}

@@ -156,7 +156,7 @@ export function OrderBoard() {
         <>
           {isToday && openList.length > 0 ? (
             <div className="mt-5">
-              <p className="px-1 text-[13px] font-bold text-muted">In the shop · {openList.length}</p>
+              <p className="px-1 text-[13px] font-bold text-muted">Open · {openList.length}</p>
               <ul className="mt-2 divide-y divide-line overflow-hidden rounded-card bg-surface shadow-card" aria-label="Orders in the shop">
                 {openList.map((o) => <DoneRow key={o.id} order={o} place={placeOf(o)} />)}
               </ul>
@@ -167,7 +167,6 @@ export function OrderBoard() {
               <div className="mt-4 rounded-card bg-grey-50 px-5 py-6 text-center ring-1 ring-line">
                 <span className="mx-auto inline-flex"><Icon3D name="basket" size={56} /></span>
                 <b className="mt-3 block text-[16px] tracking-[-0.01em]">{isToday ? "No completed orders yet" : `Nothing completed on ${dayText}`}</b>
-                <p className="mt-1 text-[13px] font-medium text-muted">{isToday ? "Claimed and delivered orders show up here." : "No orders were claimed or delivered that day."}</p>
               </div>
             )
           ) : (
@@ -191,7 +190,7 @@ export function OrderBoard() {
 
           {onlineFilteredPickups.length > 0 ? (
             <div className="mt-4 flex flex-col gap-3">
-              <p className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">Bookings to handle</p>
+              <p className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">Bookings</p>
               <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2">
                 {onlineFilteredPickups.map((b) => (
                   <BookingCard key={b.id} booking={b} canConvert onMove={bookingActions.onMove} acceptAsOrder={bookingActions.acceptAsOrder} now={now} detailsHref={bookingHref(b.id)} />
@@ -202,7 +201,7 @@ export function OrderBoard() {
 
           {onlineFilteredOrders.length > 0 ? (
             <div className="mt-4 flex flex-col gap-3">
-              <p className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">Online orders</p>
+              <p className="px-1 text-[12.5px] font-extrabold uppercase tracking-[0.04em] text-muted">Online</p>
               <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2" aria-label="Online orders">
                 {onlineFilteredOrders.map((o) => (
                   <OnlineOrderCard key={o.id} order={o} booking={o.bookingId ? converted.get(o.bookingId) : null} now={now} />
@@ -273,7 +272,6 @@ function DayPicker({ value, today, min, onPick, onClose }: { value: string; toda
       <div role="dialog" aria-label="Pick a date" className="w-full max-w-[480px] rounded-t-[24px] bg-surface px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-4 shadow-card" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-grey-200" />
         <b className="block text-[18px]">Pick a date</b>
-        <p className="text-[13px] font-semibold text-muted">Show completed orders for one day</p>
         <div className="mt-3 flex items-center justify-between px-1">
           <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="inline-flex size-10 items-center justify-center rounded-full active:bg-grey-100"><ChevronLeft size={20} strokeWidth={2.2} aria-hidden /></button>
           <b className="text-[15.5px]">{title}</b>

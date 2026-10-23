@@ -60,7 +60,6 @@ export function ShopsScreen() {
           <PageBack fallback="/profile" />
           <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">Manage locations</h1>
         </div>
-        <p className="mt-0.5 pl-11 text-[14px] font-semibold text-muted">Each shop has its own booking QR. Tap Edit shop for its details, pin and staff.</p>
       </header>
       {note ? <p className="mt-3 rounded-card bg-grey-100 px-4 py-3 text-[13.5px] font-semibold" role="status">{note}</p> : null}
       {error && !adding ? <p className="mt-3 text-[13.5px] font-semibold">{error}</p> : null}
@@ -85,14 +84,13 @@ export function ShopsScreen() {
           <Button className="mt-4" fullWidth variant="secondary" leadingIcon={<Plus size={17} strokeWidth={2.2} />} onClick={() => { setError(""); setAdding(true); }}>Add another shop</Button>
           <div className="mt-6 rounded-card bg-surface px-4 py-4 shadow-card">
             <b className="block text-[15px]">Multiple shops is on</b>
-            <p className="mt-1 text-[13px] font-medium text-muted">You run {branches.length} location{branches.length === 1 ? "" : "s"} from this account.</p>
             <button type="button" onClick={() => setConfirmMulti("off")} className="mt-3 h-10 w-full rounded-pill border-2 border-[#D92D20] text-[14px] font-bold text-[#D92D20]">Turn off multiple shops</button>
           </div>
         </>
       ) : (
         <div className="mt-6 rounded-card bg-surface px-4 py-4 shadow-card">
           <b className="block text-[16px]">One shop</b>
-          <p className="mt-1 text-[13.5px] font-medium text-muted">Turn this on when you run more than one shop. The shop you have now becomes the first one.</p>
+          <p className="mt-1 text-[13.5px] font-medium text-muted">For more than one shop.</p>
           <Button className="mt-4" fullWidth onClick={() => setConfirmMulti("on")}>Turn on multiple shops</Button>
         </div>
       )}
@@ -171,7 +169,7 @@ function BranchQr({ shopId, branchId, name, onOpen }: { shopId: string; branchId
 /** Compact staff list on a location card: initial + name, Share only (manage them in Edit shop). */
 function BranchStaff({ branch }: { branch: ShopBranch }) {
   const staff = branch.staff ?? [];
-  if (!staff.length) return <p className="mt-3 border-t border-line pt-2.5 text-[12.5px] font-semibold text-muted">No staff yet. Add them in Edit shop.</p>;
+  if (!staff.length) return <p className="mt-3 border-t border-line pt-2.5 text-[12.5px] font-semibold text-muted">No staff yet.</p>;
   return (
     <ul className="mt-3 grid gap-2 border-t border-line pt-2.5">
       {staff.map((m) => (

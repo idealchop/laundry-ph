@@ -104,7 +104,7 @@ function Editor({ branch }: { branch: ShopBranch }) {
       {branch.id === HOME_LOCATION_ID ? null : (
         <Card className="mt-6 px-4 py-4">
           <b className="block text-[15px]">Remove this shop</b>
-          <p className="mt-1 text-[13px] font-medium text-muted">Its staff link stops working. Past orders stay in History and Sales.</p>
+          <p className="mt-1 text-[13px] font-medium text-muted">Past orders stay.</p>
           {confirm ? (
             <div className="mt-3 flex gap-2">
               <Button variant="secondary" size="sm" className="flex-1" onClick={() => setConfirm(false)}>Keep it</Button>
@@ -121,7 +121,7 @@ function Editor({ branch }: { branch: ShopBranch }) {
           <div className="mx-auto w-full max-w-[402px] px-4 pb-[calc(env(safe-area-inset-bottom)+28px)] pt-4">
             <div className="flex items-center gap-2">
               <button type="button" aria-label="Close" onClick={() => setEditOpen(false)} className="inline-flex size-11 items-center justify-center rounded-full bg-grey-100"><X size={20} /></button>
-              <div className="min-w-0"><b className="block text-[22px] font-extrabold tracking-[-0.02em]">Edit shop details</b><p className="truncate text-[13.5px] font-semibold text-muted">{branch.name}</p></div>
+              <div className="min-w-0"><b className="block text-[22px] font-extrabold tracking-[-0.02em]">Edit shop</b><p className="truncate text-[13.5px] font-semibold text-muted">{branch.name}</p></div>
             </div>
             <div className="mt-4 grid gap-3">
               <Input label="Shop name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} disabled={busy} />

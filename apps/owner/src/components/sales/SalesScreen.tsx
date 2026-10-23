@@ -146,7 +146,7 @@ function StaffBoard({ rows, title = "Staff leaderboard" }: { rows: StaffRow[]; t
             </li>
           ))}
         </ol>
-      ) : <p className="px-4 pb-4 pt-2 text-[13px] font-semibold text-muted">No orders in this range.</p>}
+      ) : <p className="px-4 pb-4 pt-2 text-[13px] font-semibold text-muted">No orders.</p>}
     </section>
   );
 }
@@ -208,7 +208,6 @@ function Payments({ report }: { report: ReturnType<typeof salesReport> }) {
   return (
     <Card padding="none" className="mt-4 px-4 py-4">
       <h2 className="text-[16px] font-bold">How it was paid</h2>
-      <p className="mt-0.5 text-[12.5px] font-semibold text-muted">Cash and GCash are what was collected. Unpaid is still owed.</p>
       {report.totals.orders === 0 ? (
         <EmptyState className="my-2" title="No payments in this range" description="Collected and unpaid amounts show up once orders are recorded." />
       ) : (
