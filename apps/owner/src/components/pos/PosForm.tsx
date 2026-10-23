@@ -10,11 +10,12 @@ import { CLOTHES_PRICING_LABEL, pieceLabel, REGULAR_CLOTHES_ID } from "@/lib/clo
 import { money } from "@/lib/format";
 import { parseCustomerText } from "@/lib/orders";
 import { quote } from "@/lib/pricing";
-import { supplyLabel, suppliesOf, unitText } from "@/lib/supplies";
+import { suppliesOf } from "@/lib/supplies";
 import { Chip, FieldLabel, ServiceSlider } from "../kit-extensions";
 import { FocusHeader } from "../FocusHeader";
 import { ErrorNote } from "../ui";
 import { BasketFill, basketLabel } from "./BasketFill";
+import { SupplySlider } from "./SupplySlider";
 
 const KG_STEP = 0.5;
 const KG_MAX = 50;
@@ -199,10 +200,6 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
       { duration: 260, easing: "cubic-bezier(.2,.8,.2,1)" },
     );
   };
-  const toggleSupply = (id: string, qty: number) => setUsedQty((m) => {
-    if (id in m) { const { [id]: _drop, ...rest } = m; void _drop; return rest; }
-    return { ...m, [id]: String(qty) };
-  });
   const dismissCustomer = () => {
     setAddingCustomer(false);
     setPicked(null);
@@ -319,9 +316,9 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
               </div>
               <div ref={qtyField} className="flex min-w-0 flex-1 items-center justify-between gap-3">
                 <div className="flex min-w-0 flex-col items-start gap-1">
-                  <p id="qty-label" className="text-[13px] leading-none">
+                  <p id="qty-label" className="whitespace-nowrap text-[13px] leading-none">
                     <span className="font-semibold text-ink">{perKg ? "Weight" : perLoad ? "Loads" : "Pieces"}</span>
-                    <span className="font-semibold text-muted"> · {byPiece ? "Optional, priced per piece" : perKg ? `Min. ${catalog.minKg} kg` : perLoad ? `${money(service.priceCentavos)} per load` : "Per piece"}</span>
+                    <span className="font-semibold text-muted"> · {byPiece ? "Optional, priced per piece" : perKg ? `Min. ${catalog.minKg} kg` : perLoad ? `${money(service.priceCentavos)}/load` : "Per piece"}</span>
                   </p>
                   <label className="flex max-w-full cursor-text items-baseline gap-1">
                     {/* Auto-width: an invisible copy of the text sizes the grid cell, so the input hugs the digits. */}
@@ -442,24 +439,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
             open={openOptions === "addons"}
             onToggle={() => toggleOptions("addons")}
           >
-            {supplies.map((o) => (
-              <Chip key={o.id} selected={o.id in usedQty} onClick={() => toggleSupply(o.id, o.defaultQty)}>
-                <span className="whitespace-nowrap">{supplyLabel(o)}{o.payer === "customer" ? <span className="text-muted"> +{money(o.priceCentavos)}</span> : null}</span>
-              </Chip>
-            ))}
-            {pickedSupplies.length ? (
-              <div className="grid w-full gap-1.5 pt-1">
-                {pickedSupplies.map((o) => (
-                  <label key={o.id} className="flex items-center gap-2 text-[13.5px] font-semibold">
-                    <span className="min-w-0 flex-1 truncate">{supplyLabel(o)}</span>
-                    <input inputMode="decimal" aria-label={`${o.name} quantity`} value={usedQty[o.id] ?? ""}
-                      onChange={(e) => setUsedQty((m) => ({ ...m, [o.id]: e.target.value.replace(/[^\d.]/g, "").slice(0, 7) }))}
-                      className="h-9 w-20 rounded-[10px] border border-line bg-surface px-2 text-right tabular-nums focus-visible:outline-2 focus-visible:outline-ink" />
-                    <span className="w-12 text-muted">{unitText(o.unit, Number(usedQty[o.id]))}</span>
-                  </label>
-                ))}
-              </div>
-            ) : null}
+            <SupplySlider className="w-full" items={supplies} used={usedQty} onChange={setUsedQty} />
           </OptionDisclosure>
 
           <div className="lg:col-span-3">
