@@ -1,7 +1,7 @@
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 
-export const metadata = { title: "Profile" };
+export const metadata = { title: "Settings" };
 
 export default function ProfilePage() {
-  return <SettingsScreen title="Profile" />;
+  return <SettingsScreen title="Settings" />;
 }

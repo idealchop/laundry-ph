@@ -286,9 +286,9 @@ function LocationCard({ shops }: { shops: ReturnType<typeof useShopLocations> })
           })}
         </ul>
       ) : (
-        <p className="mt-2 text-[14.5px] font-semibold">Disabled. This phone stays on one shop.</p>
+        <p className="mt-2 text-[14.5px] font-semibold">One shop. Turn on multiple shops in Manage locations.</p>
       )}
-      <Button className="mt-4" href="/settings/shops" size="md" fullWidth variant="secondary">Manage shops</Button>
+      <Button className="mt-4" href="/settings/shops" size="md" fullWidth variant="secondary">Manage locations</Button>
     </section>
   );
 }

@@ -76,7 +76,7 @@ export function SalesScreen() {
             <span className="text-[13px] font-bold leading-none">My Staff</span>
           </button>
         </div>
-        <p className="mt-1 px-1 text-[12.5px] font-semibold text-muted">{shop.name}{loc.placeLabel ? ` · ${loc.placeLabel}` : ""} <SampleNote className="ml-1 align-middle" /></p>
+        <p className="mt-1 px-1 text-[12.5px] font-semibold text-muted">{loc.placeLabel ?? ""} <SampleNote className="ml-1 align-middle" /></p>
       </header>
 
       <div role="tablist" aria-label="Sales view" className="mt-3 grid grid-cols-2 rounded-pill bg-grey-100 p-1">
