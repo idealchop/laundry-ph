@@ -16,6 +16,7 @@ interface View {
   shopName: string; branchName: string; expiresAt: number; staffName: string | null; mineToday: number;
   services: { id: string; name: string; icon?: IconName; unit: "kg" | "pc" | "load"; priceCentavos: number }[];
   defaults: { serviceId: string; kg: number; pieces: number };
+  supplies?: { id: string; name: string; brand?: string; unit: "ml" | "pcs" | "load"; payer: "customer" | "shop"; priceCentavos: number; defaultQty: number }[];
   walkIns: { used: number; limit: number; left: number } | null;
   queue: { id: string; ref: string; status: OrderStatus; customer: string; detail: string; next: OrderStatus | null }[];
 }
@@ -31,6 +32,7 @@ export function LocationLinkScreen({ token }: { token: string }) {
   const [serviceId, setServiceId] = useState("");
   const [qty, setQty] = useState("6");
   const [busy, setBusy] = useState(false);
+  const [used, setUsed] = useState<Record<string, string>>({});
   const [note, setNote] = useState<string | null>(null);
   const [capHit, setCapHit] = useState<string | null>(null);
 
@@ -45,12 +47,12 @@ export function LocationLinkScreen({ token }: { token: string }) {
 
   async function add() {
     setBusy(true); setNote(null);
-    const r = await fetch(`/api/staff/${encodeURIComponent(token)}/walk-ins`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, serviceId, quantity: Number(qty) }) }).catch(() => null);
+    const r = await fetch(`/api/staff/${encodeURIComponent(token)}/walk-ins`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, serviceId, quantity: Number(qty), supplies: Object.entries(used).map(([id, q]) => ({ id, qty: Number(q) || 0 })) }) }).catch(() => null);
     const j = r ? await r.json().catch(() => ({})) : {};
     setBusy(false);
     if (r?.status === 402) { setCapHit(j.error); return; }
     if (!r?.ok) { setNote(j.error ?? "Could not add the walk-in."); return; }
-    setNote(`${j.ref} added to the queue.`); setName(""); void load();
+    setNote(`${j.ref} added to the queue.`); setName(""); setUsed({}); void load();
   }
   async function advance(id: string) {
     await fetch(`/api/staff/${encodeURIComponent(token)}/orders/${id}`, { method: "POST" }).catch(() => null);
@@ -108,6 +110,31 @@ export function LocationLinkScreen({ token }: { token: string }) {
               </div>
             ) : <Input size="md" label={svc?.unit === "pc" ? "Pieces" : "Kilos"} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />}
             {svc?.unit === "load" ? <p className="-mt-1 px-1 text-[13px] font-semibold text-muted">Total {money(Math.max(1, Math.round(Number(qty) || 1)) * svc.priceCentavos)}</p> : null}
+            {view.supplies?.length ? (
+              <div>
+                <span className="mb-1.5 block px-1 text-[13px] font-bold">Supplies &amp; add-ons</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {view.supplies.map((x) => {
+                    const on = x.id in used;
+                    return (
+                      <button key={x.id} type="button" aria-pressed={on}
+                        onClick={() => setUsed((m) => { if (on) { const n = { ...m }; delete n[x.id]; return n; } return { ...m, [x.id]: String(x.defaultQty) }; })}
+                        className={`min-h-10 rounded-full px-3 text-[13px] font-semibold ${on ? "bg-ink text-white" : "bg-grey-100 text-ink"}`}>
+                        {x.brand ? `${x.name} · ${x.brand}` : x.name}{x.payer === "customer" ? ` +${money(x.priceCentavos)}` : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+                {view.supplies.filter((x) => x.id in used).map((x) => (
+                  <label key={x.id} className="mt-1.5 flex items-center gap-2 px-1 text-[13px] font-semibold">
+                    <span className="min-w-0 flex-1 truncate">{x.name}</span>
+                    <input inputMode="decimal" aria-label={`${x.name} quantity`} value={used[x.id]} onChange={(e) => setUsed((m) => ({ ...m, [x.id]: e.target.value.replace(/[^\d.]/g, "").slice(0, 7) }))}
+                      className="h-9 w-20 rounded-[10px] border border-line bg-surface px-2 text-right tabular-nums" />
+                    <span className="w-12 text-muted">{x.unit === "load" ? "load" : x.unit}</span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
             <Input size="md" label="Customer name (optional)" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
             <Button type="submit" fullWidth disabled={busy || !serviceId}>{busy ? "Adding…" : "Add walk-in"}</Button>
             {note ? <p className="text-[13px] font-semibold" role="status">{note}</p> : null}

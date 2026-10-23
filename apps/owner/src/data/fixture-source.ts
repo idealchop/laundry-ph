@@ -1,4 +1,5 @@
 import { normUnit, withRush } from "@/lib/units";
+import { normSupply, supplyAddOns, applySupplyUse, withSupplies } from "@/lib/supplies";
 import { dayKey } from "@/lib/format";
 import { PARTNER_WALKINS_PER_DAY, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 /**
@@ -23,7 +24,7 @@ const store = {
   bookings: mergePublic(fx.sampleBookings()),
   customers: fx.customers.map((c) => ({ ...c })),
   shop: { ...fx.shop, address: fx.shop.address ? { ...fx.shop.address } : null, location: fx.shop.location ? { ...fx.shop.location } : null },
-  catalog: structuredClone(fx.catalog),
+  catalog: withSupplies(structuredClone(fx.catalog)),
   nextNo: 423,
   listeners: new Set<Listener>(),
 };
@@ -84,7 +85,7 @@ export function createFixtureDataSource(): LaundryDataSource {
     getMachines: async () => fx.machines,
     getPickupRequests: async () => fx.pickupRequests,
     getVerifiedBooking: async (ref) => (!ref || ref === fx.verifiedBooking.ref ? fx.verifiedBooking : null),
-    getCatalog: async () => structuredClone(store.catalog),
+    getCatalog: async () => withSupplies(structuredClone(store.catalog)),
     getWalkInsToday: async () => store.orders.filter((o) => o.source === "walk-in" && dayKey(o.createdAt) === dayKey(Date.now())).length,
     getGrowthTip: async () => fx.growthTip,
     async updateCatalog(next) {
@@ -100,7 +101,8 @@ export function createFixtureDataSource(): LaundryDataSource {
       const detergents = (next.detergents ?? []).map((o) => ({
         id: o.id, name: o.name.trim(), ...(o.short ? { short: o.short } : {}), priceCentavos: Math.max(0, Math.round(o.priceCentavos)), ...(o.icon ? { icon: o.icon } : {}),
       }));
-      const addOns = withRush(next.addOns ?? []).map((o) => ({
+      const supplies = (next.supplies ?? []).map(normSupply);
+      const addOns = (supplies.length ? supplyAddOns(supplies) : withRush(next.addOns ?? [])).map((o) => ({
         id: o.id, name: o.name.trim(), ...(o.short ? { short: o.short } : {}), priceCentavos: Math.max(0, Math.round(o.priceCentavos)), ...(o.icon ? { icon: o.icon } : {}),
       }));
       const defaults = {
@@ -109,6 +111,7 @@ export function createFixtureDataSource(): LaundryDataSource {
         detergentId: detergents.some((d) => d.id === next.defaults?.detergentId) ? next.defaults.detergentId : (detergents[0]?.id ?? ""),
       };
       store.catalog = {
+        ...(supplies.length ? { supplies } : {}),
         services,
         detergents,
         addOns,
@@ -153,7 +156,9 @@ export function createFixtureDataSource(): LaundryDataSource {
       const base = buildWalkInOrder(store.catalog, { ...input, branchId, customer: { ...input.customer, id: customerId } }, {
         shopId: fx.SAMPLE_SHOP_ID, ref, queueNo: store.nextNo - 400, ticketId: ref, now, sample: true,
       });
-      const order: Order = { ...base, id: `local-${ref}`, ...(booking ? { source: "river-mobile" as const, bookingId: booking.id } : {}) };
+      const use = applySupplyUse(store.catalog.supplies ?? [], input.supplies ?? []);
+      if (use.used.length) store.catalog = { ...store.catalog, supplies: use.supplies };
+      const order: Order = { ...base, ...(use.used.length ? { suppliesUsed: use.used } : {}), id: `local-${ref}`, ...(booking ? { source: "river-mobile" as const, bookingId: booking.id } : {}) };
       if (booking) {
         store.bookings = store.bookings.map((b) => (b.id === booking.id
           ? { ...b, status: "converted", orderId: order.id, statusTimes: { ...b.statusTimes, converted: now }, updatedAt: now }

@@ -213,6 +213,8 @@ export interface Order {
   /** Staff member whose link made this order (Performance ranks them). */
   staffId?: string;
   staffName?: string;
+  /** Supplies used on this order (stock deducted). */
+  suppliesUsed?: SupplyUse[];
   /** Owner note (Edit order). */
   notes?: string | null;
   /** Who changed this order's details, oldest first (server-written). */
@@ -225,6 +227,8 @@ export interface Order {
 }
 
 export interface NewWalkInOrder {
+  /** Supplies & Add-ons tapped at the counter (customer ones must also be in addOnIds). */
+  supplies?: { id: string; qty: number }[];
   customer: { id?: string | null; name: string; phone?: string };
   serviceId: string;
   quantity: number;
@@ -377,7 +381,31 @@ export interface ReturnSlot {
   id: string;
   label: string;
 }
+export type SupplyUnit = "ml" | "pcs" | "load";
+export type SupplyCategory = "Detergent" | "Fabcon" | "Bleach" | "Service" | "Other";
+/** One merged "Supplies & Add-ons" item. Customer = paid add-on; Shop = free, stock deduction only. */
+export interface Supply {
+  id: string;
+  name: string;
+  brand?: string;
+  unit: SupplyUnit;
+  category: SupplyCategory;
+  payer: "customer" | "shop";
+  /** Customer items: added to the total once per order. */
+  priceCentavos: Centavos;
+  /** Prefilled quantity each time it's used on an order. */
+  defaultQty: number;
+  /** Stock on hand in `unit`. */
+  stock: number;
+  /** "Low" tag at or under this (default: 5 uses). */
+  lowAt?: number;
+}
+/** Supplies used on one order (server-written). */
+export interface SupplyUse { id: string; name: string; qty: number; unit: SupplyUnit; payer: "customer" | "shop" }
+
 export interface Catalog {
+  /** Supplies & Add-ons (replaces the detergent and add-on lists in Setup and on Walk-in). */
+  supplies?: Supply[];
   services: CatalogService[];
   detergents: CatalogOption[];
   addOns: CatalogOption[];

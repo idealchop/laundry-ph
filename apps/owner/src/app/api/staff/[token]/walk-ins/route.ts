@@ -16,7 +16,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   if (!serviceId || !Number.isFinite(quantity) || quantity <= 0 || quantity > 200) return NextResponse.json({ error: "Pick a service and enter the kilos or pieces.", code: "invalid_request" }, { status: 400 });
   try {
     const link = await resolveLink((await params).token);
-    return NextResponse.json(await staffWalkIn(link, { serviceId, quantity, name: typeof b.name === "string" ? b.name : "" }), { status: 201 });
+    return NextResponse.json(await staffWalkIn(link, { serviceId, quantity, name: typeof b.name === "string" ? b.name : "", supplies: (Array.isArray(b.supplies) ? b.supplies : []).slice(0, 30).map((i: { id?: unknown; qty?: unknown }) => ({ id: String(i?.id ?? "").slice(0, 60), qty: Math.max(0, Math.min(100_000, Number(i?.qty) || 0)) })).filter((i: { id: string }) => i.id) }), { status: 201 });
   } catch (e) {
     if (e instanceof StaffError) return NextResponse.json({ error: e.message, code: errorCode(e.status) }, { status: e.status });
     logApiError("POST /api/staff/walk-ins", e);

@@ -17,6 +17,7 @@
  *   public_tickets/{ticketId}                PublicTicket projection (no phone / address), get-only for the public
  */
 import { normUnit, withRush } from "@/lib/units";
+import { normSupply, supplyAddOns, withSupplies } from "@/lib/supplies";
 import { normalizeClothesTypes, REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import {
   Timestamp, collection, deleteField, doc, getDoc, getDocs, increment, limit, onSnapshot, orderBy, query, runTransaction,
@@ -70,6 +71,7 @@ function toOrder(snap: DocumentSnapshot): Order {
   const createdAt = ms(d.createdAt) ?? 0;
   return {
     id: snap.id,
+    ...(Array.isArray(d.suppliesUsed) ? { suppliesUsed: d.suppliesUsed } : {}),
     shopId: String(d.shopId ?? ""),
     ref: String(d.ref ?? snap.id),
     queueNo: num(d.queueNo),
@@ -196,6 +198,10 @@ function toCustomer(snap: DocumentSnapshot): Customer {
 }
 
 function normCatalog(d: DocumentData): Catalog {
+  return withSupplies({ ...normCatalogRaw(d), ...(Array.isArray(d.supplies) ? { supplies: d.supplies } : {}) });
+}
+
+function normCatalogRaw(d: DocumentData): Catalog {
   const opt = (o: DocumentData): CatalogOption => ({ ...(o as CatalogOption), priceCentavos: cents(o, "priceCentavos", "price") });
   return {
     services: (d.services ?? []).map((s: DocumentData) => ({ ...(s as CatalogService), unit: normUnit(s.unit), priceCentavos: cents(s, "priceCentavos", "price") })),
@@ -413,7 +419,7 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
       const uid = requireUid();
       const [shop, catalog] = await Promise.all([shopCache ?? getShop(), catalogCache ?? getCatalog()]);
       const database = db();
-      return runTransaction(database, async (tx) => {
+      const created = await runTransaction(database, async (tx) => {
         const countersRef = metaRef("counters");
         const counters = await tx.get(countersRef);
         // Partner: 10 walk-ins per Manila day. The rules check the same counter doc, so no client can skip it.
@@ -477,6 +483,20 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         tx.set(doc(database, "public_tickets", ticketId), { ...ticketDoc(toPublicTicket(order, shop)), stageTimes: { received: serverTimestamp() } });
         return order;
       });
+      // Supplies used: stock deduction runs server-side (rules block new order fields). Never fails the order.
+      if (input.supplies?.length) {
+        try {
+          const user = getFirebaseAuth().currentUser;
+          const res = user ? await fetch("/api/shop/supplies/use", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}` },
+            body: JSON.stringify({ shopId, orderId: created.id, items: input.supplies }),
+          }) : null;
+          const j = res?.ok ? await res.json() : null;
+          if (Array.isArray(j?.used)) return { ...created, suppliesUsed: j.used };
+        } catch { /* stock is best-effort */ }
+      }
+      return created;
     },
 
     async setOrderStatus(orderId, status) {
@@ -655,7 +675,8 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         priceCentavos: Math.max(0, Math.round(Number(o.priceCentavos) || 0)),
         ...(o.icon ? { icon: o.icon } : {}),
       }));
-      const addOns = withRush(next.addOns ?? []).map((o) => ({
+      const supplies = (next.supplies ?? []).map(normSupply);
+      const addOns = (supplies.length ? supplyAddOns(supplies) : withRush(next.addOns ?? [])).map((o) => ({
         id: o.id,
         name: String(o.name || "").trim(),
         ...(o.short ? { short: o.short } : {}),
@@ -678,6 +699,7 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         services,
         detergents,
         addOns,
+        ...(supplies.length ? { supplies } : {}),
         clothesTypes,
         minKg: Math.max(0, Number(next.minKg) || 0),
         returnSlots,

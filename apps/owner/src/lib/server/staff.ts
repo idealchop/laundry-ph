@@ -13,6 +13,7 @@ import { ORDER_FLOW } from "@/data/types";
 import { PARTNER_WALKINS_PER_DAY, walkInLimit, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 import { adminDb } from "./admin";
 import { normUnit, withRush } from "@/lib/units";
+import { applySupplyUse, withSupplies } from "@/lib/supplies";
 import { auditInTx } from "./audit";
 
 /** Same switch the rules read: config/flags.allFeaturesUnlocked in this database (cached 60 s). */
@@ -34,6 +35,10 @@ const ms = (v: unknown) => (v instanceof Timestamp ? v.toMillis() : typeof v ===
 const strip = <T extends Record<string, unknown>>(o: T) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
 
 function normCatalog(d: DocumentData): Catalog {
+  return withSupplies({ ...normCatalogRaw(d), ...(Array.isArray(d.supplies) ? { supplies: d.supplies } : {}) });
+}
+
+function normCatalogRaw(d: DocumentData): Catalog {
   const opt = (o: DocumentData): CatalogOption => ({ ...(o as CatalogOption), priceCentavos: cents(o, "priceCentavos") });
   return {
     services: (d.services ?? []).map((s: DocumentData) => ({ ...(s as CatalogService), unit: normUnit(s.unit), priceCentavos: cents(s, "priceCentavos") })),
@@ -96,12 +101,13 @@ export async function staffView(link: StaffLink) {
     staffName: link.staffName ?? null, mineToday,
     services: cat.services.map((s) => ({ id: s.id, name: s.name, icon: s.icon, unit: s.unit, priceCentavos: s.priceCentavos })),
     defaults: cat.defaults,
+    supplies: (cat.supplies ?? []).map((s) => ({ id: s.id, name: s.name, brand: s.brand, unit: s.unit, payer: s.payer, priceCentavos: s.priceCentavos, defaultQty: s.defaultQty })),
     walkIns: Number.isFinite(limit) ? { used, limit: PARTNER_WALKINS_PER_DAY, left: Math.max(0, PARTNER_WALKINS_PER_DAY - used) } : null,
     queue,
   };
 }
 
-export interface StaffWalkInInput { name?: string; serviceId: string; quantity: number }
+export interface StaffWalkInInput { name?: string; serviceId: string; quantity: number; supplies?: { id: string; qty: number }[] }
 
 /** Create a walk-in order for the link's shop + branch. Same counter and cap as the owner app. */
 export async function staffWalkIn(link: StaffLink, input: StaffWalkInInput) {
@@ -123,16 +129,22 @@ export async function staffWalkIn(link: StaffLink, input: StaffWalkInInput) {
     const refCode = formatRef(no);
     const ticketId = makeTicketId(refCode);
     const now = Date.now();
+    const use = applySupplyUse(catalog.supplies ?? [], input.supplies ?? []);
+    const paidIds = use.used.filter((u) => u.payer === "customer").map((u) => u.id);
     let built: Omit<Order, "id">;
     try {
       built = buildWalkInOrder(catalog, {
         customer: { id: null, name: (input.name ?? "").trim().slice(0, 60) },
         serviceId: input.serviceId, quantity: input.quantity,
-        detergentId: catalog.defaults.detergentId || catalog.detergents[0]?.id || "", addOnIds: [],
+        detergentId: catalog.defaults.detergentId || catalog.detergents[0]?.id || "", addOnIds: paidIds,
         returnSlotId: catalog.defaults.returnSlotId || catalog.returnSlots[0]?.id || "",
         branchId: link.branchId === "home" ? undefined : link.branchId,
       }, { shopId: link.shopId, ref: refCode, queueNo, ticketId, uid: actorOf(link), now, sample: shop.sample === true });
     } catch (e) { throw new StaffError(400, (e as Error).message); }
+    if (use.used.length) {
+      built = { ...built, suppliesUsed: use.used };
+      tx.set(ref.collection("meta").doc("catalog"), { supplies: use.supplies, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    }
     const order: Order = { ...built, id: orderRef.id };
     tx.set(ref.collection("meta").doc("counters"), { nextTicketNo: no + 1, queueDate: day, queueNo, updatedAt: FieldValue.serverTimestamp() });
     tx.set(ref.collection("usage").doc(day), { walkIns: used + 1, updatedAt: FieldValue.serverTimestamp() });

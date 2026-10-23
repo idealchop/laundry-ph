@@ -5,7 +5,8 @@ import { Card, Input } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
 import { ChevronRight, Plus } from "lucide-react";
 import { useState } from "react";
-import type { CatalogService, ClothesPricing, ClothesType } from "@/data";
+import type { CatalogService, ClothesPricing, ClothesType, Supply } from "@/data";
+import { isLow, SUPPLY_CATEGORIES, SUPPLY_UNITS, supplyLabel, unitText } from "@/lib/supplies";
 import { REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import { money } from "@/lib/format";
 import { EditSheet, Segmented, Toggle } from "./EditSheet";
@@ -34,13 +35,16 @@ export function clothesPriceText(t: Pick<ClothesType, "pricing" | "priceCentavos
 
 /* ---------- shared row + list chrome ---------- */
 
-function Row({ icon, name, price, onOpen, trailing, dim }: { icon: IconName; name: string; price: string; onOpen: () => void; trailing?: React.ReactNode; dim?: boolean }) {
+function Row({ icon, name, price, onOpen, trailing, dim, tag, sub }: { icon: IconName; name: string; price: string; onOpen: () => void; trailing?: React.ReactNode; dim?: boolean; tag?: string; sub?: string }) {
   return (
     <li className="flex items-center gap-1 border-b border-line last:border-b-0">
       <button type="button" onClick={onOpen} aria-label={`Edit ${name}, ${price}`}
         className={`-ml-1 flex min-h-[60px] min-w-0 flex-1 items-center gap-3 rounded-[12px] px-1 py-2 text-left transition-[opacity,background-color] hover:bg-grey-50 focus-visible:outline-2 focus-visible:outline-ink ${dim ? "opacity-55" : ""}`}>
         <span className="inline-flex size-10 flex-none items-center justify-center rounded-tile bg-grey-100"><Icon3D name={icon} size={28} /></span>
-        <b className="min-w-0 flex-1 truncate text-[15px] font-bold">{name}</b>
+        <span className="min-w-0 flex-1">
+          <b className="block truncate text-[15px] font-bold">{name}</b>
+          {sub ? <span className="block truncate text-[12.5px] font-medium text-muted">{sub}{tag ? <span className="ml-1.5 rounded-full bg-[#FFF1E6] px-1.5 py-px text-[11px] font-bold text-[#B54708]">{tag}</span> : null}</span> : null}
+        </span>
         <span className="flex-none text-[13.5px] font-semibold tabular-nums text-muted">{price}</span>
         {trailing ? null : <ChevronRight size={18} strokeWidth={1.9} className="flex-none text-subtle" aria-hidden />}
       </button>
@@ -199,6 +203,69 @@ export function ClothesTypeList({ types, disabled, busy, error, onSave, onRemove
               <Input size="md" label={priceLabel} inputMode="decimal" value={pesosFromCentavos(v.priceCentavos)}
                 onChange={(e) => setEdit((x) => (x ? { ...x, value: { ...x.value, priceCentavos: centavosFromPesos(e.target.value) } } : x))} />
             ) : null}
+          </form>
+        </EditSheet>
+      ) : null}
+    </>
+  );
+}
+
+/* ---------- Supplies & Add-ons ---------- */
+
+const SUPPLY_ICON: Record<Supply["category"], IconName> = { Detergent: "detergent", Fabcon: "drop", Bleach: "bubbles", Service: "sparkle", Other: "basket" };
+const numText = (n: number) => (Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100));
+const numFrom = (raw: string) => { const n = Number(String(raw).replace(/,/g, "")); return Number.isFinite(n) ? n : 0; };
+
+export function SuppliesList({ supplies, disabled, busy, error, onSave, onRemove }: {
+  supplies: Supply[];
+  disabled?: boolean;
+  busy?: boolean;
+  error?: string | null;
+  onSave: (s: Supply) => Promise<boolean>;
+  onRemove: (id: string) => Promise<boolean>;
+}) {
+  const [edit, setEdit] = useState<{ mode: "edit" | "add"; value: Supply } | null>(null);
+  const open = (value: Supply, mode: "edit" | "add" = "edit") => !disabled && setEdit({ mode, value: { ...value } });
+  const set = (patch: Partial<Supply>) => setEdit((e) => (e ? { ...e, value: { ...e.value, ...patch } } : e));
+  const v = edit?.value;
+  return (
+    <>
+      <ListCard addLabel="Add item" disabled={disabled}
+        onAdd={() => open({ id: `sup-${Date.now().toString(36)}`, name: "", unit: "ml", category: "Other", payer: "shop", priceCentavos: 0, defaultQty: 1, stock: 0 }, "add")}>
+        {supplies.map((s) => (
+          <Row key={s.id} icon={SUPPLY_ICON[s.category]} name={supplyLabel(s)}
+            sub={s.category === "Service" ? s.category : `${numText(s.stock)} ${unitText(s.unit, s.stock)} left`}
+            tag={isLow(s) ? "Low" : undefined}
+            price={s.payer === "customer" ? `+${money(s.priceCentavos)}` : "Shop"} onOpen={() => open(s)} />
+        ))}
+      </ListCard>
+      {edit && v ? (
+        <EditSheet title={edit.mode === "add" ? "Add item" : "Edit item"} onClose={() => setEdit(null)}
+          footer={<SheetFooter canSave={v.name.trim().length >= 2} busy={busy} error={error} removeLabel="Remove item"
+            onSave={async () => { if (await onSave({ ...v, name: v.name.trim(), brand: v.brand?.trim() || undefined })) setEdit(null); }}
+            onRemove={edit.mode === "edit" ? async () => { if (await onRemove(v.id)) setEdit(null); } : undefined} />}>
+          <form id="catalog-sheet-form" className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()}>
+            <div className="grid grid-cols-2 gap-2">
+              <Input size="md" label="Name" value={v.name} maxLength={40} placeholder="e.g. Fabcon" onChange={(e) => set({ name: e.target.value })} />
+              <Input size="md" label="Brand" value={v.brand ?? ""} maxLength={40} placeholder="e.g. Downy" onChange={(e) => set({ brand: e.target.value })} />
+            </div>
+            <div><span className={fieldLabel}>Category</span>
+              <Segmented label="Category" value={v.category} onChange={(category) => set({ category })} options={SUPPLY_CATEGORIES.map((c) => ({ value: c, label: c }))} />
+            </div>
+            <div><span className={fieldLabel}>Who pays</span>
+              <Segmented label="Who pays" value={v.payer} onChange={(payer) => set({ payer })} options={[{ value: "customer", label: "Customer" }, { value: "shop", label: "Shop" }]} />
+              <p className="mt-1.5 text-[12.5px] font-medium text-muted">{v.payer === "customer" ? "Paid add-on, added to the order total." : "Free to the customer, only deducts stock."}</p>
+            </div>
+            {v.payer === "customer" ? (
+              <Input size="md" label="Price (₱)" inputMode="decimal" value={pesosFromCentavos(v.priceCentavos)} onChange={(e) => set({ priceCentavos: centavosFromPesos(e.target.value) })} />
+            ) : null}
+            <div><span className={fieldLabel}>Unit</span>
+              <Segmented label="Unit" value={v.unit} onChange={(unit) => set({ unit })} options={SUPPLY_UNITS} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Input size="md" label={`Per order (${unitText(v.unit)})`} inputMode="decimal" value={numText(v.defaultQty)} onChange={(e) => set({ defaultQty: Math.max(0, numFrom(e.target.value)) })} />
+              <Input size="md" label={`In stock (${unitText(v.unit)})`} inputMode="decimal" value={numText(v.stock)} onChange={(e) => set({ stock: numFrom(e.target.value) })} />
+            </div>
           </form>
         </EditSheet>
       ) : null}

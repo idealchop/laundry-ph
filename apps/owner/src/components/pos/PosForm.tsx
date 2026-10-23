@@ -10,6 +10,7 @@ import { CLOTHES_PRICING_LABEL, pieceLabel, REGULAR_CLOTHES_ID } from "@/lib/clo
 import { money } from "@/lib/format";
 import { parseCustomerText } from "@/lib/orders";
 import { quote } from "@/lib/pricing";
+import { supplyLabel, suppliesOf, unitText } from "@/lib/supplies";
 import { Chip, FieldLabel, ServiceSlider } from "../kit-extensions";
 import { FocusHeader } from "../FocusHeader";
 import { ErrorNote } from "../ui";
@@ -93,7 +94,10 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   const [qtyText, setQtyText] = useState<string | null>(null);
   const [detergentId, setDetergentId] = useState(() => defaultDetergentId(catalog));
   /** POS starts with no add-ons; the counter picks them per order. */
-  const [addOnIds, setAddOnIds] = useState<string[]>([]);
+  const supplies = useMemo(() => suppliesOf(catalog), [catalog]);
+  /** Supplies & add-ons tapped for this order → quantity used. */
+  const [usedQty, setUsedQty] = useState<Record<string, string>>({});
+  const addOnIds = useMemo(() => supplies.filter((x) => x.payer === "customer" && x.id in usedQty).map((x) => x.id), [supplies, usedQty]);
   const [returnSlotId, setReturnSlotId] = useState(d.returnSlotId);
   const [fulfillment, setFulfillment] = useState<Fulfillment>(booking?.fulfillment ?? "pickup");
   const [clothesTypeId, setClothesTypeId] = useState(REGULAR_CLOTHES_ID);
@@ -134,6 +138,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   const roundingCentavos = q.totalCentavos > 0 ? q.totalCentavos - q.subtotalCentavos : 0;
   const returnLabel = catalog.returnSlots.find((r) => r.id === returnSlotId)?.label ?? "";
   const detergent = catalog.detergents.find((o) => o.id === detergentId);
+  const pickedSupplies = supplies.filter((o) => o.id in usedQty);
   const pickedAddOns = catalog.addOns.filter((o) => addOnIds.includes(o.id));
   const addOnsCentavos = pickedAddOns.reduce((sum, o) => sum + o.priceCentavos, 0);
   const toggleOptions = (which: "clothes" | "detergent" | "addons") => setOpenOptions((v) => (v === which ? null : which));
@@ -155,6 +160,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
       const order = await onCreate({
         customer: { id: picked?.id ?? null, name: parsed.name, ...(parsed.phone ? { phone: parsed.phone } : {}) },
         serviceId, quantity, detergentId, addOnIds, returnSlotId, fulfillment,
+        ...(pickedSupplies.length ? { supplies: pickedSupplies.map((x) => ({ id: x.id, qty: Math.max(0, Number(usedQty[x.id]) || 0) })) } : {}),
         ...(appliedType ? { clothesTypeId: appliedType.id, ...(byPiece ? { typePieces } : {}) } : {}),
         ...(booking ? { bookingId: booking.id } : {}),
       });
@@ -193,7 +199,10 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
       { duration: 260, easing: "cubic-bezier(.2,.8,.2,1)" },
     );
   };
-  const toggleAddOn = (id: string) => setAddOnIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  const toggleSupply = (id: string, qty: number) => setUsedQty((m) => {
+    if (id in m) { const { [id]: _drop, ...rest } = m; void _drop; return rest; }
+    return { ...m, [id]: String(qty) };
+  });
   const dismissCustomer = () => {
     setAddingCustomer(false);
     setPicked(null);
@@ -201,7 +210,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   };
   const reset = () => {
     setCustomer(""); setPicked(null); setAddingCustomer(false); setServiceId(d.serviceId); setKg(d.kg); setPieces(d.pieces); setLoads(1); setDetergentId(defaultDetergentId(catalog));
-    setAddOnIds([]); setClothesTypeId(REGULAR_CLOTHES_ID); setTypePieces(1); setReturnSlotId(d.returnSlotId); setFulfillment("pickup"); setOpenOptions(null); setPickingReturn(false); setCreated(null); setQtyText(null); setError(null); setCopied(false); setShowBreakdown(false);
+    setUsedQty({}); setClothesTypeId(REGULAR_CLOTHES_ID); setTypePieces(1); setReturnSlotId(d.returnSlotId); setFulfillment("pickup"); setOpenOptions(null); setPickingReturn(false); setCreated(null); setQtyText(null); setError(null); setCopied(false); setShowBreakdown(false);
   };
 
   if (created) {
@@ -405,7 +414,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
             </div>
           ) : null}
 
-          <OptionDisclosure
+          {catalog.detergents.length ? <OptionDisclosure
             id={detId}
             label="Detergent"
             summary={detergent ? (detergent.short ?? detergent.name) : "None"}
@@ -423,26 +432,34 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
                 <span className="whitespace-nowrap">{o.short ?? o.name}{o.priceCentavos > 0 ? <span className="text-muted"> +{money(o.priceCentavos)}</span> : null}</span>
               </Chip>
             ))}
-          </OptionDisclosure>
+          </OptionDisclosure> : null}
 
-          <OptionDisclosure
+<OptionDisclosure
             id={addId}
-            label="Add-ons"
-            summary={pickedAddOns.length === 0 ? "None" : pickedAddOns.length <= 2 ? pickedAddOns.map((o) => o.name).join(", ") : `${pickedAddOns.length} selected`}
-            aside={addOnsCentavos > 0 ? `+${money(addOnsCentavos)}` : "Optional"}
+            label="Supplies & add-ons"
+            summary={pickedSupplies.length === 0 ? "None" : pickedSupplies.length <= 2 ? pickedSupplies.map((o) => o.name).join(", ") : `${pickedSupplies.length} used`}
+            aside={addOnsCentavos > 0 ? `+${money(addOnsCentavos)}` : undefined}
             open={openOptions === "addons"}
             onToggle={() => toggleOptions("addons")}
           >
-            {catalog.addOns.map((o) => (
-              <Chip
-                key={o.id}
-                selected={addOnIds.includes(o.id)}
-                onClick={() => toggleAddOn(o.id)}
-                icon={o.icon ? <Icon3D name={o.icon} size={24} /> : undefined}
-              >
-                <span className="whitespace-nowrap">{o.name} <span className="text-muted">+{money(o.priceCentavos)}</span></span>
+            {supplies.map((o) => (
+              <Chip key={o.id} selected={o.id in usedQty} onClick={() => toggleSupply(o.id, o.defaultQty)}>
+                <span className="whitespace-nowrap">{supplyLabel(o)}{o.payer === "customer" ? <span className="text-muted"> +{money(o.priceCentavos)}</span> : null}</span>
               </Chip>
             ))}
+            {pickedSupplies.length ? (
+              <div className="grid w-full gap-1.5 pt-1">
+                {pickedSupplies.map((o) => (
+                  <label key={o.id} className="flex items-center gap-2 text-[13.5px] font-semibold">
+                    <span className="min-w-0 flex-1 truncate">{supplyLabel(o)}</span>
+                    <input inputMode="decimal" aria-label={`${o.name} quantity`} value={usedQty[o.id] ?? ""}
+                      onChange={(e) => setUsedQty((m) => ({ ...m, [o.id]: e.target.value.replace(/[^\d.]/g, "").slice(0, 7) }))}
+                      className="h-9 w-20 rounded-[10px] border border-line bg-surface px-2 text-right tabular-nums focus-visible:outline-2 focus-visible:outline-ink" />
+                    <span className="w-12 text-muted">{unitText(o.unit, Number(usedQty[o.id]))}</span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
           </OptionDisclosure>
 
           <div className="lg:col-span-3">

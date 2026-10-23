@@ -1,25 +1,21 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import { FormSkeleton } from "@/components/common/Skeleton";
 import { useState } from "react";
 import { Card, Input } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
-import type { Catalog, CatalogOption } from "@/data";
+import type { Catalog } from "@/data";
 import { DEFAULT_CLOTHES_TYPES } from "@/lib/clothes";
 import { catalog as defaultCatalog } from "@/data/fixtures";
 import { FocusHeader } from "@/components/FocusHeader";
 import { useAction, useShop, useShopQuery } from "@/lib/shop";
 import { ErrorNote } from "../ui";
-import { centavosFromPesos, ClothesTypeList, pesosFromCentavos, ServiceList } from "./CatalogLists";
+import { ClothesTypeList, ServiceList, SuppliesList } from "./CatalogLists";
+import { suppliesOf } from "@/lib/supplies";
 
 function cloneCatalog(c: Catalog): Catalog {
   const next = structuredClone(c);
   return next.clothesTypes?.length ? next : { ...next, clothesTypes: structuredClone(DEFAULT_CLOTHES_TYPES) };
-}
-
-function newOption(prefix: string): CatalogOption {
-  return { id: `${prefix}-${Date.now()}`, name: "New item", priceCentavos: 0 };
 }
 
 /** Full-screen catalog editor — services, detergents, add-ons used by walk-in POS. */
@@ -60,16 +56,6 @@ export function ServicesScreen() {
     }, "Sign in to save your price list.");
     if (ok) setSaved(true);
     return Boolean(ok);
-  }
-
-  function patchOption(kind: "detergents" | "addOns", id: string, patch: Partial<CatalogOption>) {
-    setDraft((d) => {
-      const base = d ?? cloneCatalog(catalog);
-      return {
-        ...base,
-        [kind]: base[kind].map((o) => (o.id === id ? { ...o, ...patch } : o)),
-      };
-    });
   }
 
   if (q.loading && !draft) return <FormSkeleton />;
@@ -130,60 +116,15 @@ export function ServicesScreen() {
             onRemove={(id) => persist((c) => ({ ...c, clothesTypes: c.clothesTypes.filter((x) => x.id !== id) }))} />
         </section>
 
-        <section>
-          <b className="mb-2 block text-[16px]">Detergents</b>
-          <ul className="grid gap-2">
-            {catalog.detergents.map((o) => (
-              <OptionRow
-                key={o.id}
-                option={o}
-                disabled={readOnly || busy}
-                onChange={(patch) => patchOption("detergents", o.id, patch)}
-              />
-            ))}
-          </ul>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="mt-2"
-            disabled={readOnly || busy}
-            leadingIcon={<Plus size={16} />}
-            onClick={() => setDraft((d) => {
-              const base = d ?? cloneCatalog(catalog);
-              return { ...base, detergents: [...base.detergents, newOption("det")] };
+        <section aria-labelledby="supplies-h">
+          <b id="supplies-h" className="block text-[16px]">Supplies &amp; Add-ons</b>
+          <p className="mb-2 mt-0.5 text-[12.5px] font-medium text-muted">Tapped at Walk-in. Customer items add to the total; shop items just use stock.</p>
+          <SuppliesList supplies={suppliesOf(catalog)} disabled={readOnly} busy={busy} error={error}
+            onSave={(it) => persist((c) => {
+              const list = suppliesOf(c);
+              return { ...c, supplies: list.some((x) => x.id === it.id) ? list.map((x) => (x.id === it.id ? it : x)) : [...list, it] };
             })}
-          >
-            Add detergent
-          </Button>
-        </section>
-
-        <section>
-          <b className="mb-2 block text-[16px]">Add-ons</b>
-          <ul className="grid gap-2">
-            {catalog.addOns.map((o) => (
-              <OptionRow
-                key={o.id}
-                option={o}
-                disabled={readOnly || busy}
-                onChange={(patch) => patchOption("addOns", o.id, patch)}
-              />
-            ))}
-          </ul>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="mt-2"
-            disabled={readOnly || busy}
-            leadingIcon={<Plus size={16} />}
-            onClick={() => setDraft((d) => {
-              const base = d ?? cloneCatalog(catalog);
-              return { ...base, addOns: [...base.addOns, newOption("addon")] };
-            })}
-          >
-            Add add-on
-          </Button>
+            onRemove={(id) => persist((c) => ({ ...c, supplies: suppliesOf(c).filter((x) => x.id !== id) }))} />
         </section>
 
         <Card className="px-4 py-3.5">
@@ -214,38 +155,3 @@ export function ServicesScreen() {
     </>
   );
 }
-
-function OptionRow({
-  option,
-  disabled,
-  onChange,
-}: {
-  option: CatalogOption;
-  disabled?: boolean;
-  onChange: (patch: Partial<CatalogOption>) => void;
-}) {
-  return (
-    <li className="rounded-tile border border-line bg-surface px-3 py-2.5">
-      <div className="grid grid-cols-[1fr_7rem] gap-2">
-        <Input
-          size="md"
-          label="Name"
-          hideLabel
-          value={option.name}
-          disabled={disabled}
-          onChange={(e) => onChange({ name: e.target.value })}
-        />
-        <Input
-          size="md"
-          label="₱"
-          hideLabel
-          inputMode="decimal"
-          value={pesosFromCentavos(option.priceCentavos)}
-          disabled={disabled}
-          onChange={(e) => onChange({ priceCentavos: centavosFromPesos(e.target.value) })}
-        />
-      </div>
-    </li>
-  );
-}
-
