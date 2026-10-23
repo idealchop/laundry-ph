@@ -132,7 +132,7 @@ export function LocationLinkScreen({ token }: { token: string }) {
 
       {installHidden ? null : (
         <button type="button" onClick={() => setInstall(true)} className="mt-4 flex w-full items-center gap-3 rounded-card bg-surface px-4 py-3 text-left shadow-card">
-          <RiverIcon name="home" size={32} />
+          <RiverIcon name="install" size={32} />
           <span className="min-w-0 flex-1"><b className="block text-[14.5px]">Install app</b><small className="block text-[12.5px] font-semibold text-muted">Open this counter from your home screen</small></span>
         </button>
       )}

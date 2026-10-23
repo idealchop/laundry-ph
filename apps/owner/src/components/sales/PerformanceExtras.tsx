@@ -1,4 +1,5 @@
 "use client";
+import { RiverIcon } from "@/components/common/RiverIcon";
 
 import { cn } from "@river-apps/ui";
 import { ChevronDown, Plus, X } from "lucide-react";
@@ -19,7 +20,7 @@ export function ProfitLine({ sales, costs, partial }: { sales: number; costs: nu
   );
   return (
     <section className="rounded-card bg-surface px-4 py-4 shadow-card">
-      <h2 className="text-[16px] font-bold">Profit</h2>
+      <h2 className="flex items-center gap-2 text-[16px] font-bold"><RiverIcon name="cash" size={24} />Profit</h2>
       <div className="mt-3 grid grid-cols-3 gap-2">
         {box("Sales", money(sales))}
         {box(partial ? "Costs*" : "Costs", money(costs))}
@@ -33,7 +34,7 @@ export function SuppliesUsed({ rows }: { rows: SupplyUsageRow[] }) {
   const [open, setOpen] = useState<string | null>(null);
   return (
     <section className="mt-3 rounded-card bg-surface shadow-card">
-      <h2 className="px-4 pt-4 text-[16px] font-bold">Supplies</h2>
+      <h2 className="flex items-center gap-2 px-4 pt-4 text-[16px] font-bold"><RiverIcon name="supplies" size={24} />Supplies</h2>
       {rows.length ? (
         <ul className="mt-1">
           {rows.map((r) => {
@@ -90,7 +91,7 @@ export function Expenses({ items, canEdit, busy, error, onAdd, onRemove }: {
   return (
     <section className="mt-3 rounded-card bg-surface shadow-card">
       <div className="flex items-center gap-2 px-4 pt-3">
-        <h2 className="flex-1 text-[16px] font-bold">Expenses</h2>
+        <h2 className="flex flex-1 items-center gap-2 text-[16px] font-bold"><RiverIcon name="expenses" size={24} />Expenses</h2>
         <b className="tabular-nums text-[14px]">{money(total)}</b>
         {canEdit ? (
           <button type="button" aria-label={adding ? "Close" : "Add expense"} onClick={() => setAdding(!adding)}

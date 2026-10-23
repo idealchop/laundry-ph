@@ -1,6 +1,6 @@
 {
   "name": "@laundry-ph/owner",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Laundry.ph owner app (Partner + Paid): Next.js App Router UI on the River Apps UI Kit, backed by Firestore (laundrydb / laundrydb-dev) with an in-memory demo fallback.",
   "license": "UNLICENSED",

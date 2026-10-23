@@ -26,8 +26,23 @@ export function renderMarkup(markup: string, prefix: string): string {
 }
 
 /** Low-level renderer for any generated graphic by name. */
+/** Laundry.ph River 3D set (apps/owner/public/icons3d/laundry): webp 128 up to 64px on screen, 256 above. */
+const LAUNDRY_3D: Partial<Record<string, string>> = {
+  washer: "washer", dryer: "dryer", folded: "folded", basket: "basket", detergent: "detergent", iron: "iron",
+  ewallet: "wallet", coin: "cash", sparkle: "moments", bubbles: "washer", drop: "bleach", check: "folded", chat: "moments",
+};
+
 export function Graphic({ name, size = 40, title, style, ...rest }: GraphicProps & { name: GraphicName }) {
   const prefix = useGraphicPrefix();
+  const l = LAUNDRY_3D[name];
+  if (l) {
+    const { className } = rest as { className?: string };
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={`/icons3d/laundry/${Number(size) > 64 ? 256 : 128}/${l}.webp`} alt={title ?? ""} aria-hidden={title ? undefined : true} width={size} height={size} draggable={false}
+        className={className} style={{ display: "block", flex: "none", width: size, height: size, objectFit: "contain", ...style }} />
+    );
+  }
   const g = RAW[name];
   const [, , w, h] = g.viewBox.split(" ").map(Number) as [number, number, number, number];
   const square = w === h;

@@ -1,0 +1,331 @@
+{
+  "name": "laundry-ph-3d-icons",
+  "version": "1.0.0",
+  "app": "Laundry.ph",
+  "style": "River 3D glossy soft plastic (River UI kit docs/icons/ICON-STYLE.md), top-left light, soft contact shadow, transparent background",
+  "palette": {
+    "blue": "#2F8CF0",
+    "orange": "#F57C1F",
+    "green": "#4CB860",
+    "teal": "#20B2AA",
+    "yellow": "#F8C32E",
+    "cream": "#F6F0E4"
+  },
+  "sizes": {
+    "webp": [
+      256,
+      128
+    ]
+  },
+  "icons": [
+    {
+      "concept": "washer",
+      "group": "service",
+      "aliases": [
+        "wash",
+        "wash-dry-fold",
+        "machine"
+      ],
+      "files": {
+        "webp256": "256/washer.webp",
+        "webp128": "128/washer.webp"
+      }
+    },
+    {
+      "concept": "dryer",
+      "group": "service",
+      "aliases": [
+        "dry",
+        "tumble"
+      ],
+      "files": {
+        "webp256": "256/dryer.webp",
+        "webp128": "128/dryer.webp"
+      }
+    },
+    {
+      "concept": "folded",
+      "group": "service",
+      "aliases": [
+        "fold",
+        "clothes",
+        "done"
+      ],
+      "files": {
+        "webp256": "256/folded.webp",
+        "webp128": "128/folded.webp"
+      }
+    },
+    {
+      "concept": "iron",
+      "group": "service",
+      "aliases": [
+        "press",
+        "ironing"
+      ],
+      "files": {
+        "webp256": "256/iron.webp",
+        "webp128": "128/iron.webp"
+      }
+    },
+    {
+      "concept": "detergent",
+      "group": "supply",
+      "aliases": [
+        "soap"
+      ],
+      "files": {
+        "webp256": "256/detergent.webp",
+        "webp128": "128/detergent.webp"
+      }
+    },
+    {
+      "concept": "fabcon",
+      "group": "supply",
+      "aliases": [
+        "softener"
+      ],
+      "files": {
+        "webp256": "256/fabcon.webp",
+        "webp128": "128/fabcon.webp"
+      }
+    },
+    {
+      "concept": "bleach",
+      "group": "supply",
+      "aliases": [],
+      "files": {
+        "webp256": "256/bleach.webp",
+        "webp128": "128/bleach.webp"
+      }
+    },
+    {
+      "concept": "basket",
+      "group": "order",
+      "aliases": [
+        "laundry",
+        "load",
+        "walk-in"
+      ],
+      "files": {
+        "webp256": "256/basket.webp",
+        "webp128": "128/basket.webp"
+      }
+    },
+    {
+      "concept": "pickup-bag",
+      "group": "order",
+      "aliases": [
+        "bag",
+        "pickup"
+      ],
+      "files": {
+        "webp256": "256/pickup-bag.webp",
+        "webp128": "128/pickup-bag.webp"
+      }
+    },
+    {
+      "concept": "rider",
+      "group": "order",
+      "aliases": [
+        "delivery",
+        "bike"
+      ],
+      "files": {
+        "webp256": "256/rider.webp",
+        "webp128": "128/rider.webp"
+      }
+    },
+    {
+      "concept": "shop",
+      "group": "nav",
+      "aliases": [
+        "home",
+        "store",
+        "location"
+      ],
+      "files": {
+        "webp256": "256/shop.webp",
+        "webp128": "128/shop.webp"
+      }
+    },
+    {
+      "concept": "ticket",
+      "group": "order",
+      "aliases": [
+        "claim",
+        "receipt"
+      ],
+      "files": {
+        "webp256": "256/ticket.webp",
+        "webp128": "128/ticket.webp"
+      }
+    },
+    {
+      "concept": "qr",
+      "group": "commerce",
+      "aliases": [
+        "scan"
+      ],
+      "files": {
+        "webp256": "256/qr.webp",
+        "webp128": "128/qr.webp"
+      }
+    },
+    {
+      "concept": "staff",
+      "group": "people",
+      "aliases": [
+        "team"
+      ],
+      "files": {
+        "webp256": "256/staff.webp",
+        "webp128": "128/staff.webp"
+      }
+    },
+    {
+      "concept": "cash",
+      "group": "commerce",
+      "aliases": [
+        "sales",
+        "payments"
+      ],
+      "files": {
+        "webp256": "256/cash.webp",
+        "webp128": "128/cash.webp"
+      }
+    },
+    {
+      "concept": "wallet",
+      "group": "commerce",
+      "aliases": [
+        "gcash",
+        "e-wallet"
+      ],
+      "files": {
+        "webp256": "256/wallet.webp",
+        "webp128": "128/wallet.webp"
+      }
+    },
+    {
+      "concept": "chart",
+      "group": "nav",
+      "aliases": [
+        "performance",
+        "reports"
+      ],
+      "files": {
+        "webp256": "256/chart.webp",
+        "webp128": "128/chart.webp"
+      }
+    },
+    {
+      "concept": "supplies",
+      "group": "supply",
+      "aliases": [
+        "stock",
+        "inventory"
+      ],
+      "files": {
+        "webp256": "256/supplies.webp",
+        "webp128": "128/supplies.webp"
+      }
+    },
+    {
+      "concept": "expenses",
+      "group": "commerce",
+      "aliases": [
+        "bills",
+        "costs"
+      ],
+      "files": {
+        "webp256": "256/expenses.webp",
+        "webp128": "128/expenses.webp"
+      }
+    },
+    {
+      "concept": "calendar",
+      "group": "nav",
+      "aliases": [
+        "ready-time",
+        "schedule"
+      ],
+      "files": {
+        "webp256": "256/calendar.webp",
+        "webp128": "128/calendar.webp"
+      }
+    },
+    {
+      "concept": "rush",
+      "group": "service",
+      "aliases": [
+        "express",
+        "same-day"
+      ],
+      "files": {
+        "webp256": "256/rush.webp",
+        "webp128": "128/rush.webp"
+      }
+    },
+    {
+      "concept": "settings",
+      "group": "system",
+      "aliases": [
+        "setup",
+        "gear"
+      ],
+      "files": {
+        "webp256": "256/settings.webp",
+        "webp128": "128/settings.webp"
+      }
+    },
+    {
+      "concept": "install",
+      "group": "system",
+      "aliases": [
+        "phone",
+        "pwa"
+      ],
+      "files": {
+        "webp256": "256/install.webp",
+        "webp128": "128/install.webp"
+      }
+    },
+    {
+      "concept": "moments",
+      "group": "nav",
+      "aliases": [
+        "ai",
+        "sparkle"
+      ],
+      "files": {
+        "webp256": "256/moments.webp",
+        "webp128": "128/moments.webp"
+      }
+    },
+    {
+      "concept": "orders",
+      "group": "nav",
+      "aliases": [
+        "queue",
+        "list"
+      ],
+      "files": {
+        "webp256": "256/orders.webp",
+        "webp128": "128/orders.webp"
+      }
+    },
+    {
+      "concept": "booking",
+      "group": "nav",
+      "aliases": [
+        "bookings",
+        "pickup-request"
+      ],
+      "files": {
+        "webp256": "256/booking.webp",
+        "webp128": "128/booking.webp"
+      }
+    }
+  ]
+}

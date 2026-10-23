@@ -58,13 +58,13 @@ function shopBio(shop: Shop): string {
 }
 
 /** Partner shops reach their River Mobile listing from here (it's no longer in the Partner nav). */
-const SHOP_LISTING_LINK = { href: "/partner/shop", icon: Store, river: "online-shop" as const, title: "Shop listing", subtitle: "How River Mobile shows your shop" } as const;
+const SHOP_LISTING_LINK = { href: "/partner/shop", icon: Store, river: "shop" as const, title: "Shop listing", subtitle: "How River Mobile shows your shop" } as const;
 
-const INSTALL_LINK = { href: "/settings/install", icon: Package, river: "home" as const, title: "Install app", subtitle: "Open Laundry.ph from your home screen" } as const;
+const INSTALL_LINK = { href: "/settings/install", icon: Package, river: "install" as const, title: "Install app", subtitle: "Open Laundry.ph from your home screen" } as const;
 
 const HUB_LINKS = [
-  { href: "/profile/services", icon: Package, river: "items" as const, title: "Services", subtitle: "Products, prices and POS catalog" },
-  { href: "/settings/billing", icon: CreditCard, river: "payments" as const, title: "Plan & billing", subtitle: `Partner · Pro ${PAID_PER_MO} · Lifetime` },
+  { href: "/profile/services", icon: Package, river: "washer" as const, title: "Services", subtitle: "Products, prices and POS catalog" },
+  { href: "/settings/billing", icon: CreditCard, river: "wallet" as const, title: "Plan & billing", subtitle: `Partner · Pro ${PAID_PER_MO} · Lifetime` },
 ] as const;
 
 /** Shop profile hub: Oceanus header, Credits, Features, Edit shop, setup links, logout. */
