@@ -81,7 +81,7 @@ export function SalesScreen() {
       {loading && orders.length === 0 ? <RowsSkeleton rows={4} /> : (
         <>
           {view === "collection" ? <Collection report={report} staff={staff} /> : null}
-          {view === "performance" ? <Overview report={report} /> : null}
+          {view === "performance" ? <><Overview report={report} /><StaffBoard rows={staff} title="Top staff" /></> : null}
           {view === "groups" ? (
             <>
               <Breakdown title="Services" empty="No services in this range." rows={report.services} total={report.totals.salesCentavos} />
@@ -102,7 +102,7 @@ export function SalesScreen() {
 /** Collected (cash / GCash) vs uncollected, then who brought it in. No commission or remit in Laundry. */
 function Collection({ report, staff }: { report: ReturnType<typeof salesReport>; staff: StaffRow[] }) {
   const { totals } = report;
-  const pay = report.payments.filter((p) => p.salesCentavos > 0);
+  const pay = report.payments.filter((p) => p.salesCentavos > 0 && !/unpaid/i.test(p.label));
   return (
     <>
       <div className="mt-4 grid grid-cols-2 gap-3">
