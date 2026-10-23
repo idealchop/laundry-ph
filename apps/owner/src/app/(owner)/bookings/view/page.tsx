@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { FormSkeleton } from "@/components/common/Skeleton";
+import { AppLoader } from "@/components/common/AppLoader";
 import { FocusSurface } from "@/components/FocusHeader";
 import { BookingDetailScreen } from "@/components/bookings/BookingDetail";
 
@@ -9,7 +9,7 @@ export const metadata = { title: "Booking" };
 export default function BookingViewPage() {
   return (
     <FocusSurface className="lg:overflow-visible">
-      <Suspense fallback={<FormSkeleton />}>
+      <Suspense fallback={<AppLoader />}>
         <BookingDetailScreen />
       </Suspense>
     </FocusSurface>

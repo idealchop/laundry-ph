@@ -1,10 +1,10 @@
 "use client";
 
-import { Icon3D } from "@river-apps/icons";
-import { FormSkeleton } from "@/components/common/Skeleton";
-import { Avatar, Card, EmptyState, IconTile } from "@river-apps/ui";
+
+import { AppLoader } from "@/components/common/AppLoader";
+import { Avatar, EmptyState } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
-import { ExternalLink, MapPin, Phone } from "lucide-react";
+import { ExternalLink, Phone } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -20,10 +20,10 @@ import { FocusHeader } from "../FocusHeader";
 import { ErrorNote } from "../ui";
 import { BookingActions, BookingStatusPill, isOpenBooking } from "./BookingCard";
 import { useBookingActions } from "./BookingsList";
-import { RouteMap } from "./RouteMap";
+import dynamic from "next/dynamic";
 
-const fullTime = (ms?: number) =>
-  ms ? new Intl.DateTimeFormat("en-PH", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" }).format(ms) : "—";
+const RiverRouteMap = dynamic(() => import("./RiverRouteMap").then((m) => m.RiverRouteMap), { ssr: false, loading: () => <div className="h-[220px] animate-pulse rounded-[20px] bg-grey-100" /> });
+
 
 /** Booking detail from ?id=…: request info, customer, map with the route from the shop, and the next actions. */
 export function BookingDetailScreen() {
@@ -32,7 +32,7 @@ export function BookingDetailScreen() {
   const q = useShopQuery((s) => (id ? s.getBooking(id) : Promise.resolve(null)), [id]);
   const backHref = isPaidShop(shop.tier) ? "/home" : "/partner";
 
-  if (q.loading && !q.data) return <><FocusHeader title="Booking" backHref={backHref} /><FormSkeleton /></>;
+  if (q.loading && !q.data) return <><FocusHeader title="Booking" backHref={backHref} /><AppLoader /></>;
   if (!q.data) {
     return (
       <>
@@ -79,7 +79,7 @@ function useRoute(from: LatLng | null, to: LatLng | null): RouteInfo | null {
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex gap-3 border-b border-line py-2.5 last:border-b-0">
-      <dt className="w-[108px] flex-none text-[13px] font-semibold text-muted">{label}</dt>
+      <dt className="w-[76px] flex-none text-[13px] font-semibold text-muted">{label}</dt>
       <dd className="min-w-0 flex-1 text-[14px] font-semibold text-ink">{children}</dd>
     </div>
   );
@@ -109,115 +109,72 @@ export function BookingDetail({ booking: b, backHref, onChanged }: { booking: Bo
 
   return (
     <>
-      <FocusHeader title="Booking" backHref={backHref} trailing={<span className="flex w-11 justify-end"><BookingStatusPill status={b.status} /></span>} />
-      <div className="flex flex-1 flex-col gap-4 px-5 pb-6 pt-2">
-        <header className="flex items-center gap-3">
-          <IconTile size={52}><Icon3D name={b.type === "pickup" ? "basket" : "folded"} size={36} /></IconTile>
-          <div className="flex min-w-0 flex-1 flex-col leading-[1.25]">
-            <h1 className="truncate text-[20px] font-extrabold tracking-[-0.02em]">{bookingTitle(b)}</h1>
-            <span className="text-[13px] font-semibold text-muted">{formatSlot(b.slotAt, now)} · <span className="font-mono tracking-tight">{b.ref}</span> · {relativeTime(b.createdAt, now)}</span>
+      <FocusHeader title="" backHref={backHref} />
+      <div className="flex flex-1 flex-col gap-4 px-5 pb-6 pt-1">
+        <header className="flex items-start gap-3">
+          <div className="min-w-0 flex-1 leading-[1.25]">
+            <h1 className="text-[22px] font-extrabold tracking-[-0.02em]">{bookingTitle(b)}</h1>
+            <p className="mt-0.5 text-[13.5px] font-semibold text-muted">{formatSlot(b.slotAt, now)} · {relativeTime(b.createdAt, now)}</p>
           </div>
+          {b.status !== "requested" ? <BookingStatusPill status={b.status} /> : null}
         </header>
 
         {actions.error ? <ErrorNote onRetry={actions.clearError}>{actions.error}</ErrorNote> : null}
 
-        {/* Map + route */}
-        <section aria-labelledby="bk-map-h" className="flex flex-col gap-2.5">
-          <h2 id="bk-map-h" className="sr-only">Location and route</h2>
-          {needsTrip && (cust.pin || shopPin) ? (
-            <RouteMap className="h-[260px] lg:h-[300px]" shop={shopPin} customer={cust.pin} path={route?.path ?? (shopPin && cust.pin ? [shopPin, cust.pin] : null)}
-              dashed={!route || route.kind === "straight"} />
-          ) : null}
-          {needsTrip ? (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-3">
-                <span className="flex min-w-0 flex-col leading-[1.3]">
-                  {route ? (
-                    <>
-                      <b className="text-[16px] font-extrabold">{formatDistance(route.distanceM)} · about {formatEta(route.durationS)}</b>
-                      <small className="text-[12.5px] font-semibold text-muted">
-                        {route.kind === "road" ? "Driving, from your shop" : "Straight-line estimate (route unavailable)"}
-                        {cust.approx ? " · pin from the address, approximate" : ""}
-                      </small>
-                    </>
-                  ) : cust.looking || (shopPin && cust.pin) ? (
-                    <small className="text-[13px] font-semibold text-muted">Finding the route…</small>
-                  ) : !cust.pin ? (
-                    <small className="text-[13px] font-semibold text-muted">Couldn’t place this address on the map. Use the address below.</small>
-                  ) : (
-                    <small className="text-[13px] font-semibold text-muted">
-                      Add your shop pin in <Link href="/profile/edit" className="font-bold text-ink underline decoration-grey-300 underline-offset-[3px]">Profile → Edit</Link> to see the route.
-                    </small>
-                  )}
-                </span>
-                {cust.pin && shopPin ? (
-                  <span className="flex flex-none flex-col items-end gap-1 text-[12px] font-semibold text-muted">
-                    <span className="inline-flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-ink ring-2 ring-white" /> Your shop</span>
-                    <span className="inline-flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-[#2563EB] ring-2 ring-white" /> Customer</span>
-                  </span>
-                ) : null}
-              </div>
+        {needsTrip ? (
+          <section aria-label="Location and route" className="flex flex-col gap-2">
+            {cust.pin || shopPin ? (
+              <RiverRouteMap className="h-[220px] lg:h-[300px]" shop={shopPin} customer={cust.pin} path={route?.path ?? (shopPin && cust.pin ? [shopPin, cust.pin] : null)}
+                dashed={!route || route.kind === "straight"} />
+            ) : null}
+            <div className="flex min-h-10 items-center gap-2 px-1">
+              <span className="min-w-0 flex-1 truncate text-[14px] font-bold">
+                {route ? `${formatDistance(route.distanceM)} · ~${formatEta(route.durationS)}${route.kind === "road" ? "" : " (est.)"}`
+                  : cust.looking || (shopPin && cust.pin) ? <span className="text-muted">Finding route…</span>
+                  : !cust.pin ? <span className="text-muted">Address not on map</span>
+                  : <Link href="/profile/edit" className="underline underline-offset-[3px]">Set shop pin</Link>}
+              </span>
               {cust.pin ? (
-                <Button size="md" variant="secondary" pill fullWidth className="h-11" href={googleDirectionsUrl(shopPin, cust.pin)} target="_blank" rel="noopener noreferrer"
-                  leadingIcon={<ExternalLink size={16} strokeWidth={2} />}>
-                  Open in Google Maps
-                </Button>
+                <a href={googleDirectionsUrl(shopPin, cust.pin)} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex min-h-10 flex-none items-center gap-1 rounded-full px-2 text-[13px] font-bold text-ink-2 hover:bg-grey-100">
+                  <ExternalLink size={15} strokeWidth={2} aria-hidden /> Google Maps
+                </a>
               ) : null}
             </div>
-          ) : (
-            <p className="rounded-tile bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-muted">The customer brings the laundry to your shop and collects it there. No trip needed.</p>
-          )}
+          </section>
+        ) : <p className="px-1 text-[13.5px] font-semibold text-muted">Drop-off · no trip</p>}
+
+        <section aria-label="Customer" className="flex items-center gap-3 border-y border-line py-3">
+          <Avatar name={customerLabel} preset={avatarFor(customerLabel)} size={40} />
+          <span className="flex min-w-0 flex-1 flex-col leading-[1.25]">
+            <b className="truncate text-[15px]">{customerLabel}</b>
+            {b.address ? <small className="truncate text-[12.5px] font-semibold text-muted">{b.address}</small>
+              : named && b.customer.phone ? <small className="text-[12.5px] font-semibold text-muted">{formatPhMobile(b.customer.phone)}</small> : null}
+          </span>
+          {b.customer.phone ? (
+            <a href={`tel:${b.customer.phone}`} aria-label={`Call ${customerLabel}`}
+              className="inline-flex size-11 flex-none items-center justify-center rounded-full bg-ink text-on-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+              <Phone size={18} strokeWidth={2} />
+            </a>
+          ) : null}
         </section>
 
-        {/* Customer */}
-        <Card padding="none" className="px-4 py-3.5">
-          <h2 className="mb-2.5 text-[13px] font-bold text-muted">Customer</h2>
-          <div className="flex items-center gap-3">
-            <Avatar name={customerLabel} preset={avatarFor(customerLabel)} size={44} />
-            <span className="flex min-w-0 flex-1 flex-col leading-[1.25]">
-              <b className="truncate text-[15.5px]">{customerLabel}</b>
-              {named && b.customer.phone ? (
-                <a href={`tel:${b.customer.phone}`} className="text-[13.5px] font-semibold text-ink-2 underline decoration-grey-300 underline-offset-[3px]">{formatPhMobile(b.customer.phone)}</a>
-              ) : named ? <small className="text-[13px] font-semibold text-muted">No number</small> : null}
-            </span>
-            {b.customer.phone ? (
-              <a href={`tel:${b.customer.phone}`} aria-label={`Call ${customerLabel}`}
-                className="inline-flex h-11 flex-none items-center gap-1.5 rounded-pill bg-ink px-4 text-[14px] font-bold text-on-ink hover:bg-ink/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
-                <Phone size={16} strokeWidth={2} /> Call
-              </a>
-            ) : null}
-          </div>
-          {b.address ? (
-            <p className="mt-3 flex gap-2 border-t border-dashed border-[#E8E8EC] pt-3 text-[13.5px] font-medium text-ink-2">
-              <MapPin aria-hidden size={16} className="mt-0.5 flex-none text-muted" /><span className="min-w-0">{b.address}</span>
-            </p>
-          ) : null}
-        </Card>
-
-        {/* Request */}
-        <Card padding="none" className="px-4 py-2">
-          <h2 className="pb-1 pt-1.5 text-[13px] font-bold text-muted">Request</h2>
-          <dl>
-            <Row label="Service">{b.serviceName}</Row>
-            <Row label="Type">{b.type === "pickup" ? "Pickup · you collect from the customer" : "Drop-off · customer brings it"}</Row>
-            <Row label="Return">{returnLabel(b.fulfillment)}</Row>
-            <Row label="Slot">{fullTime(b.slotAt)}</Row>
-            <Row label="Est. weight">{b.estKg ? `About ${b.estKg} kg` : "Not given"}</Row>
-            {b.clothesType ? <Row label="Clothes type">{b.clothesType.name}</Row> : null}
-            {b.notes ? <Row label="Notes"><span className="whitespace-pre-line font-medium">{b.notes}</span></Row> : null}
-            <Row label="Ref"><span className="font-mono tracking-tight">{b.ref}</span>{b.test ? <span className="ml-2 text-[12px] font-semibold text-subtle">Test</span> : null}</Row>
-            <Row label="Requested">{fullTime(b.createdAt)}</Row>
+        <dl aria-label="Request" className="-mt-1">
+          <Row label="Service">{b.serviceName}</Row>
+          <Row label="Return">{returnLabel(b.fulfillment)}</Row>
+          <Row label="Weight">{b.estKg ? `~${b.estKg} kg` : "—"}</Row>
+          {b.clothesType ? <Row label="Clothes">{b.clothesType.name}</Row> : null}
+          {b.notes ? <Row label="Notes"><span className="whitespace-pre-line font-medium">{b.notes}</span></Row> : null}
+          <Row label="Ref"><span className="font-mono tracking-tight">{b.ref}</span>{b.test ? <span className="ml-2 text-[12px] font-semibold text-subtle">Test</span> : null}</Row>
+          {outcome || (b.status === "converted" && b.orderId) ? (
             <Row label="Status">
               <span className="flex flex-wrap items-center gap-2">
-                <BookingStatusPill status={b.status} />
                 {outcome ? <span className="text-[13px] font-semibold text-muted">{outcome}</span> : null}
-                {b.status === "converted" && b.orderId ? (
-                  <Link className="text-[13px] font-bold underline decoration-grey-300 underline-offset-[3px]" href={`/orders/view?id=${b.orderId}`}>View order</Link>
-                ) : null}
+                {b.status === "converted" && b.orderId ? <Link className="text-[13px] font-bold underline underline-offset-[3px]" href={`/orders/view?id=${b.orderId}`}>View order</Link> : null}
               </span>
             </Row>
-          </dl>
-        </Card>
+          ) : null}
+        </dl>
       </div>
 
       {open ? (
