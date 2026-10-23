@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LaundryBrand } from "@/components/brand";
+import { RiverMark } from "@/components/brand";
 /**
  * Bottom sheet sign-in — mirrors River Mobile AuthGateSheet.
  * Two-step: method list → chosen method (phone form / OTP). Guest can dismiss.
@@ -115,7 +115,7 @@ function AuthGateSheetOpen({
           <X size={16} strokeWidth={2.2} />
         </button>
         <div className="max-h-[min(70dvh,560px)] overflow-y-auto px-5 pb-6 pt-5">
-          <LaundryBrand size={28} className="mb-4" />
+          <div className="mb-4"><RiverMark size={30} /></div>
           <h2 id="laundry-auth-gate-title" className="pr-10 text-[24px] font-extrabold leading-[1.15] tracking-[-0.025em]">
             {step === "phone" ? "Your mobile number" : step === "code" ? "Enter the code" : "Sign up or log in"}
           </h2>
@@ -156,7 +156,7 @@ function AuthGateSheetOpen({
               />
               <div id={btnId} aria-hidden />
               <Button type="submit" fullWidth disabled={busy || !e164} leadingIcon={<ChatIcon size={20} />}>
-                {busy ? "Sending…" : "Continue with phone"}
+                {busy ? "Sending…" : "Text me a code"}
               </Button>
               <Button
                 type="button"
@@ -168,6 +168,7 @@ function AuthGateSheetOpen({
               >
                 Back
               </Button>
+              <p className="text-center text-[11.5px] font-medium text-muted">Protected by reCAPTCHA. Google <a href="https://policies.google.com/privacy" className="underline">Privacy</a> &amp; <a href="https://policies.google.com/terms" className="underline">Terms</a> apply.</p>
             </form>
           ) : null}
 

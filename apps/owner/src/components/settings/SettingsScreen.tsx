@@ -144,10 +144,12 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
         </div>
       </section>
 
+
+      {shops.ready ? <LocationCard shops={shops} /> : null}
       <button
         type="button"
         onClick={() => setView("credits")}
-        className="mt-4 w-full rounded-card bg-surface px-4 py-4 text-left shadow-card transition-colors hover:bg-grey-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="mt-3 w-full rounded-card bg-surface px-4 py-4 text-left shadow-card transition-colors hover:bg-grey-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <div className="flex items-start gap-3">
           <CoinIcon size={48} />
@@ -165,8 +167,6 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
           </div>
         </div>
       </button>
-
-      {shops.ready ? <LocationCard shops={shops} /> : null}
 
       <div className="mt-6 grid grid-cols-1 gap-4">
         <Card padding="none" className="px-3.5 py-1.5 lg:col-span-2">
