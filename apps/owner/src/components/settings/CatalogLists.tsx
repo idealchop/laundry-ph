@@ -263,14 +263,23 @@ export function SuppliesList({ supplies, disabled, busy, error, onSave, onRemove
                 <div><span className={fieldLabel}>Unit</span>
                   <Segmented label="Unit" value={v.unit} onChange={(unit) => set({ unit })} options={SUPPLY_UNITS} />
                 </div>
+                <CostInput unit={v.unit} value={v.costCentavos} onChange={(costCentavos) => set({ costCentavos })} />
                 <Input size="md" label={`Per order (${unitText(v.unit)})`} inputMode="decimal" value={numText(v.defaultQty)} onChange={(e) => set({ defaultQty: Math.max(0, numFrom(e.target.value)) })} />
               </>
             ) : (
-              <button type="button" onClick={() => setMore(true)} className="-mt-1 self-start text-[13.5px] font-bold underline underline-offset-[3px]">Brand, unit, amount</button>
+              <button type="button" onClick={() => setMore(true)} className="-mt-1 self-start text-[13.5px] font-bold underline underline-offset-[3px]">Brand, unit, cost</button>
             )}
           </form>
         </EditSheet>
       ) : null}
     </>
+  );
+}
+
+function CostInput({ unit, value, onChange }: { unit: Supply["unit"]; value?: number; onChange: (c: number | undefined) => void }) {
+  const [text, setText] = useState(value ? String(value / 100) : "");
+  return (
+    <Input size="md" label={`Cost per ${unit === "load" ? "load" : unit === "pcs" ? "pc" : "ml"} (₱)`} inputMode="decimal" placeholder="Optional" value={text}
+      onChange={(e) => { const t = e.target.value.replace(/[^\d.]/g, "").slice(0, 8); setText(t); const n = Number(t); onChange(n > 0 ? Math.round(n * 10_000) / 100 : undefined); }} />
   );
 }

@@ -33,9 +33,10 @@ export function NewOrderScreen() {
   const left = capped && !bookingId ? Math.max(0, limit - (used.data ?? 0)) : Infinity;
   const hitCap = left <= 0 || (action.error ?? "").includes("walk-ins on Partner");
   const onCreate = async (input: NewWalkInOrder) => {
-    const order = await action.run((s) => s.createWalkInOrder(input), "Sign in to create a walk-in order.");
+    let why: string | null = null;
+    const order = await action.run((s) => s.createWalkInOrder(input).catch((e: unknown) => { why = (e as Error)?.message || null; throw e; }), "Sign in to create a walk-in order.");
     used.reload();
-    if (!order) throw new Error(action.error ?? "Could not create the order.");
+    if (!order) throw new Error(why ?? "Couldn’t create the order. Try again.");
     // No shop reload here: in Firebase mode it remounts the app (loading state) and drops the "Ticket created" screen.
     // Orders, customers and the home numbers are live listeners.
     return order;

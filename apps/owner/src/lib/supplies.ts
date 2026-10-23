@@ -32,6 +32,7 @@ export function normSupply(x: Partial<Supply> & { id?: string }): Supply {
     priceCentavos: payer === "customer" ? Math.max(0, Math.round(num(x.priceCentavos))) : 0,
     defaultQty: Math.max(0, num(x.defaultQty, 1)),
     stock: Math.round(num(x.stock) * 100) / 100,
+    ...(x.costCentavos != null && Number(x.costCentavos) > 0 ? { costCentavos: Math.round(Number(x.costCentavos) * 100) / 100 } : {}),
     ...(x.lowAt != null && Number.isFinite(Number(x.lowAt)) ? { lowAt: Math.max(0, Number(x.lowAt)) } : {}),
   };
 }
@@ -70,7 +71,30 @@ export function applySupplyUse(supplies: Supply[], items: { id: string; qty: num
     if (!it) return s;
     const qty = Math.max(0, Math.min(100_000, Number(it.qty) || 0));
     used.push({ id: s.id, name: supplyLabel(s), qty, unit: s.unit, payer: s.payer });
-    return { ...s, stock: Math.round((s.stock - qty) * 100) / 100 };
+    return s.category === "Service" ? s : { ...s, stock: Math.round((s.stock - qty) * 100) / 100 };
   });
   return { supplies: next, used };
+}
+
+export interface SupplyUsageRow {
+  id: string; name: string; unit: SupplyUnit; qty: number; orders: number; stock: number | null; low: boolean;
+  costCentavos: number | null; byStaff: { name: string; qty: number }[];
+}
+
+/** Supplies used across orders (suppliesUsed), joined with current stock. Cost only when the item has a cost per unit. */
+export function supplyUsage(orders: import("@/data/types").Order[], supplies: Supply[], staffOf: (o: import("@/data/types").Order) => string): SupplyUsageRow[] {
+  const m = new Map<string, SupplyUsageRow & { staff: Map<string, number> }>();
+  for (const o of orders) {
+    if (o.status === "cancelled") continue;
+    for (const u of o.suppliesUsed ?? []) {
+      const s = supplies.find((x) => x.id === u.id);
+      const r = m.get(u.id) ?? { id: u.id, name: s ? supplyLabel(s) : u.name, unit: u.unit, qty: 0, orders: 0, stock: s && s.category !== "Service" ? s.stock : null, low: s ? isLow(s) : false, costCentavos: s?.costCentavos ? 0 : null, byStaff: [], staff: new Map() };
+      r.qty = Math.round((r.qty + u.qty) * 100) / 100; r.orders += 1;
+      if (r.costCentavos != null && s?.costCentavos) r.costCentavos = Math.round(r.costCentavos + u.qty * s.costCentavos);
+      const who = staffOf(o); r.staff.set(who, Math.round(((r.staff.get(who) ?? 0) + u.qty) * 100) / 100);
+      m.set(u.id, r);
+    }
+  }
+  return [...m.values()].map(({ staff, ...r }) => ({ ...r, byStaff: [...staff].map(([name, qty]) => ({ name, qty })).sort((a, b) => b.qty - a.qty) }))
+    .sort((a, b) => b.orders - a.orders);
 }

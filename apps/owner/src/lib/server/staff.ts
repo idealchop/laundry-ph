@@ -178,3 +178,74 @@ export async function staffAdvance(link: StaffLink, orderId: string) {
     return { id: orderId, status: to };
   });
 }
+
+/**
+ * Owner/member walk-in via the Admin SDK (same counters, cap, customer, booking and ticket writes as the
+ * client transaction). Used so new order fields (branch, supplies) never trip the client rules.
+ */
+export async function memberWalkIn(shopId: string, uid: string, input: import("@/data/types").NewWalkInOrder): Promise<Order> {
+  const db = adminDb();
+  const ref = shopRef(shopId);
+  const day = dayKey(Date.now());
+  const unlocked = await allUnlocked();
+  return db.runTransaction(async (tx) => {
+    const custRef = input.customer.id ? ref.collection("customers").doc(input.customer.id) : null;
+    const bookingRef = input.bookingId ? ref.collection("bookings").doc(input.bookingId) : null;
+    const reads = [ref, ref.collection("meta").doc("catalog"), ref.collection("meta").doc("counters"), ref.collection("usage").doc(day), ...(custRef ? [custRef] : []), ...(bookingRef ? [bookingRef] : [])];
+    const snaps = await tx.getAll(...reads);
+    const [shopSnap, catSnap, counters, usage] = snaps;
+    const custSnap = custRef ? snaps[4] : null;
+    const bookingSnap = bookingRef ? snaps[custRef ? 5 : 4] : null;
+    const shop = shopSnap!.data() ?? {};
+    const tier = shop.tier === "paid" ? "paid" : "partner";
+    const used = num(usage!.data()?.walkIns);
+    if (!bookingRef && used >= walkInLimit(tier, unlocked)) throw new StaffError(402, WALKIN_LIMIT_MESSAGE);
+    if (bookingSnap) {
+      if (!bookingSnap.exists) throw new StaffError(404, "That booking no longer exists.");
+      const st = bookingSnap.data()!.status;
+      if (st !== "requested" && st !== "accepted" && st !== "received") throw new StaffError(409, st === "converted" ? "This booking is already an order." : "This booking can’t be turned into an order.");
+    }
+    const catalog = normCatalog(catSnap!.data() ?? {});
+    const c = counters!.data() ?? {};
+    const no = typeof c.nextTicketNo === "number" ? c.nextTicketNo : 1;
+    const queueNo = c.queueDate === day && typeof c.queueNo === "number" ? c.queueNo + 1 : 1;
+    const orderRef = ref.collection("orders").doc();
+    const refCode = formatRef(no);
+    const ticketId = makeTicketId(refCode);
+    const now = Date.now();
+    const name = input.customer.name.trim().slice(0, 80);
+    let customerId = custSnap?.exists ? custSnap.id : null;
+    const newCust = !customerId && name ? ref.collection("customers").doc() : null;
+    if (newCust) customerId = newCust.id;
+    const use = applySupplyUse(catalog.supplies ?? [], input.supplies ?? []);
+    const paid = new Set(use.used.filter((u) => u.payer === "customer").map((u) => u.id));
+    const addOnIds = [...new Set([...(input.addOnIds ?? []).filter((id) => !(catalog.supplies ?? []).some((s) => s.id === id) || paid.has(id)), ...paid])];
+    const branchId = input.branchId || (bookingSnap?.data()?.branchId as string | undefined) || undefined;
+    let built: Omit<Order, "id">;
+    try {
+      built = buildWalkInOrder(catalog, { ...input, addOnIds, branchId, customer: { ...input.customer, id: customerId } },
+        { shopId, ref: refCode, queueNo, ticketId, uid, now, sample: shop.sample === true });
+    } catch (e) { throw new StaffError(400, (e as Error).message); }
+    if (bookingRef) built = { ...built, source: "river-mobile", bookingId: bookingRef.id };
+    if (use.used.length) {
+      built = { ...built, suppliesUsed: use.used };
+      tx.set(ref.collection("meta").doc("catalog"), { supplies: use.supplies, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    }
+    const order: Order = { ...built, id: orderRef.id };
+    if (bookingRef) tx.update(bookingRef, { status: "converted", orderId: orderRef.id, "statusTimes.converted": FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
+    tx.set(ref.collection("meta").doc("counters"), { nextTicketNo: no + 1, queueDate: day, queueNo, updatedAt: FieldValue.serverTimestamp() });
+    if (!bookingRef) tx.set(ref.collection("usage").doc(day), { walkIns: used + 1, updatedAt: FieldValue.serverTimestamp() });
+    if (newCust) {
+      tx.set(newCust, strip({ name, nameLower: name.toLowerCase(), phone: input.customer.phone ?? null, avatar: built.customer.avatar, source: bookingRef ? "River Mobile" : "Walk-in",
+        visits: 1, spentCentavos: order.totalCentavos, tag: null, notes: null, lastVisitAt: FieldValue.serverTimestamp(), createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(), createdBy: uid }));
+    } else if (customerId) {
+      tx.update(custRef!, { visits: FieldValue.increment(1), spentCentavos: FieldValue.increment(order.totalCentavos), lastVisitAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+    }
+    tx.set(orderRef, strip({ ...built, stageTimes: { received: FieldValue.serverTimestamp() }, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(), sample: built.sample ? true : undefined } as Record<string, unknown>));
+    const t = toPublicTicket(order, { name: String(shop.name ?? ""), sample: shop.sample === true });
+    const { id: _id, ...ticket } = t; void _id;
+    tx.set(db.collection("public_tickets").doc(ticketId), strip({ ...ticket, stageTimes: { received: FieldValue.serverTimestamp() }, updatedAt: FieldValue.serverTimestamp(), sample: ticket.sample ? true : undefined } as Record<string, unknown>));
+    auditInTx(tx, shopId, uid, "order.create", orderRef);
+    return order;
+  });
+}

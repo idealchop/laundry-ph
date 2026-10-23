@@ -13,7 +13,7 @@ import { BOOKING_DONE, BOOKING_OPEN, sortOpenBookings } from "@/lib/bookings";
 import { avatarFor, buildWalkInOrder, formatRef, nextStatus, toPublicTicket } from "@/lib/orders";
 import { PUBLIC_BOOKINGS_KEY, readPublicBookings, writeBookingTicket, writePublicBooking } from "@/lib/public-bookings";
 import { currentBranchId } from "@/lib/shop-locations";
-import { ACTIVE_STATUSES, type Booking, type Customer, type Order, type PublicTicket } from "./types";
+import { ACTIVE_STATUSES, type Booking, type Customer, type Expense, type Order, type PublicTicket } from "./types";
 import * as fx from "./fixtures";
 import { normalizeCode, refFromCode, type LaundryDataSource, type PublicTicketSource, type Unsubscribe } from "./index";
 
@@ -25,6 +25,7 @@ const store = {
   customers: fx.customers.map((c) => ({ ...c })),
   shop: { ...fx.shop, address: fx.shop.address ? { ...fx.shop.address } : null, location: fx.shop.location ? { ...fx.shop.location } : null },
   catalog: withSupplies(structuredClone(fx.catalog)),
+  expenses: [] as Expense[],
   nextNo: 423,
   listeners: new Set<Listener>(),
 };
@@ -179,6 +180,17 @@ export function createFixtureDataSource(): LaundryDataSource {
         else delete stageTimes[o.status];
         return { ...o, status, stageTimes, updatedAt: Date.now() };
       });
+    },
+    async listExpenses(since) {
+      return store.expenses.filter((x) => x.date >= since).sort((a, b) => b.date - a.date);
+    },
+    async addExpense(e) {
+      const x: Expense = { ...e, id: `exp-${Date.now().toString(36)}` };
+      store.expenses = [x, ...store.expenses]; emit();
+      return x;
+    },
+    async removeExpense(id) {
+      store.expenses = store.expenses.filter((x) => x.id !== id); emit();
     },
     async editOrder(id, e) {
       patch(id, (o) => ({

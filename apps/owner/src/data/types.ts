@@ -399,7 +399,13 @@ export interface Supply {
   stock: number;
   /** "Low" tag at or under this (default: 5 uses). */
   lowAt?: number;
+  /** Optional cost per unit (centavos), for estimated supply cost in Performance. */
+  costCentavos?: number;
 }
+export const EXPENSE_TYPES = ["Gas", "Electricity", "Water", "Labor", "Other"] as const;
+export type ExpenseType = (typeof EXPENSE_TYPES)[number];
+/** Owner-entered expense (Sales › Performance). */
+export interface Expense { id: string; type: ExpenseType; amountCentavos: number; date: number; branchId?: string | null }
 /** Supplies used on one order (server-written). */
 export interface SupplyUse { id: string; name: string; qty: number; unit: SupplyUnit; payer: "customer" | "shop" }
 

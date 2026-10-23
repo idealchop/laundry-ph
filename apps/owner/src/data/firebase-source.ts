@@ -16,19 +16,19 @@
  *   shops/{shopId}/bookings/{id}             River Mobile bookings (created by the Partner API; members move status)
  *   public_tickets/{ticketId}                PublicTicket projection (no phone / address), get-only for the public
  */
+import type { Expense } from "./types";
 import { normUnit, withRush } from "@/lib/units";
 import { normSupply, supplyAddOns, withSupplies } from "@/lib/supplies";
 import { normalizeClothesTypes, REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import {
-  Timestamp, collection, deleteField, doc, getDoc, getDocs, increment, limit, onSnapshot, orderBy, query, runTransaction,
+  Timestamp, collection, deleteField, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, runTransaction,
   serverTimestamp, setDoc, updateDoc, where, type DocumentData, type DocumentSnapshot, type Query,
 } from "firebase/firestore";
 import { getDb, getFirebaseAuth } from "@/lib/firebase/client";
 import { BOOKING_DONE, BOOKING_OPEN, BOOKING_STATUSES, sortOpenBookings } from "@/lib/bookings";
 import { dayKey } from "@/lib/format";
-import { walkInLimit, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 import { SHOP_ABOUT_MAX } from "@/lib/shop-about";
-import { avatarFor, buildWalkInOrder, formatRef, makeTicketId, nextStatus, previousStatus, ticketStage, toPublicTicket } from "@/lib/orders";
+import { avatarFor, nextStatus, previousStatus, ticketStage, toPublicTicket } from "@/lib/orders";
 import {
   ACTIVE_STATUSES, ORDER_FLOW,
   type Booking, type BookingStatus, type Catalog, type CatalogOption, type CatalogService, type Customer, type GrowthTip, type Machine, type Order, type OrderStatus,
@@ -197,6 +197,19 @@ function toCustomer(snap: DocumentSnapshot): Customer {
   };
 }
 
+/** Owner expenses go through /api/shop/expenses (Admin SDK); the rules don't open that collection. */
+async function expensesApi(shopId: string, method: "GET" | "POST" | "DELETE", body?: unknown, qs = "") {
+  const user = getFirebaseAuth().currentUser;
+  if (!user) throw new Error("Please sign in again.");
+  const res = await fetch(`/api/shop/expenses?shopId=${encodeURIComponent(shopId)}${qs}`, {
+    method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}` },
+    ...(body ? { body: JSON.stringify({ shopId, ...(body as object) }) } : {}),
+  });
+  const json = (await res.json().catch(() => ({}))) as { error?: { message?: string }; expenses?: unknown; expense?: unknown };
+  if (!res.ok) throw new Error(json.error?.message ?? `Couldn’t save the expense (${res.status}).`);
+  return json;
+}
+
 function normCatalog(d: DocumentData): Catalog {
   return withSupplies({ ...normCatalogRaw(d), ...(Array.isArray(d.supplies) ? { supplies: d.supplies } : {}) });
 }
@@ -215,15 +228,6 @@ function normCatalogRaw(d: DocumentData): Catalog {
 }
 
 /** Firestore body for an order: server timestamps for every time field. */
-function orderDoc(o: Omit<Order, "id">): DocumentData {
-  return stripUndefined({
-    ...o,
-    stageTimes: { received: serverTimestamp() },
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    sample: o.sample ? true : undefined,
-  });
-}
 function ticketDoc(t: PublicTicket): DocumentData {
   const { id: _id, ...rest } = t;
   void _id;
@@ -416,87 +420,18 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
     },
 
     async createWalkInOrder(input) {
-      const uid = requireUid();
-      const [shop, catalog] = await Promise.all([shopCache ?? getShop(), catalogCache ?? getCatalog()]);
-      const database = db();
-      const created = await runTransaction(database, async (tx) => {
-        const countersRef = metaRef("counters");
-        const counters = await tx.get(countersRef);
-        // Partner: 10 walk-ins per Manila day. The rules check the same counter doc, so no client can skip it.
-        const usageRef = doc(database, "shops", shopId, "usage", dayKey(Date.now()));
-        const usageSnap = input.bookingId ? null : await tx.get(usageRef);
-        const walkInsToday = usageSnap?.exists() ? Number(usageSnap.data().walkIns ?? 0) : 0;
-        if (usageSnap && walkInsToday >= walkInLimit(shop.tier)) throw new Error(WALKIN_LIMIT_MESSAGE);
-        const requestedCustomerId = input.customer.id ?? null;
-        const customerSnap = requestedCustomerId ? await tx.get(doc(customersCol(), requestedCustomerId)) : null;
-        const bookingRef = input.bookingId ? doc(bookingsCol(), input.bookingId) : null;
-        const bookingSnap = bookingRef ? await tx.get(bookingRef) : null;
-        if (bookingSnap) {
-          if (!bookingSnap.exists()) throw new Error("That booking no longer exists.");
-          const st = bookingSnap.data().status;
-          if (st !== "requested" && st !== "accepted" && st !== "received") throw new Error(st === "converted" ? "This booking is already an order." : "This booking can’t be turned into an order.");
-        }
-
-        const now = Date.now();
-        const today = dayKey(now);
-        const c = counters.exists() ? counters.data() : {};
-        const no = typeof c.nextTicketNo === "number" ? c.nextTicketNo : 1;
-        const queueNo = c.queueDate === today && typeof c.queueNo === "number" ? c.queueNo + 1 : 1;
-        const ref = formatRef(no);
-        const ticketId = makeTicketId(ref);
-
-        const name = input.customer.name.trim();
-        let customerId = customerSnap?.exists() ? customerSnap.id : null;
-        const newCustomerRef = !customerId && name ? doc(customersCol()) : null;
-        if (newCustomerRef) customerId = newCustomerRef.id;
-
-        const built = buildWalkInOrder(catalog, {
-          ...input,
-          branchId: input.branchId || (bookingSnap?.data()?.branchId as string | undefined) || undefined,
-          customer: { ...input.customer, id: customerId },
-        }, {
-          shopId, ref, queueNo, ticketId, uid, now, sample: shop.sample,
-        });
-        const base: Omit<Order, "id"> = bookingRef ? { ...built, source: "river-mobile", bookingId: bookingRef.id } : built;
-        const orderRef = doc(ordersCol());
-        const order: Order = { ...base, id: orderRef.id };
-        if (bookingRef) {
-          tx.update(bookingRef, {
-            status: "converted", orderId: orderRef.id, "statusTimes.converted": serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: uid,
-          });
-        }
-
-        tx.set(countersRef, { nextTicketNo: no + 1, queueDate: today, queueNo, updatedAt: serverTimestamp() });
-        if (usageSnap) tx.set(usageRef, { walkIns: walkInsToday + 1, updatedAt: serverTimestamp() });
-        if (newCustomerRef) {
-          tx.set(newCustomerRef, {
-            name, nameLower: name.toLowerCase(), phone: input.customer.phone ?? null, avatar: avatarFor(name), source: bookingRef ? "River Mobile" : "Walk-in",
-            visits: 1, spentCentavos: order.totalCentavos, tag: null, notes: null,
-            lastVisitAt: serverTimestamp(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(), createdBy: uid,
-          });
-        } else if (customerId) {
-          tx.update(doc(customersCol(), customerId), {
-            visits: increment(1), spentCentavos: increment(order.totalCentavos), lastVisitAt: serverTimestamp(), updatedAt: serverTimestamp(),
-          });
-        }
-        tx.set(orderRef, orderDoc(base));
-        tx.set(doc(database, "public_tickets", ticketId), { ...ticketDoc(toPublicTicket(order, shop)), stageTimes: { received: serverTimestamp() } });
-        return order;
-      });
-      // Supplies used: stock deduction runs server-side (rules block new order fields). Never fails the order.
-      if (input.supplies?.length) {
-        try {
-          const user = getFirebaseAuth().currentUser;
-          const res = user ? await fetch("/api/shop/supplies/use", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}` },
-            body: JSON.stringify({ shopId, orderId: created.id, items: input.supplies }),
-          }) : null;
-          const j = res?.ok ? await res.json() : null;
-          if (Array.isArray(j?.used)) return { ...created, suppliesUsed: j.used };
-        } catch { /* stock is best-effort */ }
-      }
-      return created;
+      // Server route (Admin SDK): same counters/cap/ticket writes, without client-rule field limits.
+      const user = getFirebaseAuth().currentUser;
+      if (!user) throw new Error("Please sign in again.");
+      const res = await fetch("/api/shop/walk-ins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}` },
+        body: JSON.stringify({ shopId, ...input }),
+      }).catch(() => null);
+      if (!res) throw new Error("You're offline. Check the connection and try again.");
+      const json = (await res.json().catch(() => ({}))) as { order?: Order; error?: { message?: string } };
+      if (!res.ok || !json.order) throw new Error(json.error?.message ?? `Couldn’t create the order (${res.status}).`);
+      return json.order;
     },
 
     async setOrderStatus(orderId, status) {
@@ -574,6 +509,15 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
       });
       const json = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
       if (!res.ok) throw new Error(json.error?.message ?? `Could not save the order (${res.status}).`);
+    },
+    async listExpenses(since) {
+      return (await expensesApi(shopId, "GET", undefined, `&since=${since}`)).expenses as Expense[];
+    },
+    async addExpense(e) {
+      return (await expensesApi(shopId, "POST", e)).expense as Expense;
+    },
+    async removeExpense(id) {
+      await expensesApi(shopId, "DELETE", undefined, `&id=${encodeURIComponent(id)}`);
     },
     async createTestBooking() {
       const user = getFirebaseAuth().currentUser;

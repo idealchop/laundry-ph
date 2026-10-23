@@ -1,33 +1,34 @@
 "use client";
 
-import { CoinIcon, Icon3D } from "@river-apps/icons";
+import { CoinIcon } from "@river-apps/icons";
 import { Check } from "lucide-react";
 import { RowsSkeleton } from "@/components/common/Skeleton";
-import { Card, EmptyState, cn } from "@river-apps/ui";
+import { Card, cn } from "@river-apps/ui";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { money, startOfShopDay } from "@/lib/format";
 import { salesDelta, salesReport, SALES_RANGES, type SalesRange, type SalesRow } from "@/lib/sales";
 import { ordersBetween } from "@/lib/orders";
-import { staffStats, type StaffRow } from "@/lib/staff-performance";
+import { staffKey, staffName, staffStats, type StaffRow } from "@/lib/staff-performance";
+import { suppliesOf, supplyUsage, isLow } from "@/lib/supplies";
+import { Expenses, ProfitLine, SuppliesUsed } from "./PerformanceExtras";
 import { useLocationFilter } from "@/lib/shop-locations";
-import { useBoardOrders, useShop } from "@/lib/shop";
+import { useAction, useBoardOrders, useShop, useShopQuery } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
 import { ShellBack } from "../shell/PageBack";
 import { ErrorNote } from "../ui";
 
 // Barbers.ph parity: three tabs (Collection default, Performance, Sales group) plus a "My Staff" pill.
-type View = "collection" | "performance" | "groups" | "staff";
+type View = "collection" | "performance" | "staff";
 const VIEWS: { value: View; label: string }[] = [
   { value: "collection", label: "Collection" },
   { value: "performance", label: "Performance" },
-  { value: "groups", label: "Sales group" },
 ];
 const MEDAL = ["🥇", "🥈", "🥉"];
 
 /** Sales: Collection / Performance / Sales group, filtered by location and a compact date chip. History opens from here only. */
 export function SalesScreen() {
-  const { shop } = useShop();
+  const { shop, member } = useShop();
   const [now] = useState(() => Date.now());
   const [range, setRange] = useState<SalesRange>("today");
   const [view, setView] = useState<View>("collection");
@@ -41,9 +42,24 @@ export function SalesScreen() {
   const inRange = useMemo(() => ordersBetween(here, from), [here, from]);
   const branchName = (id: string) => loc.branches.find((b) => b.id === id)?.name ?? (id === "home" ? shop.name : "");
   const staff = staffStats(inRange, branchName);
+  const catQ = useShopQuery((s) => s.getCatalog());
+  const expQ = useShopQuery((s) => s.listExpenses(from), [from]);
+  const act = useAction("Sign in to add expenses.");
+  const usage = useMemo(() => {
+    const supplies = catQ.data ? suppliesOf(catQ.data) : [];
+    const who = (o: (typeof inRange)[number]) => { const k = staffKey(o); return k.startsWith("staff:") ? o.staffName || "Staff" : staffName(k, branchName); };
+    const rows = supplyUsage(inRange, supplies, who);
+    for (const x of supplies) if (x.category !== "Service" && !rows.some((r) => r.id === x.id)) rows.push({ id: x.id, name: x.brand ? `${x.name} · ${x.brand}` : x.name, unit: x.unit, qty: 0, orders: 0, stock: x.stock, low: isLow(x), costCentavos: null, byStaff: [] });
+    return rows;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catQ.data, inRange]);
+  const expenses = useMemo(() => (expQ.data ?? []).filter((x) => loc.keep(x.branchId ?? undefined)), [expQ.data, loc]);
+  const supplyCost = usage.reduce((t, r) => t + (r.costCentavos ?? 0), 0);
+  const costPartial = usage.some((r) => r.orders > 0 && r.costCentavos == null);
+  const costs = supplyCost + expenses.reduce((t, x) => t + x.amountCentavos, 0);
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("view");
-    if (v === "performance" || v === "groups" || v === "staff") queueMicrotask(() => setView(v));
+    if (v === "performance" || v === "groups" || v === "staff") queueMicrotask(() => setView(v === "groups" ? "performance" : v));
   }, []);
 
   return (
@@ -63,7 +79,7 @@ export function SalesScreen() {
         <p className="mt-1 px-1 text-[12.5px] font-semibold text-muted">{shop.name}{loc.placeLabel ? ` · ${loc.placeLabel}` : ""} <SampleNote className="ml-1 align-middle" /></p>
       </header>
 
-      <div role="tablist" aria-label="Sales view" className="mt-3 grid grid-cols-3 rounded-pill bg-grey-100 p-1">
+      <div role="tablist" aria-label="Sales view" className="mt-3 grid grid-cols-2 rounded-pill bg-grey-100 p-1">
         {VIEWS.map((item) => (
           <button key={item.value} type="button" role="tab" aria-selected={view === item.value} onClick={() => setView(item.value)}
             className={cn("h-9 rounded-pill text-[13.5px] font-bold transition", view === item.value ? "bg-surface text-ink shadow-card" : "text-muted")}>{item.label}</button>
@@ -81,12 +97,20 @@ export function SalesScreen() {
       {loading && orders.length === 0 ? <RowsSkeleton rows={4} /> : (
         <>
           {view === "collection" ? <Collection report={report} staff={staff} /> : null}
-          {view === "performance" ? <><Overview report={report} /><StaffBoard rows={staff} title="Top staff" /></> : null}
-          {view === "groups" ? (
+          {view === "performance" ? (
             <>
-              <Breakdown title="Services" empty="No services in this range." rows={report.services} total={report.totals.salesCentavos} />
-              <Payments report={report} />
-              <ShopView report={report} />
+              <ProfitLine sales={report.totals.salesCentavos} costs={costs} partial={costPartial} />
+              <Overview report={report} />
+              <Breakdown title="Services" empty="No orders." rows={report.services} total={report.totals.salesCentavos} />
+              <SuppliesUsed rows={usage} />
+              <Expenses items={expenses} canEdit={member?.role === "owner"} busy={act.busy} error={act.error}
+                onAdd={async (e) => Boolean(await act.run(async (src) => { await src.addExpense({ ...e, branchId: loc.enabled && !loc.viewingAll ? loc.scopeId : null }); expQ.reload(); return true; }))}
+                onRemove={(id) => void act.run(async (src) => { await src.removeExpense(id); expQ.reload(); return true; })} />
+              <StaffBoard rows={staff} title="Top staff" />
+              <details className="group mt-3">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-1 text-[13.5px] font-bold text-ink-2">More<span aria-hidden className="transition-transform group-open:rotate-180">⌄</span></summary>
+                <ShopView report={report} />
+              </details>
             </>
           ) : null}
           {view === "staff" ? <StaffBoard rows={staff} /> : null}
@@ -202,45 +226,13 @@ function HeroStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Payments({ report }: { report: ReturnType<typeof salesReport> }) {
-  const total = report.payments.reduce((sum, row) => sum + row.salesCentavos, 0);
-  const icons = ["coin", "ewallet"] as const;
-  return (
-    <Card padding="none" className="mt-4 px-4 py-4">
-      <h2 className="text-[16px] font-bold">How it was paid</h2>
-      {report.totals.orders === 0 ? (
-        <EmptyState className="my-2" title="No payments in this range" description="Collected and unpaid amounts show up once orders are recorded." />
-      ) : (
-        <>
-          <MixBar className="mt-4" rows={report.payments} total={total} />
-          <ul className="mt-3 grid grid-cols-3 gap-2.5">
-            {report.payments.map((row, i) => {
-              const share = total > 0 ? Math.round((row.salesCentavos / total) * 100) : 0;
-              return (
-                <li key={row.label} className="min-w-0 rounded-[18px] bg-grey-100 px-2.5 py-3">
-                  {icons[i] ? <Icon3D name={icons[i]} size={40} /> : <span aria-hidden className="inline-flex size-10 items-center justify-center rounded-full bg-surface text-[16px] font-extrabold">₱</span>}
-                  <b className="mt-2 block truncate text-[16px] font-extrabold tracking-[-0.02em] tabular-nums">{money(row.salesCentavos)}</b>
-                  <span className="mt-0.5 block truncate text-[12px] font-semibold text-muted">{row.label}</span>
-                  <span className="mt-1 block text-[12px] font-extrabold tabular-nums">{share}%</span>
-                </li>
-              );
-            })}
-          </ul>
-        </>
-      )}
-    </Card>
-  );
-}
-
 function ShopView({ report }: { report: ReturnType<typeof salesReport> }) {
   return (
     <div className="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2">
-      <Breakdown title="Walk-in and online" empty="No orders in this range." rows={report.channels} total={report.totals.salesCentavos} />
-      <Breakdown title="Pickup and delivery" empty="No orders in this range." rows={report.fulfillment} total={report.totals.orders} by="orders" />
-      <Breakdown title="Where the laundry is" empty="No orders in this range." rows={report.statuses} total={report.totals.orders} by="orders" />
-      <Breakdown title="Clothes" empty="No clothes recorded." rows={report.clothes} total={report.totals.orders} by="orders" />
-      <Breakdown title="Detergent" empty="No detergent recorded." rows={report.detergents} total={report.totals.orders} by="orders" />
-      <Breakdown title="Add-ons" empty="No add-ons in this range." rows={report.addOns} total={report.totals.orders} by="orders" />
+      <Breakdown title="Channel" empty="No orders." rows={report.channels} total={report.totals.salesCentavos} />
+      <Breakdown title="Pickup / delivery" empty="No orders." rows={report.fulfillment} total={report.totals.orders} by="orders" />
+      <Breakdown title="Status" empty="No orders." rows={report.statuses} total={report.totals.orders} by="orders" />
+      <Breakdown title="Clothes" empty="None." rows={report.clothes} total={report.totals.orders} by="orders" />
       {report.cancelled > 0 ? (
         <p className="px-1 text-[13px] font-semibold text-muted lg:col-span-2">
           {report.cancelled} cancelled {report.cancelled === 1 ? "order is" : "orders are"} left out of these totals.

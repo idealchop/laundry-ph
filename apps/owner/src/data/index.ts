@@ -13,6 +13,7 @@
  */
 import { hasFirebaseWebConfig } from "@/lib/firebase/config";
 import type {
+  Expense,
   Booking, BookingStatus, Catalog, Customer, GrowthTip, Machine, NewCustomer, NewWalkInOrder, Order, OrderStatus, PaymentMethod, PickupRequest,
   PublicTicket, Shop, ShopPlanUpdate, ShopProfileUpdate, VerifiedBooking,
 } from "./types";
@@ -68,6 +69,10 @@ export interface LaundryDataSource {
   markOrderPaid(orderId: string, method: PaymentMethod): Promise<void>;
   /** Owner edit (Barbers.ph parity): customer, amount, payment and notes. Saved server-side with an audit entry. */
   editOrder(orderId: string, patch: OrderEdit): Promise<void>;
+  /** Owner expenses since a time (ms). Server route; rules don't expose the collection. */
+  listExpenses(since: number): Promise<Expense[]>;
+  addExpense(e: Omit<Expense, "id">): Promise<Expense>;
+  removeExpense(id: string): Promise<void>;
 
   /**
    * Live River Mobile bookings. "open" = requested / accepted / received (soonest slot first);
