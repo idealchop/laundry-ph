@@ -2,7 +2,6 @@
 
 import { Icon3D, type IconName } from "@river-apps/icons";
 import { ServiceSlider } from "@/components/kit-extensions";
-import { Input } from "@river-apps/ui";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { AppLoader } from "@/components/common/AppLoader";
@@ -115,14 +114,14 @@ export function LocationLinkScreen({ token }: { token: string }) {
             <div className="mt-4 flex items-center gap-3 border-y border-line py-3">
               <label className="flex min-w-0 flex-1 items-baseline gap-1">
                 <input inputMode="decimal" aria-label={svc?.unit === "load" ? "Loads" : svc?.unit === "pc" ? "Pieces" : "Kilos"} value={qty} onChange={(e) => setQty(e.target.value.replace(/[^\d.]/g, ""))}
-                  className="w-[4.5ch] bg-transparent text-[36px] font-extrabold tabular-nums tracking-[-0.03em] outline-none" />
+                  style={{ width: `${Math.max(1, qty.length) + 0.3}ch` }} className="bg-transparent text-[36px] font-extrabold tabular-nums tracking-[-0.03em] outline-none" />
                 <span className="text-[15px] font-bold text-muted">{unitWord}</span>
               </label>
               <button type="button" aria-label="Less" onClick={() => stepQty(svc?.unit === "kg" ? -0.5 : -1)} className="inline-flex size-11 items-center justify-center rounded-full border border-line active:bg-grey-50"><Minus size={18} strokeWidth={2.2} /></button>
               <button type="button" aria-label="More" onClick={() => stepQty(svc?.unit === "kg" ? 0.5 : 1)} className="inline-flex size-11 items-center justify-center rounded-full border border-line active:bg-grey-50"><Plus size={18} strokeWidth={2.2} /></button>
             </div>
-            <SupplyPicker picks={picks} className="border-b border-line py-2" />
-            <Input size="md" className="mt-4" placeholder="Customer name (optional)" aria-label="Customer name" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
+            <SupplyPicker picks={picks} className="py-2" />
+            <input className="mt-2 h-12 w-full border-b border-line bg-transparent text-[16px] font-medium outline-none placeholder:text-muted focus:border-ink" placeholder="Customer name (optional)" aria-label="Customer name" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
             <Button type="submit" className="mt-5" fullWidth disabled={busy || !serviceId || total <= 0}>{busy ? "Adding…" : total > 0 ? `Add walk-in · ${money(total)}` : "Add walk-in"}</Button>
             {note ? <p className="mt-3 text-center text-[13px] font-semibold" role="status">{note}</p> : null}
           </form>

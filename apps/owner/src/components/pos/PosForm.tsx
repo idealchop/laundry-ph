@@ -331,16 +331,16 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
                 </div>
                 <div className="flex flex-none items-center gap-2">
                   <IconButton type="button" label={perKg ? "Less 0.5 kg" : perLoad ? "One load less" : "One piece less"} variant="soft" icon={<Minus size={18} strokeWidth={2.2} />}
-                    className={`${STEP_BTN} size-11 flex-none border border-line lg:size-12`} disabled={quantity <= 0} onClick={() => stepBy(-1)} />
+                    className={`${STEP_BTN} size-11 flex-none border border-line bg-surface lg:size-12`} disabled={quantity <= 0} onClick={() => stepBy(-1)} />
                   <IconButton type="button" label={perKg ? "More 0.5 kg" : perLoad ? "One load more" : "One piece more"} variant="soft" icon={<Plus size={18} strokeWidth={2.2} />}
-                    className={`${STEP_BTN} size-11 flex-none border border-line lg:size-12`} disabled={quantity >= max} onClick={() => stepBy(1)} />
+                    className={`${STEP_BTN} size-11 flex-none border border-line bg-surface lg:size-12`} disabled={quantity >= max} onClick={() => stepBy(1)} />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="grid items-start gap-3 lg:grid-cols-3">
-          <div className="divide-y divide-line border-b border-line lg:col-span-3">
+          <div className="grid min-w-0 items-start gap-3 [&>*]:min-w-0 lg:grid-cols-3">
+          <div className="min-w-0 divide-y divide-line border-b border-line lg:col-span-3">
           {clothesTypes.length > 1 ? (
             <div>
               <OptionDisclosure
