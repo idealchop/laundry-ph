@@ -17,7 +17,7 @@ import { useLocationFilter } from "@/lib/shop-locations";
 import { useBoardOrders, useBookings } from "@/lib/shop";
 import { BookingCard, bookingHref } from "../bookings/BookingCard";
 import { OnlineOrderCard, useConvertedBookings } from "../bookings/OnlineOrderCard";
-import { TestBookingButton, useBookingActions } from "../bookings/BookingsList";
+import { useBookingActions } from "../bookings/BookingsList";
 import { ErrorNote } from "../ui";
 
 type Channel = "walk-ins" | "online";
@@ -213,7 +213,6 @@ export function OrderBoard() {
               </div>
             </div>
           ) : null}
-          <TestBookingButton className="mt-3 self-center text-center" />
         </>
       )}
     </div>

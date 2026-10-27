@@ -14,7 +14,7 @@ import { money } from "@/lib/format";
 import { PAID_PER_MO } from "@/lib/plans";
 import { CompanionCard } from "../companion/CompanionCard";
 import { BookingCard } from "../bookings/BookingCard";
-import { TestBookingButton, useBookingActions } from "../bookings/BookingsList";
+import { useBookingActions } from "../bookings/BookingsList";
 import { ErrorNote } from "../ui";
 import { HomeHeroDesktop, HomeHeroMobile, type LiveWork } from "./HomeHero";
 
@@ -64,7 +64,6 @@ function Pickups({ bookings, loading, error, canConvert, moreHref, max = 3, twoU
         </div>
       ) : null}
       {more > 0 ? <Link href={moreHref} className={`${linkCls} self-center py-2`}>See {more} more</Link> : null}
-      <TestBookingButton className="self-center" />
     </div>
   );
 }
