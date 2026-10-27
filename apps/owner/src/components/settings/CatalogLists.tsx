@@ -6,7 +6,7 @@ import { Button } from "@/components/common/Button";
 import { ChevronRight, Plus } from "lucide-react";
 import { useState } from "react";
 import type { CatalogService, ClothesPricing, ClothesType, Supply } from "@/data";
-import { isLow, SUPPLY_CATEGORIES, SUPPLY_UNITS, supplyLabel, unitText } from "@/lib/supplies";
+import { supplyMode, isLow, SUPPLY_CATEGORIES, SUPPLY_UNITS, supplyLabel, unitText } from "@/lib/supplies";
 import { REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import { money } from "@/lib/format";
 import { EditSheet, Segmented, Toggle } from "./EditSheet";
@@ -99,8 +99,10 @@ function SheetFooter({ canSave, busy, error, onSave, onRemove, removeLabel }: { 
 
 type ServiceEdit = { mode: "edit" | "add"; value: CatalogService };
 
-export function ServiceList({ services, disabled, busy, error, onSave, onRemove }: {
+export function ServiceList({ services, supplies = [], disabled, busy, error, onSave, onRemove }: {
   services: CatalogService[];
+  /** Supplies & Add-ons, set per service as Free / Additional / Off. */
+  supplies?: Supply[];
   disabled?: boolean;
   busy?: boolean;
   error?: string | null;
@@ -133,6 +135,23 @@ export function ServiceList({ services, disabled, busy, error, onSave, onRemove 
             </div>
             <Input size="md" label={`Price per ${v.unit === "kg" ? "kilo" : v.unit === "load" ? "load" : "piece"} (₱)`} inputMode="decimal" value={pesosFromCentavos(v.priceCentavos)}
               onChange={(e) => set({ priceCentavos: centavosFromPesos(e.target.value) })} />
+            {supplies.length ? (
+              <div><span className={fieldLabel}>Supplies & add-ons</span>
+                <ul className="flex flex-col gap-2">
+                  {supplies.map((s) => (
+                    <li key={s.id} className="flex items-center gap-3">
+                      <span className="min-w-0 flex-1"><b className="block truncate text-[14.5px]">{s.name}</b>
+                        <small className="block text-[12px] font-semibold text-muted">{s.defaultQty} {s.unit}{s.priceCentavos > 0 ? ` · ${money(s.priceCentavos)}` : ""}</small></span>
+                      <div className="w-[216px] flex-none">
+                        <Segmented label={`${s.name} on ${v.name || "this service"}`} value={supplyMode(v, s)}
+                          onChange={(m) => set({ supplyModes: { ...(v.supplyModes ?? {}), [s.id]: m } })}
+                          options={[{ value: "free", label: "Free" }, { value: "additional", label: "Additional" }, { value: "off", label: "Off" }]} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </form>
         </EditSheet>
       ) : null}

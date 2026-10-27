@@ -14,7 +14,7 @@ import { suppliesOf } from "@/lib/supplies";
 import { Chip, ServiceSlider } from "../kit-extensions";
 import { FocusHeader } from "../FocusHeader";
 import { BasketFill } from "./BasketFill";
-import { SupplySlider } from "./SupplySlider";
+import { SupplyPicker, useSupplyPicks } from "./SupplyPicker";
 
 const KG_STEP = 0.5;
 const KG_MAX = 50;
@@ -96,8 +96,6 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   /** POS starts with no add-ons; the counter picks them per order. */
   const supplies = useMemo(() => suppliesOf(catalog), [catalog]);
   /** Supplies & add-ons tapped for this order → quantity used. */
-  const [usedQty, setUsedQty] = useState<Record<string, string>>({});
-  const addOnIds = useMemo(() => supplies.filter((x) => x.payer === "customer" && x.id in usedQty).map((x) => x.id), [supplies, usedQty]);
   const [returnSlotId, setReturnSlotId] = useState(d.returnSlotId);
   const [fulfillment, setFulfillment] = useState<Fulfillment>(booking?.fulfillment ?? "pickup");
   const [clothesTypeId, setClothesTypeId] = useState(REGULAR_CLOTHES_ID);
@@ -114,7 +112,6 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   const qtyField = useRef<HTMLDivElement>(null);
   const breakdownId = useId();
   const detId = useId();
-  const addId = useId();
   const clothesId = useId();
 
   const service = catalog.services.find((s) => s.id === serviceId) ?? catalog.services[0]!;
@@ -123,10 +120,9 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   const quantity = perKg ? kg : perLoad ? loads : pieces;
   const step = perKg ? KG_STEP : 1;
   const max = perKg ? KG_MAX : perLoad ? LOAD_MAX : PC_MAX;
-  const q = useMemo(
-    () => quote(catalog, { serviceId, quantity, detergentId, addOnIds, clothesTypeId, typePieces }),
-    [catalog, serviceId, quantity, detergentId, addOnIds, clothesTypeId, typePieces],
-  );
+  const picks = useSupplyPicks(service, supplies);
+  const { addOnIds, addOnQty } = picks;
+  const q = quote(catalog, { serviceId, quantity, detergentId, addOnIds, addOnQty, clothesTypeId, typePieces });
   const clothesTypes = (catalog.clothesTypes ?? []).filter((t) => t.enabled);
   const clothesType = clothesTypes.find((t) => t.id === clothesTypeId) ?? clothesTypes[0];
   /** Applied type (null when Regular, or a per-kg surcharge on a per-piece service). */
@@ -138,9 +134,6 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   const roundingCentavos = q.totalCentavos > 0 ? q.totalCentavos - q.subtotalCentavos : 0;
   const returnLabel = catalog.returnSlots.find((r) => r.id === returnSlotId)?.label ?? "";
   const detergent = catalog.detergents.find((o) => o.id === detergentId);
-  const pickedSupplies = supplies.filter((o) => o.id in usedQty);
-  const pickedAddOns = catalog.addOns.filter((o) => addOnIds.includes(o.id));
-  const addOnsCentavos = pickedAddOns.reduce((sum, o) => sum + o.priceCentavos, 0);
   const toggleOptions = (which: "clothes" | "detergent" | "addons") => setOpenOptions((v) => (v === which ? null : which));
   const matches = useMemo(() => {
     const t = customer.trim().toLowerCase();
@@ -159,8 +152,8 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
       const parsed = picked ? { name: picked.name, phone: picked.phone ?? undefined } : parseCustomerText(customer);
       const order = await onCreate({
         customer: { id: picked?.id ?? null, name: parsed.name, ...(parsed.phone ? { phone: parsed.phone } : {}) },
-        serviceId, quantity, detergentId, addOnIds, returnSlotId, fulfillment,
-        ...(pickedSupplies.length ? { supplies: pickedSupplies.map((x) => ({ id: x.id, qty: Math.max(0, Number(usedQty[x.id]) || 0) })) } : {}),
+        serviceId, quantity, detergentId, addOnIds, addOnQty, returnSlotId, fulfillment,
+        ...(picks.payload.length ? { supplies: picks.payload } : {}),
         ...(appliedType ? { clothesTypeId: appliedType.id, ...(byPiece ? { typePieces } : {}) } : {}),
         ...(booking ? { bookingId: booking.id } : {}),
       });
@@ -206,7 +199,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   };
   const reset = () => {
     setCustomer(""); setPicked(null); setAddingCustomer(false); setServiceId(d.serviceId); setKg(d.kg); setPieces(d.pieces); setLoads(1); setDetergentId(defaultDetergentId(catalog));
-    setUsedQty({}); setClothesTypeId(REGULAR_CLOTHES_ID); setTypePieces(1); setReturnSlotId(d.returnSlotId); setFulfillment("pickup"); setOpenOptions(null); setPickingReturn(false); setCreated(null); setQtyText(null); setError(null); setCopied(false); setShowBreakdown(false);
+    picks.reset(); setClothesTypeId(REGULAR_CLOTHES_ID); setTypePieces(1); setReturnSlotId(d.returnSlotId); setFulfillment("pickup"); setOpenOptions(null); setPickingReturn(false); setCreated(null); setQtyText(null); setError(null); setCopied(false); setShowBreakdown(false);
   };
 
   if (created) {
@@ -425,16 +418,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
             ))}
           </OptionDisclosure> : null}
 
-<OptionDisclosure
-            id={addId}
-            label="Supplies"
-            summary={pickedSupplies.length === 0 ? "None" : pickedSupplies.length <= 2 ? pickedSupplies.map((o) => o.name).join(", ") : `${pickedSupplies.length} used`}
-            aside={addOnsCentavos > 0 ? `+${money(addOnsCentavos)}` : undefined}
-            open={openOptions === "addons"}
-            onToggle={() => toggleOptions("addons")}
-          >
-            <SupplySlider className="w-full" items={supplies} used={usedQty} onChange={setUsedQty} />
-          </OptionDisclosure>
+<SupplyPicker picks={picks} className="border-t border-line px-4 py-1.5" />
           </div>
 
           <div className="lg:col-span-3">

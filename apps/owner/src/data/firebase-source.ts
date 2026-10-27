@@ -610,6 +610,7 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         unit: normUnit(s.unit),
         priceCentavos: Math.max(0, Math.round(Number(s.priceCentavos) || 0)),
         icon: s.icon,
+        ...(s.supplyModes ? { supplyModes: Object.fromEntries(Object.entries(s.supplyModes).filter(([, m]) => m === "free" || m === "additional" || m === "off")) } : {}),
       }));
       if (services.some((s) => s.name.length < 2)) throw new Error("Each service needs a name.");
       const detergents = (next.detergents ?? []).map((o) => ({

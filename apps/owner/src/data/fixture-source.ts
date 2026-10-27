@@ -1,5 +1,5 @@
 import { normUnit, withRush } from "@/lib/units";
-import { normSupply, supplyAddOns, applySupplyUse, withSupplies } from "@/lib/supplies";
+import { normSupply, supplyAddOns, applySupplyUse, resolveSupplyUse, withSupplies } from "@/lib/supplies";
 import { dayKey } from "@/lib/format";
 import { PARTNER_WALKINS_PER_DAY, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 /**
@@ -97,6 +97,7 @@ export function createFixtureDataSource(): LaundryDataSource {
         unit: normUnit(s.unit),
         priceCentavos: Math.max(0, Math.round(s.priceCentavos)),
         icon: s.icon,
+        ...(s.supplyModes ? { supplyModes: s.supplyModes } : {}),
       }));
       if (services.some((s) => s.name.length < 2)) throw new Error("Each service needs a name.");
       const detergents = (next.detergents ?? []).map((o) => ({
@@ -154,10 +155,12 @@ export function createFixtureDataSource(): LaundryDataSource {
         customerId = c.id;
       }
       const branchId = input.branchId || booking?.branchId || currentBranchId();
-      const base = buildWalkInOrder(store.catalog, { ...input, branchId, customer: { ...input.customer, id: customerId } }, {
+      const res = resolveSupplyUse(store.catalog, input.serviceId, input.supplies ?? []);
+      const base = buildWalkInOrder(store.catalog, { ...input, addOnIds: [...new Set([...input.addOnIds.filter((id) => !(store.catalog.supplies ?? []).some((x) => x.id === id)), ...res.addOnIds])], addOnQty: res.addOnQty, branchId, customer: { ...input.customer, id: customerId } }, {
         shopId: fx.SAMPLE_SHOP_ID, ref, queueNo: store.nextNo - 400, ticketId: ref, now, sample: true,
       });
-      const use = applySupplyUse(store.catalog.supplies ?? [], input.supplies ?? []);
+      const use = applySupplyUse(store.catalog.supplies ?? [], res.use);
+      use.used = use.used.map((u) => ({ ...u, payer: res.payerOf(u.id) }));
       if (use.used.length) store.catalog = { ...store.catalog, supplies: use.supplies };
       const order: Order = { ...base, ...(use.used.length ? { suppliesUsed: use.used } : {}), id: `local-${ref}`, ...(booking ? { source: "river-mobile" as const, bookingId: booking.id } : {}) };
       if (booking) {

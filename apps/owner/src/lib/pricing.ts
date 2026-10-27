@@ -8,6 +8,8 @@ export interface PosSelection {
   quantity: number;
   detergentId: string;
   addOnIds: string[];
+  /** Count per add-on (default 1). */
+  addOnQty?: Record<string, number>;
   /** Clothes type (default Regular clothes). */
   clothesTypeId?: string;
   /** Pieces / pairs for a per-piece clothes type. */
@@ -74,7 +76,8 @@ export function quote(catalog: Catalog, sel: PosSelection): Quote {
   const detergent = catalog.detergents.find((d) => d.id === sel.detergentId) ?? null;
   if (detergent && detergent.priceCentavos > 0) lines.push({ label: detergent.name, amountCentavos: detergent.priceCentavos });
   const addOns = catalog.addOns.filter((a) => sel.addOnIds.includes(a.id));
-  for (const a of addOns) lines.push({ label: a.name, amountCentavos: a.priceCentavos });
+  const nOf = (id: string) => Math.max(1, Math.min(50, Math.round(sel.addOnQty?.[id] ?? 1)));
+  for (const a of addOns) lines.push({ label: nOf(a.id) > 1 ? `${a.name} ×${nOf(a.id)}` : a.name, amountCentavos: a.priceCentavos * nOf(a.id) });
   const subtotalCentavos = lines.reduce((sum, l) => sum + l.amountCentavos, 0);
   const extras = [...(detergent && detergent.priceCentavos > 0 ? [detergent] : []), ...addOns];
   const head = perPiece
@@ -83,7 +86,7 @@ export function quote(catalog: Catalog, sel: PosSelection): Quote {
   const summary = [
     head,
     ...(clothesType?.pricing === "per_kg_surcharge" && clothesType.priceCentavos > 0 ? [`${clothesType.name.split(" /")[0]!.toLowerCase()} +${money(clothesType.priceCentavos)}/kg`] : []),
-    ...extras.map((e) => `${(e.short ?? e.name).replace(/^Fabric /, "").toLowerCase()} ${money(e.priceCentavos)}`),
+    ...extras.map((e) => `${(e.short ?? e.name).replace(/^Fabric /, "").toLowerCase()} ${money(e.priceCentavos * (addOns.includes(e) ? nOf(e.id) : 1))}`),
   ].join(" + ");
   const hasLoad = perPiece ? typePieces > 0 : qty > 0;
   const totalCentavos = hasLoad ? Math.round(subtotalCentavos / 100) * 100 : 0;

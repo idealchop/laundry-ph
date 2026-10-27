@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     ...(Number.isFinite(Number(b.typePieces)) && Number(b.typePieces) > 0 ? { typePieces: Math.min(500, Math.round(Number(b.typePieces))) } : {}),
     ...(id(b.bookingId) ? { bookingId: id(b.bookingId) } : {}),
     ...(id(b.branchId) ? { branchId: id(b.branchId) } : {}),
-    supplies: (Array.isArray(b.supplies) ? b.supplies : []).slice(0, 30).map((i: { id?: unknown; qty?: unknown }) => ({ id: id(i?.id), qty: Math.max(0, Math.min(100_000, Number(i?.qty) || 0)) })).filter((i) => i.id),
+    supplies: (Array.isArray(b.supplies) ? b.supplies : []).slice(0, 30).map((i: { id?: unknown; qty?: unknown }) => ({ id: id(i?.id), qty: Math.max(0, Math.min(100_000, Number(i?.qty) || 0)), count: Math.max(1, Math.min(50, Math.round(Number((i as { count?: unknown })?.count) || 1))) })).filter((i) => i.id),
   } as NewWalkInOrder;
   try {
     const m = await adminDb().collection("shops").doc(shopId).collection("members").doc(uid).get();

@@ -228,7 +228,9 @@ export interface Order {
 
 export interface NewWalkInOrder {
   /** Supplies & Add-ons tapped at the counter (customer ones must also be in addOnIds). */
-  supplies?: { id: string; qty: number }[];
+  supplies?: { id: string; qty: number; count?: number }[];
+  /** Count per paid add-on (default 1). */
+  addOnQty?: Record<string, number>;
   customer: { id?: string | null; name: string; phone?: string };
   serviceId: string;
   quantity: number;
@@ -332,7 +334,10 @@ export interface VerifiedBooking {
   pickup: { window: string; address: string; feeCentavos: Centavos };
 }
 
+export type SupplyMode = "free" | "additional" | "off";
 export interface CatalogService {
+  /** Per supply: Free (included, auto-applied), Additional (paid extra staff can add) or Off. Unset = by payer. */
+  supplyModes?: Record<string, SupplyMode>;
   id: string;
   name: string;
   unit: "kg" | "pc" | "load";

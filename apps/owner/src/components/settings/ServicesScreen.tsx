@@ -93,7 +93,7 @@ export function ServicesScreen() {
         <section aria-labelledby="services-h">
           <b id="services-h" className="block text-[16px]">Services</b>
           <div className="mb-2" />
-          <ServiceList services={catalog.services} disabled={readOnly} busy={busy} error={error}
+          <ServiceList services={catalog.services} supplies={suppliesOf(catalog)} disabled={readOnly} busy={busy} error={error}
             onSave={(svc) => persist((c) => ({
               ...c,
               services: c.services.some((x) => x.id === svc.id) ? c.services.map((x) => (x.id === svc.id ? svc : x)) : [...c.services, svc],

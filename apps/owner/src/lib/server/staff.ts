@@ -13,7 +13,7 @@ import { ORDER_FLOW } from "@/data/types";
 import { PARTNER_WALKINS_PER_DAY, walkInLimit, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 import { adminDb } from "./admin";
 import { normUnit, withRush } from "@/lib/units";
-import { applySupplyUse, withSupplies } from "@/lib/supplies";
+import { applySupplyUse, resolveSupplyUse, withSupplies } from "@/lib/supplies";
 import { auditInTx } from "./audit";
 
 /** Same switch the rules read: config/flags.allFeaturesUnlocked in this database (cached 60 s). */
@@ -99,15 +99,16 @@ export async function staffView(link: StaffLink) {
   return {
     shopName: link.shopName, branchName: link.branchName, expiresAt: link.expiresAt,
     staffName: link.staffName ?? null, mineToday,
-    services: cat.services.map((s) => ({ id: s.id, name: s.name, icon: s.icon, unit: s.unit, priceCentavos: s.priceCentavos })),
+    services: cat.services.map((s) => ({ id: s.id, name: s.name, icon: s.icon, unit: s.unit, priceCentavos: s.priceCentavos, supplyModes: s.supplyModes ?? {} })),
     defaults: cat.defaults,
+    minKg: cat.minKg ?? 0,
     supplies: (cat.supplies ?? []).map((s) => ({ id: s.id, name: s.name, brand: s.brand, unit: s.unit, payer: s.payer, priceCentavos: s.priceCentavos, defaultQty: s.defaultQty })),
     walkIns: Number.isFinite(limit) ? { used, limit: PARTNER_WALKINS_PER_DAY, left: Math.max(0, PARTNER_WALKINS_PER_DAY - used) } : null,
     queue,
   };
 }
 
-export interface StaffWalkInInput { name?: string; serviceId: string; quantity: number; supplies?: { id: string; qty: number }[] }
+export interface StaffWalkInInput { name?: string; serviceId: string; quantity: number; supplies?: { id: string; qty: number; count?: number }[] }
 
 /** Create a walk-in order for the link's shop + branch. Same counter and cap as the owner app. */
 export async function staffWalkIn(link: StaffLink, input: StaffWalkInInput) {
@@ -129,14 +130,15 @@ export async function staffWalkIn(link: StaffLink, input: StaffWalkInInput) {
     const refCode = formatRef(no);
     const ticketId = makeTicketId(refCode);
     const now = Date.now();
-    const use = applySupplyUse(catalog.supplies ?? [], input.supplies ?? []);
-    const paidIds = use.used.filter((u) => u.payer === "customer").map((u) => u.id);
+    const res = resolveSupplyUse(catalog, input.serviceId, input.supplies ?? []);
+    const use = applySupplyUse(catalog.supplies ?? [], res.use);
+    use.used = use.used.map((u) => ({ ...u, payer: res.payerOf(u.id) }));
     let built: Omit<Order, "id">;
     try {
       built = buildWalkInOrder(catalog, {
         customer: { id: null, name: (input.name ?? "").trim().slice(0, 60) },
         serviceId: input.serviceId, quantity: input.quantity,
-        detergentId: catalog.defaults.detergentId || catalog.detergents[0]?.id || "", addOnIds: paidIds,
+        detergentId: catalog.defaults.detergentId || catalog.detergents[0]?.id || "", addOnIds: res.addOnIds, addOnQty: res.addOnQty,
         returnSlotId: catalog.defaults.returnSlotId || catalog.returnSlots[0]?.id || "",
         branchId: link.branchId === "home" ? undefined : link.branchId,
       }, { shopId: link.shopId, ref: refCode, queueNo, ticketId, uid: actorOf(link), now, sample: shop.sample === true });
@@ -217,13 +219,14 @@ export async function memberWalkIn(shopId: string, uid: string, input: import("@
     let customerId = custSnap?.exists ? custSnap.id : null;
     const newCust = !customerId && name ? ref.collection("customers").doc() : null;
     if (newCust) customerId = newCust.id;
-    const use = applySupplyUse(catalog.supplies ?? [], input.supplies ?? []);
-    const paid = new Set(use.used.filter((u) => u.payer === "customer").map((u) => u.id));
-    const addOnIds = [...new Set([...(input.addOnIds ?? []).filter((id) => !(catalog.supplies ?? []).some((s) => s.id === id) || paid.has(id)), ...paid])];
+    const res = resolveSupplyUse(catalog, input.serviceId, input.supplies ?? []);
+    const use = applySupplyUse(catalog.supplies ?? [], res.use);
+    use.used = use.used.map((u) => ({ ...u, payer: res.payerOf(u.id) }));
+    const addOnIds = [...new Set([...(input.addOnIds ?? []).filter((id) => !(catalog.supplies ?? []).some((s) => s.id === id)), ...res.addOnIds])];
     const branchId = input.branchId || (bookingSnap?.data()?.branchId as string | undefined) || undefined;
     let built: Omit<Order, "id">;
     try {
-      built = buildWalkInOrder(catalog, { ...input, addOnIds, branchId, customer: { ...input.customer, id: customerId } },
+      built = buildWalkInOrder(catalog, { ...input, addOnIds, addOnQty: res.addOnQty, branchId, customer: { ...input.customer, id: customerId } },
         { shopId, ref: refCode, queueNo, ticketId, uid, now, sample: shop.sample === true });
     } catch (e) { throw new StaffError(400, (e as Error).message); }
     if (bookingRef) built = { ...built, source: "river-mobile", bookingId: bookingRef.id };

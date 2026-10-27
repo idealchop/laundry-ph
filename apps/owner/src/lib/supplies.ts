@@ -2,7 +2,7 @@
  * Supplies & Add-ons: one merged list. Customer items are paid add-ons (they feed the pricing engine
  * as `addOns`); Shop items are free and only deduct stock. Older catalogs are migrated on read.
  */
-import type { Catalog, CatalogOption, Supply, SupplyCategory, SupplyUnit } from "@/data/types";
+import type { CatalogService, SupplyMode, Catalog, CatalogOption, Supply, SupplyCategory, SupplyUnit } from "@/data/types";
 import { RUSH_DEFAULT_CENTAVOS, RUSH_ID } from "./units";
 
 export const SUPPLY_UNITS: { value: SupplyUnit; label: string }[] = [
@@ -49,9 +49,9 @@ export function suppliesOf(c: Pick<Catalog, "supplies" | "addOns">): Supply[] {
   return out;
 }
 
-/** Customer items as pricing add-ons. */
+/** Priced items as pricing add-ons (charged only when used as Additional). */
 export const supplyAddOns = (supplies: Supply[]): CatalogOption[] =>
-  supplies.filter((s) => s.payer === "customer").map((s) => ({ id: s.id, name: s.brand ? `${s.name} · ${s.brand}` : s.name, priceCentavos: s.priceCentavos }));
+  supplies.filter((s) => s.priceCentavos > 0).map((s) => ({ id: s.id, name: s.brand ? `${s.name} · ${s.brand}` : s.name, priceCentavos: s.priceCentavos }));
 
 /** Apply the merged list to a catalog: customer items become add-ons; the separate detergent pick goes away. */
 export function withSupplies<T extends Catalog>(c: T): T {
@@ -99,4 +99,42 @@ export function supplyUsage(orders: import("@/data/types").Order[], supplies: Su
   }
   return [...m.values()].map(({ staff, ...r }) => ({ ...r, byStaff: [...staff].map(([name, qty]) => ({ name, qty })).sort((a, b) => b.qty - a.qty) }))
     .sort((a, b) => b.orders - a.orders);
+}
+
+/** A supply's mode on a service: owner-set, else Free for shop items and Additional for customer (paid) items. */
+export function supplyMode(service: Pick<CatalogService, "supplyModes"> | null | undefined, s: Pick<Supply, "id" | "payer">): SupplyMode {
+  return service?.supplyModes?.[s.id] ?? (s.payer === "customer" ? "additional" : "free");
+}
+
+/** Split a service's supplies into Free (included) and Additional (paid extras). */
+export function serviceSupplies<T extends Pick<Supply, "id" | "payer">>(service: Pick<CatalogService, "supplyModes"> | null | undefined, supplies: T[]) {
+  return {
+    free: supplies.filter((s) => supplyMode(service, s) === "free"),
+    additional: supplies.filter((s) => supplyMode(service, s) === "additional"),
+  };
+}
+
+/**
+ * Server-side: turn tapped items into stock use + paid add-ons for one service. Free items are never charged;
+ * Additional items are charged price × count and deduct defaultQty × count; Off and unknown items are dropped.
+ */
+export function resolveSupplyUse(catalog: Pick<Catalog, "services" | "supplies">, serviceId: string, items: { id: string; qty: number; count?: number }[]) {
+  const service = catalog.services.find((s) => s.id === serviceId) ?? null;
+  const supplies = catalog.supplies ?? [];
+  const use: { id: string; qty: number }[] = [];
+  const addOnIds: string[] = [];
+  const addOnQty: Record<string, number> = {};
+  for (const it of items) {
+    const s = supplies.find((x) => x.id === it.id);
+    if (!s) continue;
+    const mode = supplyMode(service, s);
+    if (mode === "off") continue;
+    if (mode === "additional") {
+      const n = Math.max(1, Math.min(50, Math.round(Number(it.count) || 1)));
+      use.push({ id: s.id, qty: s.defaultQty * n });
+      if (s.priceCentavos > 0) { addOnIds.push(s.id); addOnQty[s.id] = n; }
+    } else use.push({ id: s.id, qty: Math.max(0, Number(it.qty) || 0) });
+  }
+  const paid = new Set(addOnIds);
+  return { use, addOnIds, addOnQty, payerOf: (id: string): "customer" | "shop" => (paid.has(id) ? "customer" : "shop") };
 }
