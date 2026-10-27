@@ -43,8 +43,8 @@ export function SupplyPicker({ picks, className = "" }: { picks: ReturnType<type
       {free.length ? (
         <div>
           <button type="button" aria-expanded={edit} onClick={() => setEdit(!edit)}
-            className="flex min-h-11 w-full items-center gap-2 text-left text-[13.5px] font-semibold text-muted">
-            <span className="min-w-0 flex-1 truncate"><span className="text-ink">Included</span> · {included || "None"}</span>
+            className="flex min-h-11 w-full items-center gap-2 text-left text-[13px] font-medium text-muted">
+            <span className="min-w-0 flex-1 truncate">Includes {included || "None"}</span>
             <ChevronDown size={16} className={`flex-none transition-transform ${edit ? "rotate-180" : ""}`} aria-hidden />
           </button>
           {edit ? (
@@ -52,7 +52,7 @@ export function SupplyPicker({ picks, className = "" }: { picks: ReturnType<type
               {free.map((s) => (
                 <li key={s.id} className="flex items-center gap-2">
                   <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{s.name}</span>
-                  <label className="flex h-10 items-center gap-1 rounded-pill bg-grey-100 px-3">
+                  <label className="flex h-10 items-center gap-1 rounded-pill border border-line px-3">
                     <input inputMode="decimal" aria-label={`${s.name} amount`} value={picks.amtRaw[s.id] ?? String(s.defaultQty)}
                       onChange={(e) => setAmount(s.id, e.target.value.replace(/[^\d.]/g, ""))} className="w-12 bg-transparent text-right text-[14px] font-bold outline-none" />
                     <span className="text-[12.5px] font-semibold text-muted">{unitOf(s.unit)}</span>
@@ -70,15 +70,15 @@ export function SupplyPicker({ picks, className = "" }: { picks: ReturnType<type
             const n = count[s.id] ?? 0;
             const price = s.priceCentavos > 0 ? `+${money(s.priceCentavos)}` : "Free";
             return n ? (
-              <div key={s.id} className="flex h-14 flex-none snap-start items-center gap-1 rounded-[18px] bg-ink pl-1 pr-1 text-on-ink">
-                <button type="button" aria-label={`One less ${s.name}`} onClick={() => setCount(s.id, n - 1)} className="inline-flex size-11 items-center justify-center rounded-full active:bg-white/10"><Minus size={17} strokeWidth={2.4} /></button>
-                <span className="flex flex-col items-center px-1 leading-tight"><b className="whitespace-nowrap text-[14px]">{s.name}{n > 1 ? ` ×${n}` : ""}</b><small className="text-[12px] font-semibold opacity-75">{s.priceCentavos > 0 ? `+${money(s.priceCentavos * n)}` : "Free"}</small></span>
-                <button type="button" aria-label={`One more ${s.name}`} onClick={() => setCount(s.id, n + 1)} className="inline-flex size-11 items-center justify-center rounded-full active:bg-white/10"><Plus size={17} strokeWidth={2.4} /></button>
+              <div key={s.id} className="flex h-12 flex-none snap-start items-center gap-1 rounded-pill bg-ink pl-1 pr-1 text-on-ink">
+                <button type="button" aria-label={`One less ${s.name}`} onClick={() => setCount(s.id, n - 1)} className="inline-flex size-10 items-center justify-center rounded-full active:bg-white/10"><Minus size={17} strokeWidth={2.4} /></button>
+                <b className="whitespace-nowrap px-0.5 text-[14px]">{s.name}{n > 1 ? ` ×${n}` : ""}</b>
+                <button type="button" aria-label={`One more ${s.name}`} onClick={() => setCount(s.id, n + 1)} className="inline-flex size-10 items-center justify-center rounded-full active:bg-white/10"><Plus size={17} strokeWidth={2.4} /></button>
               </div>
             ) : (
               <button key={s.id} type="button" aria-pressed={false} onClick={() => setCount(s.id, 1)}
-                className="flex h-14 flex-none snap-start flex-col items-start justify-center rounded-[18px] bg-grey-100 px-4 leading-tight active:bg-grey-200">
-                <b className="whitespace-nowrap text-[14px]">{s.name}</b><small className="text-[12px] font-semibold text-muted">{price}</small>
+                className="flex h-12 flex-none snap-start items-center gap-1.5 rounded-pill border border-line bg-surface px-4 leading-tight active:bg-grey-50">
+                <b className="whitespace-nowrap text-[14px]">{s.name}</b><small className="whitespace-nowrap text-[13px] font-semibold text-muted">{price}</small>
               </button>
             );
           })}

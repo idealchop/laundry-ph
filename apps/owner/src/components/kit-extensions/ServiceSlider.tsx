@@ -42,9 +42,9 @@ export function ServiceSlider({ options, value, onChange, label = "Service", vis
           return (
             <button key={o.id} type="button" role="radio" aria-checked={on} onClick={() => onChange(o.id)}
               style={{ width: `${100 / Math.min(visible, options.length)}%` }}
-              className={cn("group flex flex-none snap-center flex-col items-center gap-1.5 rounded-[16px] py-2 outline-none transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink", on ? "bg-grey-100" : "hover:bg-grey-50")}>
+              className={cn("group flex flex-none snap-center flex-col items-center gap-1.5 rounded-[16px] py-2 outline-none transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink", on ? "bg-surface ring-[1.5px] ring-inset ring-ink" : "hover:bg-grey-50")}>
               <span className="transition-transform duration-100 group-active:scale-90 motion-reduce:transition-none motion-reduce:group-active:scale-100">
-                <IconTile size={48} tone={on ? "white" : "grey"} className={cn(on ? "shadow-card" : "")}>
+                <IconTile size={48} tone="grey">
                   {o.icon}
                 </IconTile>
               </span>

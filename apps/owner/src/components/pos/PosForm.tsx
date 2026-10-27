@@ -13,7 +13,6 @@ import { quote } from "@/lib/pricing";
 import { suppliesOf } from "@/lib/supplies";
 import { Chip, ServiceSlider } from "../kit-extensions";
 import { FocusHeader } from "../FocusHeader";
-import { BasketFill } from "./BasketFill";
 import { SupplyPicker, useSupplyPicks } from "./SupplyPicker";
 
 const KG_STEP = 0.5;
@@ -21,7 +20,6 @@ const KG_MAX = 50;
 const PC_MAX = 200;
 const LOAD_MAX = 20;
 /** Pieces that make a "full basket" for per-piece services. */
-const PC_FULL = 30;
 /** − / + press feedback: shrink + darker fill while held; colour-only when reduced motion is on. */
 const STEP_BTN = "[-webkit-tap-highlight-color:transparent] touch-manipulation select-none transition-[transform,background-color] duration-100 ease-out active:scale-90 active:bg-grey-300 disabled:opacity-40 disabled:active:scale-100 motion-reduce:transition-colors motion-reduce:active:scale-100";
 const FULFILLMENT: { id: Fulfillment; label: string; hint: string; icon: ReactNode }[] = [
@@ -129,8 +127,6 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
   const appliedType = q.clothesType;
   const byPiece = appliedType?.pricing === "per_piece";
   /** Basket is "full" at twice the minimum (at least 8 kg); per-piece services fill at PC_FULL pieces. */
-  const fullAt = perKg ? Math.max(catalog.minKg * 2, 8) : perLoad ? 3 : PC_FULL;
-  const basketFill = quantity / fullAt;
   const roundingCentavos = q.totalCentavos > 0 ? q.totalCentavos - q.subtotalCentavos : 0;
   const returnLabel = catalog.returnSlots.find((r) => r.id === returnSlotId)?.label ?? "";
   const detergent = catalog.detergents.find((o) => o.id === detergentId);
@@ -291,20 +287,18 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
             </div>
           ) : null}
 
+          <div role="group" aria-labelledby="svc-label">
+            <span id="svc-label" className="sr-only">Service</span>
+            <ServiceSlider
+              options={catalog.services.map((s) => ({ id: s.id, label: s.name, icon: <Icon3D name={s.icon} size={34} />, meta: `${money(s.priceCentavos)}/${s.unit}` }))}
+              value={serviceId}
+              onChange={(id) => { setServiceId(id); setQtyText(null); }}
+            />
+          </div>
+
           <div>
             {/* Product-card row: basket left (96px), details left-aligned 16px to its right, vertically centred. */}
-            <div className="flex items-center gap-4" role="group" aria-labelledby="qty-label">
-              <div className="flex w-[72px] flex-none flex-col items-center">
-                {/* The art keeps ~15px of headroom for the rising heap; pull it up so the visible basket is what's centred. */}
-                <BasketFill fill={basketFill} size={72} className="-mt-[11px]" />
-                  <div className="relative mt-1.5 h-1 w-[3.5rem] overflow-hidden rounded-full bg-grey-200" aria-hidden>
-                  <span
-                    className="absolute inset-y-0 left-0 w-full origin-left rounded-full bg-ink transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none"
-                    style={{ transform: `scaleX(${Math.min(1, basketFill).toFixed(3)})` }}
-                  />
-                  {perKg ? <span className="absolute inset-y-0 w-0.5 bg-surface" style={{ left: `${Math.min(100, (catalog.minKg / fullAt) * 100)}%` }} /> : null}
-                </div>
-              </div>
+            <div className="flex items-center gap-4 border-y border-line py-3" role="group" aria-labelledby="qty-label">
               <div ref={qtyField} className="flex min-w-0 flex-1 items-center justify-between gap-3">
                 <div className="flex min-w-0 flex-col items-start gap-1">
                   <p id="qty-label" className="whitespace-nowrap text-[13px] leading-none">
@@ -345,17 +339,8 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
             </div>
           </div>
 
-          <div role="group" aria-labelledby="svc-label">
-            <span id="svc-label" className="sr-only">Service</span>
-            <ServiceSlider
-              options={catalog.services.map((s) => ({ id: s.id, label: s.name, icon: <Icon3D name={s.icon} size={34} />, meta: `${money(s.priceCentavos)}/${s.unit}` }))}
-              value={serviceId}
-              onChange={(id) => { setServiceId(id); setQtyText(null); }}
-            />
-          </div>
-
           <div className="grid items-start gap-3 lg:grid-cols-3">
-          <div className="divide-y divide-line overflow-hidden rounded-tile bg-grey-50 lg:col-span-3">
+          <div className="divide-y divide-line border-b border-line lg:col-span-3">
           {clothesTypes.length > 1 ? (
             <div>
               <OptionDisclosure
@@ -384,7 +369,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
                 })}
               </OptionDisclosure>
               {byPiece && appliedType ? (
-                <div className="mt-2 flex min-h-[52px] items-center gap-3 rounded-tile bg-grey-100 px-3.5 py-2" role="group" aria-label={`${appliedType.name} count`}>
+                <div className="mt-2 flex min-h-[52px] items-center gap-3 rounded-tile border border-line px-3.5 py-2" role="group" aria-label={`${appliedType.name} count`}>
                   <span className="min-w-0 flex-1 leading-tight">
                     <b className="block text-[14px] tabular-nums">{pieceLabel(typePieces, appliedType.pieceUnit)}</b>
                     <small className="block truncate text-[12px] font-semibold text-muted">{money(appliedType.priceCentavos)} each · {money(typePieces * appliedType.priceCentavos)}</small>
@@ -418,12 +403,12 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
             ))}
           </OptionDisclosure> : null}
 
-<SupplyPicker picks={picks} className="border-t border-line px-4 py-1.5" />
+<SupplyPicker picks={picks} className="py-2" />
           </div>
 
           <div className="lg:col-span-3">
             <span id="ful-label" className="sr-only">Fulfillment</span>
-            <div role="radiogroup" aria-labelledby="ful-label" className="grid grid-cols-2 gap-1 rounded-tile bg-grey-100 p-1">
+            <div role="radiogroup" aria-labelledby="ful-label" className="grid grid-cols-2 gap-1 rounded-tile border border-line p-1">
               {FULFILLMENT.map((f) => {
                 const on = f.id === fulfillment;
                 return (
@@ -433,9 +418,9 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
                     role="radio"
                     aria-checked={on}
                     onClick={() => setFulfillment(f.id)}
-                    className={`flex min-h-[44px] items-center justify-center gap-2 rounded-[11px] px-2 text-left [-webkit-tap-highlight-color:transparent] transition-[background-color,box-shadow,color] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${on ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"}`}
+                    className={`flex min-h-[44px] items-center justify-center gap-2 rounded-[11px] px-2 text-left [-webkit-tap-highlight-color:transparent] transition-[background-color,box-shadow,color] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${on ? "bg-ink text-on-ink" : "text-muted hover:text-ink"}`}
                   >
-                    <span className={`inline-flex size-7 flex-none items-center justify-center rounded-full transition-colors ${on ? "bg-ink text-white" : "bg-grey-200 text-ink-2"}`} aria-hidden>{f.icon}</span>
+                    <span className={`inline-flex size-7 flex-none items-center justify-center rounded-full transition-colors ${on ? "text-on-ink" : "text-ink-2"}`} aria-hidden>{f.icon}</span>
                     <span className="flex min-w-0 flex-col leading-tight">
                       <b className="text-[14px] font-bold">{f.label}</b>
                     </span>
@@ -470,7 +455,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
               inert={!showBreakdown}
             >
               <div className="min-h-0 overflow-hidden">
-                <div className="mb-3 max-h-[38vh] overflow-y-auto rounded-tile bg-grey-100 px-3.5 py-3">
+                <div className="mb-3 max-h-[38vh] overflow-y-auto rounded-tile border border-line px-3.5 py-3">
                   <ul className="flex flex-col gap-2 text-[13px]" aria-label="Total breakdown">
                     {q.lines.map((l) => (
                       <li key={l.label} className="flex items-baseline justify-between gap-3">
