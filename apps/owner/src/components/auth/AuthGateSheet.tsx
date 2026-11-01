@@ -43,6 +43,16 @@ function AuthGateSheetOpen({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 60s resend cooldown after a code is sent; ticks only while it runs.
+  const [sentAt, setSentAt] = useState<number | null>(() => pendingPhone()?.sentAt ?? null);
+  const [now, setNow] = useState(() => Date.now());
+  const left = sentAt ? Math.max(0, Math.ceil((sentAt + RESEND_MS - now) / 1000)) : 0;
+  useEffect(() => {
+    if (!left) return;
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [left]);
+
   useEffect(() => {
     if (user) onAuthenticated();
   }, [user, onAuthenticated]);
@@ -60,11 +70,16 @@ function AuthGateSheetOpen({
 
   async function sendCode(e?: FormEvent) {
     e?.preventDefault();
-    if (!e164) return setError("Enter your 10-digit mobile number, e.g. 917 123 4567.");
+    const to = e164 ?? pendingPhone()?.phoneE164 ?? null;
+    if (!to) return setError("Enter your 10-digit mobile number, e.g. 917 123 4567.");
+    if (left > 0 && to === pendingPhone()?.phoneE164) { setStep("code"); return; }
     setError(null);
     setBusy(true);
     try {
-      await sendPhoneCode(e164, btnId);
+      await sendPhoneCode(to, btnId);
+      const at = pendingPhone()?.sentAt ?? Date.now();
+      setSentAt(at); setNow(Date.now());
+      setCode("");
       setStep("code");
     } catch (err) {
       setError(authErrorMessage(err));
@@ -146,7 +161,10 @@ function AuthGateSheetOpen({
 
           {step === "phone" ? (
             <form onSubmit={(e) => void sendCode(e)} className="mt-5 flex flex-col gap-2.5">
+              <ResendRow label="Mobile number" htmlFor={`${btnId}-phone`} left={sentAt ? left : null} busy={busy} onResend={() => void sendCode()} />
               <PhoneInput
+                id={`${btnId}-phone`}
+                hideLabel
                 label="Mobile number"
                 value={formatted}
                 onChange={(f, v) => { setFormatted(f); setE164(v); setError(null); }}
@@ -171,6 +189,8 @@ function AuthGateSheetOpen({
 
           {step === "code" ? (
             <div className="mt-5 flex flex-col gap-3">
+              <ResendRow label="6-digit code" left={left} busy={busy} onResend={() => void sendCode()} />
+              <div id={btnId} aria-hidden />
               <OtpInput value={code} onChange={setCode} onComplete={(v) => void verify(v)} error={!!error} />
               {error ? <p role="alert" className="text-[13.5px] font-semibold">{error}</p> : null}
               <Button fullWidth disabled={busy || code.length < 6} onClick={() => void verify()}>
@@ -189,6 +209,23 @@ function AuthGateSheetOpen({
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+const RESEND_MS = 60_000;
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+/** Field label with the resend timer on the right: "Resend in 0:59", then a "Resend" link at 0. `left` null = nothing sent yet. */
+function ResendRow({ label, htmlFor, left, busy, onResend }: { label: string; htmlFor?: string; left: number | null; busy: boolean; onResend: () => void }) {
+  return (
+    <div className="-mb-1.5 flex min-h-6 items-center justify-between gap-3">
+      <label htmlFor={htmlFor} className="text-[14px] font-bold text-ink">{label}</label>
+      {left === null ? null : left > 0 ? (
+        <span aria-live="polite" className="text-[13px] font-semibold tabular-nums text-muted">Resend in {mmss(left)}</span>
+      ) : (
+        <button type="button" disabled={busy} onClick={onResend} className="-my-2 min-h-11 px-1 text-[13px] font-bold text-ink underline underline-offset-2 disabled:opacity-50">Resend</button>
+      )}
     </div>
   );
 }
