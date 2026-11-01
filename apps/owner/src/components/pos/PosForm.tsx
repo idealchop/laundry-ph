@@ -238,7 +238,7 @@ export function PosForm({ catalog, customers, onCreate, errorMessage, booking = 
               type="button"
               aria-label="Back to anonymous walk-in"
               onClick={dismissCustomer}
-              className="inline-flex size-11 flex-none items-center justify-center rounded-full bg-grey-100 text-ink transition-colors hover:bg-grey-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="inline-flex size-11 flex-none items-center justify-center rounded-full bg-surface text-ink ring-1 ring-line transition-colors hover:bg-grey-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               <X size={20} strokeWidth={1.75} />
             </button>

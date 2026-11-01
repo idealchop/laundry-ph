@@ -80,18 +80,18 @@ export function ServicesScreen() {
             {busy ? "Saving…" : "Save"}
           </Button>
         </div>
-        <p className="ml-12 mt-0.5 text-[14px] font-semibold text-muted">Your services, clothes types and supplies.</p>
+        <p className="ml-12 mt-0.5 text-[14px] font-semibold text-muted">Prices, clothes types and supplies.</p>
       </header>
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-10 pt-2">
 
         {readOnly ? (
-          <p className="rounded-tile bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-muted">
+          <p className="rounded-tile bg-surface px-4 py-3 text-[13.5px] font-semibold text-muted ring-1 ring-line">
             This is the shared demo shop — create your own shop to edit the price list.
           </p>
         ) : null}
 
         <section aria-labelledby="services-h">
-          <b id="services-h" className="block text-[16px]">Services</b>
+          <b id="services-h" className="block px-1 text-[13px] font-bold text-muted">Services</b>
           <div className="mb-2" />
           <ServiceList services={catalog.services} supplies={suppliesOf(catalog)} disabled={readOnly} busy={busy} error={error}
             onSave={(svc) => persist((c) => ({
@@ -106,7 +106,7 @@ export function ServicesScreen() {
         </section>
 
         <section aria-labelledby="clothes-types-h">
-          <b id="clothes-types-h" className="block text-[16px]">Clothes types</b>
+          <b id="clothes-types-h" className="block px-1 text-[13px] font-bold text-muted">Clothes types</b>
           <div className="mb-2" />
           <ClothesTypeList types={catalog.clothesTypes} disabled={readOnly} busy={busy} error={error}
             onSave={(t) => persist((c) => ({
@@ -117,7 +117,7 @@ export function ServicesScreen() {
         </section>
 
         <section aria-labelledby="supplies-h">
-          <b id="supplies-h" className="block text-[16px]">Supplies</b>
+          <b id="supplies-h" className="block px-1 text-[13px] font-bold text-muted">Supplies</b>
           <div className="mb-2" />
           <SuppliesList supplies={suppliesOf(catalog)} disabled={readOnly} busy={busy} error={error}
             onSave={(it) => persist((c) => {

@@ -283,7 +283,7 @@ export function BookScreen() {
                   const label = formatTime(t);
                   return (
                     <button key={t} type="button" role="radio" aria-checked={on} onClick={() => setTime(t)}
-                      className={`h-11 rounded-pill text-[13.5px] font-bold focus-visible:outline-2 focus-visible:outline-ink ${on ? "bg-ink text-on-ink" : "bg-grey-100 text-ink"}`}>
+                      className={`h-11 rounded-pill text-[13.5px] font-bold focus-visible:outline-2 focus-visible:outline-ink ${on ? "bg-ink text-on-ink" : "bg-surface text-ink ring-1 ring-line"}`}>
                       {label}
                     </button>
                   );
@@ -322,7 +322,7 @@ function Choice<T extends string>({ label, value, onChange, options }: { label: 
             role="radio"
             aria-checked={on}
             onClick={() => onChange(o.value)}
-            className={`min-h-11 rounded-tile px-3 text-[14px] font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${on ? "bg-ink text-on-ink" : "bg-grey-100 text-ink hover:bg-grey-200"}`}
+            className={`min-h-11 rounded-tile px-3 text-[14px] font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${on ? "bg-ink text-on-ink" : "bg-surface text-ink ring-1 ring-line hover:bg-grey-50"}`}
           >
             {o.label}
           </button>

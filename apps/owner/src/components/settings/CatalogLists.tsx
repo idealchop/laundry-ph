@@ -40,7 +40,7 @@ function Row({ icon, name, price, onOpen, trailing, dim, tag, sub }: { icon: Ico
     <li className="flex items-center gap-1 border-b border-line last:border-b-0">
       <button type="button" onClick={onOpen} aria-label={`Edit ${name}, ${price}`}
         className={`-ml-1 flex min-h-[60px] min-w-0 flex-1 items-center gap-3 rounded-[12px] px-1 py-2 text-left transition-[opacity,background-color] hover:bg-grey-50 focus-visible:outline-2 focus-visible:outline-ink ${dim ? "opacity-55" : ""}`}>
-        <span className="inline-flex size-10 flex-none items-center justify-center rounded-tile bg-grey-100"><Icon3D name={icon} size={28} /></span>
+        <span className="inline-flex size-10 flex-none items-center justify-center"><Icon3D name={icon} size={36} /></span>
         <span className="min-w-0 flex-1">
           <b className="block truncate text-[15px] font-bold">{name}</b>
           {sub ? <span className="block truncate text-[12.5px] font-medium text-muted">{sub}{tag ? <span className="ml-1.5 rounded-full bg-[#FFF1E6] px-1.5 py-px text-[11px] font-bold text-[#B54708]">{tag}</span> : null}</span> : null}

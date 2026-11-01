@@ -164,7 +164,7 @@ export function LocationPicker({ value, onChange, disabled }: LocationPickerProp
           </p>
         </div>
       ) : (
-        <p className="rounded-tile bg-grey-100 px-4 py-3 text-[13px] font-medium text-muted">
+        <p className="rounded-tile bg-surface ring-1 ring-line px-4 py-3 text-[13px] font-medium text-muted">
           No pin yet. River Mobile needs a map location to show your shop nearby.
         </p>
       )}

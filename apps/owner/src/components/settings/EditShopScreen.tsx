@@ -188,7 +188,7 @@ function ProfileEditor({
           </div>
 
           {readOnly ? (
-            <p className="rounded-tile bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-muted">
+            <p className="rounded-tile bg-surface ring-1 ring-line px-4 py-3 text-[13.5px] font-semibold text-muted">
               This is the shared demo shop — create your own shop to edit the profile and map pin.
             </p>
           ) : null}

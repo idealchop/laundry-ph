@@ -22,7 +22,7 @@ export function TicketPayment({ amount, initial = "gcash" }: { amount: string; i
         <ChoiceTile layout="inline" selected={method === "cash"} onClick={() => { setMethod("cash"); setDone(false); }} icon={<CoinIcon size={30} />} title="Cash" subtitle="Pay at pickup" />
       </div>
       {done ? (
-        <p className="mt-3 flex min-h-14 items-center justify-center rounded-tile bg-grey-100 px-4 text-center" role="status">
+        <p className="mt-3 flex min-h-14 items-center justify-center rounded-tile bg-surface ring-1 ring-line px-4 text-center" role="status">
           <StatusDot>{method === "gcash" ? "GCash checkout is coming soon. For now, please pay at the counter." : "Got it. Please pay at the counter when you pick up."}</StatusDot>
         </p>
       ) : (

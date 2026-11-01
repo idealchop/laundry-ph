@@ -21,7 +21,7 @@ export function Spinner({ label = "Loading", fullScreen = false }: { label?: str
 
 export function ErrorNote({ children, className, onRetry }: { children: ReactNode; className?: string; onRetry?: () => void }) {
   return (
-    <p role="alert" className={cn("flex items-center justify-between gap-3 rounded-tile bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-ink", className)}>
+    <p role="alert" className={cn("flex items-center justify-between gap-3 rounded-tile bg-surface ring-1 ring-line px-4 py-3 text-[13.5px] font-semibold text-ink", className)}>
       <span><span aria-hidden>⚠︎ </span>{children}</span>
       {onRetry ? <Button size="xs" variant="secondary" onClick={onRetry}>Retry</Button> : null}
     </p>

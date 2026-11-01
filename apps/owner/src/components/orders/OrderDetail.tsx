@@ -267,7 +267,7 @@ function EditForm({ order, onDone }: { order: Order; onDone: () => void }) {
   const [notes, setNotes] = useState(order.notes ?? "");
   const [showNotes, setShowNotes] = useState(Boolean(order.notes));
   const field = "h-10 w-full min-w-0 bg-transparent px-3 text-[16px] font-semibold outline-none placeholder:font-medium placeholder:text-muted sm:text-[14.5px]";
-  const box = "rounded-[12px] bg-grey-100";
+  const box = "rounded-[12px] bg-surface ring-1 ring-line";
   const seg = (on: boolean) => `h-8 flex-1 rounded-[9px] px-2.5 text-[13px] font-bold transition-colors ${on ? "bg-surface text-ink shadow-card" : "text-muted"}`;
   const save = async () => {
     const totalCentavos = Math.max(0, Math.round(Number(price.replace(/[^\d.]/g, "")) * 100) || 0);

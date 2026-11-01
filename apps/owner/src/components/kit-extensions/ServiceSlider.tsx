@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { IconTile, cn } from "@river-apps/ui";
+import { cn } from "@river-apps/ui";
 
 export interface ServiceOption { id: string; label: string; icon: ReactNode; meta?: ReactNode }
 
@@ -44,9 +44,7 @@ export function ServiceSlider({ options, value, onChange, label = "Service", vis
               style={{ width: `${100 / Math.min(visible, options.length)}%` }}
               className={cn("group flex flex-none snap-center flex-col items-center gap-1.5 rounded-[16px] py-2 outline-none transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink", on ? "bg-surface ring-[1.5px] ring-inset ring-ink" : "hover:bg-grey-50")}>
               <span className="transition-transform duration-100 group-active:scale-90 motion-reduce:transition-none motion-reduce:group-active:scale-100">
-                <IconTile size={48} tone="grey">
-                  {o.icon}
-                </IconTile>
+                <span className="inline-flex size-12 items-center justify-center [&_img]:scale-125">{o.icon}</span>
               </span>
               <b className={cn("max-w-full truncate px-1 text-[11.5px] leading-none", on ? "font-extrabold" : "font-semibold text-ink-2")}>{o.label}</b>
               {o.meta ? <small className="text-[10.5px] font-semibold leading-none text-muted">{o.meta}</small> : null}

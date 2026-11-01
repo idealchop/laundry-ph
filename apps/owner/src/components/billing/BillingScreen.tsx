@@ -104,7 +104,7 @@ export function BillingScreen() {
       </Card>
 
       {readOnlySample ? (
-        <p className="mt-3 rounded-tile bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-muted">
+        <p className="mt-3 rounded-tile bg-surface ring-1 ring-line px-4 py-3 text-[13.5px] font-semibold text-muted">
           The shared demo shop stays on Pro sample data. Create your own shop to try Partner ↔ Pro upgrades.
         </p>
       ) : null}

@@ -181,7 +181,7 @@ export function CreditsPanel() {
       </Card>
 
       {error ? <ErrorNote>{error}</ErrorNote> : null}
-      {note ? <p className="rounded-tile bg-grey-100 px-4 py-3 text-[13.5px] font-semibold text-ink">{note}</p> : null}
+      {note ? <p className="rounded-tile bg-surface ring-1 ring-line px-4 py-3 text-[13.5px] font-semibold text-ink">{note}</p> : null}
 
       <section>
         <div className="mb-2 flex items-center justify-between">

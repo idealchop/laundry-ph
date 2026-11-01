@@ -7,19 +7,19 @@ import { SampleNote } from "./SampleNote";
 /** Top bar for full-screen tasks: round back/close link, optional centred title (+ sample tag), optional trailing slot. */
 export function FocusHeader({ title, backHref, variant = "back", trailing }: { title?: string; backHref: string; variant?: "back" | "close"; trailing?: ReactNode }) {
   return (
-    <div className="flex h-14 flex-none items-center justify-between gap-2 px-5 pt-1">
+    <div className="flex min-h-14 flex-none items-center justify-between gap-1 px-4 pt-2">
       <Link
         href={backHref}
         aria-label={variant === "close" ? "Close" : "Back"}
-        className="inline-flex size-11 flex-none items-center justify-center rounded-full bg-grey-100 text-ink transition-colors hover:bg-grey-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="inline-flex size-11 flex-none items-center justify-center rounded-full text-ink transition-colors hover:bg-grey-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         {variant === "close" ? <X size={22} strokeWidth={1.75} /> : <ChevronLeft size={22} strokeWidth={1.75} />}
       </Link>
-      <span className="flex min-w-0 flex-1 flex-col items-center leading-tight">
-        {title ? <span className="truncate text-[15px] font-bold">{title}</span> : null}
+      <span className="flex min-w-0 flex-1 flex-col items-start leading-tight">
+        {title ? <span className="truncate text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">{title}</span> : null}
         <SampleNote className={title ? "mt-0.5" : undefined} />
       </span>
-      {trailing ?? <span className="w-11" />}
+      {trailing ?? null}
     </div>
   );
 }

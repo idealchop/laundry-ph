@@ -32,7 +32,7 @@ export function PageBack({ fallback, className }: { fallback: string; className?
         else router.push(fallback);
       }}
       className={cn(
-        "inline-flex size-11 flex-none items-center justify-center rounded-full bg-grey-100 text-ink transition-colors hover:bg-grey-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        "inline-flex size-11 flex-none items-center justify-center rounded-full text-ink transition-colors hover:bg-grey-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         className,
       )}
     >
