@@ -8,10 +8,10 @@ import { useShopMark } from "@/lib/shop-mark";
 import { useAuthGate } from "../auth/AuthGateProvider";
 import { LocationMenu } from "./LocationMenu";
 
-/** Sales pill: gold coin + "Sales" on one line. */
+/** Sales link: gold coin + "Sales", plain (no pill). */
 export function SalesPill() {
   return (
-    <Link href="/sales" aria-label="Sales" className="inline-flex min-h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-surface py-1 pl-1 pr-3 transition-colors hover:bg-grey-50">
+    <Link href="/sales" aria-label="Sales" className="inline-flex min-h-11 flex-none items-center gap-1.5 whitespace-nowrap py-1 transition-opacity hover:opacity-70">
       <CoinIcon size={26} />
       <span className="text-[13px] font-bold leading-none text-ink">Sales</span>
     </Link>

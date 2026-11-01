@@ -16,7 +16,6 @@ import { CompanionCard } from "../companion/CompanionCard";
 import { BookingCard } from "../bookings/BookingCard";
 import { useBookingActions } from "../bookings/BookingsList";
 import { ErrorNote } from "../ui";
-import { SalesChartCard } from "../sales/SalesChartCard";
 import { WeeklySalesCard } from "../sales/WeeklySalesCard";
 import type { WeekSales } from "@/lib/weekly";
 import type { SalesRow } from "@/lib/sales";
@@ -45,7 +44,7 @@ export interface HomeLayoutProps {
   live?: LiveWork;
   /** This week (Mon–Sun) for the Barbers-style weekly sales card. */
   week?: WeekSales;
-  /** Today by the hour for the Sales by hour card. */
+  /** Today by the hour (no longer shown on Home). */
   hours?: SalesRow[];
 }
 
@@ -145,7 +144,6 @@ export function HomeLayout(p: HomeLayoutProps) {
         {p.week && !switching ? <WeeklySalesCard week={p.week} className="mx-4 mt-3" /> : null}
         <CompanionCard className="mx-4 mt-3" />
         <HubTiles className="mx-4 mt-3" />
-        {p.hours && !switching ? <SalesChartCard series={p.hours} kind="hour" className="mx-4 mt-3" /> : null}
         <SectionHeader className="px-4 pb-1 pt-4" title="Bookings to accept" aside={pickupsAside} />
         <div className="mx-4">{pickups(3, false)}</div>
         {p.footer ? <div className="mx-4 mt-3">{p.footer}</div> : null}
@@ -162,7 +160,6 @@ export function HomeLayout(p: HomeLayoutProps) {
         {p.week && !switching ? <WeeklySalesCard week={p.week} className="mt-5" /> : null}
         <CompanionCard className="mt-5" />
         <HubTiles className="mt-5" />
-        {p.hours && !switching ? <SalesChartCard series={p.hours} kind="hour" className="mt-5" /> : null}
         <Card padding="none" className="mt-5 px-[18px] pb-4 pt-4">
           <CardHeader className="mb-3" title="Bookings to accept" subtitle={pickupsAside} action={<Link href={p.onlineHref} className={linkCls}>All bookings</Link>} />
           {pickups(4, true)}
