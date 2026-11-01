@@ -13,6 +13,7 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { GoogleG } from "@/components/brand";
 import {
   authErrorMessage, confirmPhoneCode, pendingPhone, sendPhoneCode, signInWithGoogle, useAuth,
+  prepareRecaptcha,
 } from "@/lib/auth";
 
 type Props = {
@@ -76,7 +77,7 @@ function AuthGateSheetOpen({
     setError(null);
     setBusy(true);
     try {
-      await sendPhoneCode(to, btnId);
+      await sendPhoneCode(to);
       const at = pendingPhone()?.sentAt ?? Date.now();
       setSentAt(at); setNow(Date.now());
       setCode("");
@@ -108,6 +109,7 @@ function AuthGateSheetOpen({
   }
 
   function goPhone() {
+    prepareRecaptcha(); // render the invisible widget before the tap
     setStep("phone");
     setCode("");
     setError(null);
@@ -170,7 +172,6 @@ function AuthGateSheetOpen({
                 onChange={(f, v) => { setFormatted(f); setE164(v); setError(null); }}
                 error={error ?? undefined}
               />
-              <div id={btnId} aria-hidden />
               <Button type="submit" fullWidth disabled={busy || !e164} leadingIcon={<Smartphone size={18} strokeWidth={2} className="text-white" aria-hidden />}>
                 {busy ? "Sending…" : "Text me a code"}
               </Button>
@@ -190,7 +191,6 @@ function AuthGateSheetOpen({
           {step === "code" ? (
             <div className="mt-5 flex flex-col gap-3">
               <ResendRow label="6-digit code" left={left} busy={busy} onResend={() => void sendCode()} />
-              <div id={btnId} aria-hidden />
               <OtpInput value={code} onChange={setCode} onComplete={(v) => void verify(v)} error={!!error} />
               {error ? <p role="alert" className="text-[13.5px] font-semibold">{error}</p> : null}
               <Button fullWidth disabled={busy || code.length < 6} onClick={() => void verify()}>

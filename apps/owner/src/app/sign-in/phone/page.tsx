@@ -23,7 +23,7 @@ export default function PhoneNumberPage() {
     setBusy(true);
     setError(null);
     try {
-      await sendPhoneCode(e164, "phone-recaptcha");
+      await sendPhoneCode(e164);
       router.push("/sign-in/code");
     } catch (err) {
       setError(authErrorMessage(err));

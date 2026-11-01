@@ -57,8 +57,9 @@ export function getFirebaseAuth(): Auth {
   }
   auth.languageCode = "en";
   if (useEmulators) connectAuthEmulator(auth, `http://${emulatorHost}:${authEmulatorPort}`, { disableWarnings: true });
-  // Dev / test phone numbers: skip reCAPTCHA hang in headless and App Hosting preview.
-  if (process.env.NEXT_PUBLIC_APP_ENV === "dev" || process.env.NEXT_PUBLIC_APP_ENV === "local") {
+  // Only for the Auth emulator or an explicit test-numbers build: this sends a fake reCAPTCHA token, which the
+  // real backend rejects for real numbers (CAPTCHA_CHECK_FAILED). Never on laundry-dev / prod.
+  if (useEmulators || process.env.NEXT_PUBLIC_PHONE_TEST_NUMBERS_ONLY === "1") {
     auth.settings.appVerificationDisabledForTesting = true;
   }
   return auth;

@@ -135,26 +135,55 @@ export const useAuth = () => useContext(AuthContext);
 
 let pending: { phoneE164: string; confirmation: ConfirmationResult; sentAt: number } | null = null;
 let verifier: RecaptchaVerifier | null = null;
+const RECAPTCHA_HOST_ID = "laundry-recaptcha-host";
+
+/** One container on <body>, outside any sheet, so it never unmounts. Hidden with visibility (display:none breaks reCAPTCHA). */
+function recaptchaHost(): HTMLElement {
+  let el = document.getElementById(RECAPTCHA_HOST_ID);
+  if (!el) {
+    el = document.createElement("div");
+    el.id = RECAPTCHA_HOST_ID;
+    el.setAttribute("aria-hidden", "true");
+    el.style.cssText = "position:fixed;left:0;bottom:0;width:1px;height:1px;overflow:hidden;visibility:hidden;pointer-events:none;";
+    document.body.appendChild(el);
+  }
+  return el;
+}
 
 function resetVerifier() {
   try { verifier?.clear(); } catch { /* already gone */ }
   verifier = null;
+  const host = document.getElementById(RECAPTCHA_HOST_ID);
+  if (host) host.innerHTML = ""; // clear() leaves the widget iframe; start clean
+}
+
+/** Create the invisible verifier once and render it ahead of time (call when the phone step opens). */
+export function prepareRecaptcha(): RecaptchaVerifier | null {
+  if (typeof document === "undefined") return null;
+  if (verifier) return verifier;
+  const host = recaptchaHost();
+  const slot = document.createElement("div");
+  host.appendChild(slot);
+  verifier = new RecaptchaVerifier(getFirebaseAuth(), slot, { size: "invisible", "expired-callback": resetVerifier });
+  void verifier.render().catch(() => resetVerifier());
+  return verifier;
 }
 
 /**
- * Sends a 6-digit code by SMS (Firebase phone auth), same as Barbers.ph. reCAPTCHA runs invisibly on a
- * hidden container (`containerId`), never a checkbox or puzzle in normal use. The verifier is rebuilt on
- * every attempt and cleared on any error or expiry, so a retry gets a fresh token.
+ * Sends a 6-digit code by SMS (Firebase phone auth). reCAPTCHA runs invisibly from a body-level container,
+ * never a puzzle in normal use. The verifier is reused; on any error it's cleared and rebuilt for the retry.
+ * signInWithPhoneNumber runs straight from the tap (no awaits before it when the verifier is pre-rendered).
  */
-export async function sendPhoneCode(phoneE164: string, containerId: string) {
+export async function sendPhoneCode(phoneE164: string) {
   const auth = getFirebaseAuth();
-  resetVerifier();
-  verifier = new RecaptchaVerifier(auth, containerId, { size: "invisible", "expired-callback": resetVerifier });
+  const v = prepareRecaptcha();
+  if (!v) throw new Error("Couldn’t start phone sign-in. Reload and try again.");
   try {
-    const confirmation = await signInWithPhoneNumber(auth, phoneE164, verifier);
+    const confirmation = await signInWithPhoneNumber(auth, phoneE164, v);
     pending = { phoneE164, confirmation, sentAt: Date.now() };
   } catch (err) {
     resetVerifier();
+    prepareRecaptcha(); // fresh widget ready for the next tap
     throw err;
   }
 }
