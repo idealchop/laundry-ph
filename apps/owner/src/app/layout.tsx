@@ -19,8 +19,9 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Laundry.ph", statusBarStyle: "default" },
 };
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#0A0A0A" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#0A0A0A", viewportFit: "cover" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
