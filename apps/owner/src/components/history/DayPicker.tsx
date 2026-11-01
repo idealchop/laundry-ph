@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { cn } from "@river-apps/ui";
 
@@ -102,14 +102,14 @@ export function DayPicker({ value, today, onChange }: { value: string; today: st
         aria-expanded={open}
         aria-controls={panelId}
         onClick={toggle}
+        aria-label={value ? `Date ${shortLabel(value, today)}` : "Pick a date"}
         className={cn(
-          "inline-flex h-10 items-center gap-1.5 rounded-[12px] px-3 text-[13px] font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-          value ? "bg-ink text-on-ink" : "bg-grey-100 text-ink hover:bg-grey-200",
+          "inline-flex h-9 items-center justify-center gap-1.5 rounded-pill text-[12.5px] font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+          value ? "bg-ink px-3 text-on-ink" : "w-9 bg-surface text-ink ring-1 ring-line",
         )}
       >
-        <CalendarDays size={16} strokeWidth={1.75} className={value ? "text-on-ink" : "text-muted"} aria-hidden />
-        {value ? shortLabel(value, today) : "Calendar"}
-        <ChevronDown size={15} strokeWidth={2.2} className={cn("transition-transform", open && "rotate-180")} aria-hidden />
+        <CalendarDays size={16} strokeWidth={2} aria-hidden />
+        {value ? shortLabel(value, today) : null}
       </button>
       {open ? (
         <div

@@ -19,6 +19,7 @@ import { BookingCard, bookingHref } from "../bookings/BookingCard";
 import { OnlineOrderCard, useConvertedBookings } from "../bookings/OnlineOrderCard";
 import { useBookingActions } from "../bookings/BookingsList";
 import { ErrorNote } from "../ui";
+import { RiverIcon } from "../common/RiverIcon";
 
 type Channel = "walk-ins" | "online";
 /** List order: work still in the shop first, then ready for pickup, then done; newest first within each. */
@@ -50,6 +51,7 @@ export function OrderBoard() {
   const [search, setSearch] = useState("");
   const [day, setDay] = useState(() => dayKey(now));
   const [picking, setPicking] = useState(false);
+  const [tab, setTab] = useState<"open" | "done" | null>(null);
   const isToday = day === dayKey(now);
   const dayText = queueDayLabel(day, now);
 
@@ -67,6 +69,7 @@ export function OrderBoard() {
   const t = search.trim().toLowerCase();
   const doneList = t ? dayDone.filter((o) => matches(o, t)) : dayDone;
   const openList = useMemo(() => here.filter((o) => isActive(o) || o.status === "ready").filter((o) => !t || matches(o, t)).sort(byBoardOrder), [here, t]);
+  const shown: "open" | "done" = !isToday ? "done" : tab ?? (openList.length > 0 ? "open" : "done");
   const placeOf = (o: Order) => (loc.enabled && loc.viewingAll ? loc.branches.find((b) => b.id === (o.branchId || "home"))?.name ?? "" : "");
 
   const onlineFilteredOrders = useMemo(() => {
@@ -99,7 +102,7 @@ export function OrderBoard() {
   if (loading && orders.length === 0) return <ListSkeleton />;
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
-      <header className="flex items-center justify-between gap-3 px-1 pb-3">
+      <header className="flex items-center justify-between gap-3 border-b border-line px-1 pb-3">
         <div className="flex min-w-0 items-center gap-1.5">
           {channel === "online" ? (
             <button type="button" aria-label="Back to queue" onClick={() => setChannel("walk-ins")}
@@ -158,24 +161,42 @@ export function OrderBoard() {
 
       {busy ? <RowsSkeleton rows={4} className="mt-4" /> : channel === "walk-ins" ? (
         <>
-          {isToday && openList.length > 0 ? (
-            <div className="mt-5">
-              <p className="px-1 text-[13px] font-bold text-muted">Open · {openList.length}</p>
-              <ul className="mt-2 divide-y divide-line overflow-hidden rounded-card bg-surface shadow-card" aria-label="Orders in the shop">
+          {isToday ? (
+            <div className="mt-3 grid grid-cols-2 gap-3" role="tablist" aria-label="Queue">
+              {([["open", "Open", openList.length, "washer"], ["done", "Completed", doneList.length, "folded"]] as const).map(([k, label, n, icon]) => {
+                const on = shown === k;
+                return (
+                  <button key={k} type="button" role="tab" aria-selected={on} onClick={() => setTab(k)}
+                    className={`flex items-center justify-between rounded-card px-4 py-3.5 text-left ${on ? "bg-ink text-on-ink" : "bg-surface text-ink shadow-card"}`}>
+                    <span className="leading-tight"><small className={`block text-[13px] font-semibold ${on ? "text-white/70" : "text-muted"}`}>{label}</small><b className="mt-1 block text-[26px] font-extrabold tabular-nums">{n}</b></span>
+                    <RiverIcon name={icon} size={40} />
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+          {isToday && shown === "open" && openList.length > 0 ? (
+            <div className="mt-3">
+              <ul className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-card" aria-label="Orders in the shop">
                 {openList.map((o) => <DoneRow key={o.id} order={o} place={placeOf(o)} />)}
               </ul>
             </div>
           ) : null}
-          {doneList.length === 0 ? (
-            search && (dayDone.length || openList.length) ? (doneList.length || openList.length ? null : <EmptyState className="mt-4" title="No matches" />) : (
-              <div className="mt-4 rounded-card bg-grey-50 px-5 py-6 text-center ring-1 ring-line">
+          {isToday && shown === "open" ? (openList.length === 0 ? (
+            <div className="mt-3 rounded-card bg-surface px-5 py-6 text-center ring-1 ring-line">
+              <span className="mx-auto inline-flex"><Icon3D name="basket" size={56} /></span>
+              <b className="mt-3 block text-[16px] tracking-[-0.01em]">{t ? "No matches" : "Nothing in the queue"}</b>
+            </div>
+          ) : null) : doneList.length === 0 ? (
+            search && dayDone.length ? <EmptyState className="mt-4" title="No matches" /> : (
+              <div className="mt-3 rounded-card bg-surface px-5 py-6 text-center ring-1 ring-line">
                 <span className="mx-auto inline-flex"><Icon3D name="basket" size={56} /></span>
                 <b className="mt-3 block text-[16px] tracking-[-0.01em]">{isToday ? "No completed orders yet" : `Nothing completed on ${dayText}`}</b>
               </div>
             )
           ) : (
-            <div className="mt-5">
-              <p className="px-1 text-[13px] font-bold text-muted">Completed {isToday ? "today" : dayText} · {doneList.length}</p>
+            <div className="mt-3">
+              {isToday ? null : <p className="px-1 text-[13px] font-bold text-muted">Completed {dayText} · {doneList.length}</p>}
               <ul className="mt-2 divide-y divide-line overflow-hidden rounded-card bg-surface shadow-card" aria-label="Completed orders">
                 {doneList.map((o) => <DoneRow key={o.id} order={o} place={placeOf(o)} />)}
               </ul>

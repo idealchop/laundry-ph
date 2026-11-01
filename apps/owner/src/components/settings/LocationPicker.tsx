@@ -156,7 +156,7 @@ export function LocationPicker({ value, onChange, disabled }: LocationPickerProp
         </p>
       </div>
       {pin ? (
-        <div className="flex items-start gap-2 rounded-tile bg-grey-50 px-3 py-2.5" aria-live="polite">
+        <div className="flex items-start gap-2 rounded-tile bg-surface px-3 py-2.5 ring-1 ring-line" aria-live="polite">
           <MapPin size={16} strokeWidth={1.9} className="mt-0.5 flex-none text-muted" aria-hidden />
           <p className="min-w-0 text-[12.5px] font-semibold leading-snug text-ink-2">
             {lookingUp ? <span className="text-muted">Finding address…</span> : pin.formattedAddress || <span className="text-muted">Address not found for this spot</span>}

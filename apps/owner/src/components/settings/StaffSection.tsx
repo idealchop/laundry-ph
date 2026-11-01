@@ -110,7 +110,7 @@ export function StaffSection({ branch }: { branch: ShopBranch }) {
             </li>
           ))}
         </ul>
-      ) : <p className="mt-3 rounded-[14px] bg-grey-50 px-3 py-3 text-[13px] font-semibold text-muted ring-1 ring-line">No staff yet.</p>}
+      ) : <p className="mt-3 rounded-[14px] bg-surface px-3 py-3 text-[13px] font-semibold text-muted ring-1 ring-line">No staff yet.</p>}
 
       {adding ? (
         <Sheet title="Add staff" subtitle={live.name} onClose={() => setAdding(false)}>
