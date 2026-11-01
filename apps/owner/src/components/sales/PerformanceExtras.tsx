@@ -16,7 +16,7 @@ const n2 = (n: number) => (Number.isInteger(n) ? n.toLocaleString("en-PH") : n.t
 export function ProfitLine({ sales, costs, partial }: { sales: number; costs: number; partial?: boolean }) {
   const profit = sales - costs;
   const box = (k: string, v: string, red?: boolean) => (
-    <div className="min-w-0 rounded-[14px] bg-grey-100 px-3 py-2.5"><p className="text-[12px] font-semibold text-muted">{k}</p><b className={cn("block truncate text-[16px] tabular-nums", red && "text-[#D92D20]")}>{v}</b></div>
+    <div className="min-w-0 rounded-[14px] bg-surface px-3 py-2.5 ring-1 ring-line"><p className="text-[12px] font-semibold text-muted">{k}</p><b className={cn("block truncate text-[16px] tabular-nums", red && "text-[#D92D20]")}>{v}</b></div>
   );
   return (
     <section className="rounded-card bg-surface px-4 py-4 shadow-card">
@@ -108,14 +108,14 @@ export function Expenses({ items, canEdit, busy, error, onAdd, onRemove }: {
           <div role="radiogroup" aria-label="Type" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {EXPENSE_TYPES.map((t) => (
               <button key={t} type="button" role="radio" aria-checked={type === t} onClick={() => setType(t)}
-                className={cn("h-9 flex-none rounded-full px-3 text-[13px] font-bold", type === t ? "bg-ink text-on-ink" : "bg-grey-100 text-ink")}>{ICON[t]} {t}</button>
+                className={cn("h-9 flex-none rounded-full px-3 text-[13px] font-bold", type === t ? "bg-ink text-on-ink" : "bg-surface text-ink ring-1 ring-line")}>{ICON[t]} {t}</button>
             ))}
           </div>
           <div className="grid grid-cols-[1fr_auto] gap-2">
             <input inputMode="decimal" placeholder="₱ Amount" aria-label="Amount" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ""))}
-              className="h-11 rounded-[12px] bg-grey-100 px-3 text-[15px] font-bold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ink" />
+              className="h-11 rounded-[12px] bg-surface px-3 ring-1 ring-line text-[15px] font-bold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ink" />
             <input type="date" aria-label="Date" value={date} max={todayInput()} onChange={(e) => setDate(e.target.value)}
-              className="h-11 rounded-[12px] bg-grey-100 px-2 text-[13.5px] font-semibold outline-none" />
+              className="h-11 rounded-[12px] bg-surface px-2 ring-1 ring-line text-[13.5px] font-semibold outline-none" />
           </div>
           {error ? <p role="alert" className="text-[13px] font-semibold text-[#E5484D]">{error}</p> : null}
           <Button type="submit" size="md" fullWidth disabled={busy || !(cents > 0)}>{busy ? "Saving…" : "Add"}</Button>
