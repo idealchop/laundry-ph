@@ -1,34 +1,25 @@
 "use client";
 
-import { CoinIcon } from "@river-apps/icons";
 import { RiverIcon } from "@/components/common/RiverIcon";
 import { useInstallHidden } from "@/lib/pwa";
 import {
-  ChevronLeft, ChevronRight, CreditCard, LogOut, MapPin, Package, Pencil, Store,
+  ChevronRight, CreditCard, LogOut, MapPin, Package, Pencil, Store,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { Avatar, Badge, Card, ListItem, Topbar, cn } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
 import { AppVersion } from "@/components/common/AppVersion";
 import type { Shop } from "@/data";
 import { useAuthGate } from "@/components/auth/AuthGateProvider";
-import { locationCount, locationCountLabel, money } from "@/lib/format";
+import { locationCount, locationCountLabel } from "@/lib/format";
 import { useShopMark } from "@/lib/shop-mark";
 import { ALL_LOCATIONS, useShopLocations } from "@/lib/shop-locations";
 import { signOut } from "@/lib/auth";
 import { useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
 import { ShellBack } from "../shell/PageBack";
-import {
-  CreditsPanel,
-  DEMO_AVAILABLE_CENTAVOS,
-  DEMO_PENDING_CENTAVOS,
-  DEMO_WITHDRAWN_CENTAVOS,
-} from "./CreditsPanel";
 import { ShopQrPromo } from "../qr/ShopQrPromo";
-import { FeatureList } from "./FeaturesScreen";
 import { PAID_PER_MO, hasProFeatures } from "@/lib/plans";
 
 
@@ -56,17 +47,14 @@ const INSTALL_LINK = { href: "/settings/install", icon: Package, river: "install
 
 const HUB_LINKS = [
   { href: "/profile/services", icon: Package, river: "washer" as const, title: "Services", subtitle: "Prices, supplies and add-ons" },
-  { href: "/history", icon: Package, river: "calendar" as const, title: "History", subtitle: "Past orders and bookings" },
   { href: "/settings/billing", icon: CreditCard, river: "wallet" as const, title: "Plan & billing", subtitle: `Partner · Pro ${PAID_PER_MO} · Lifetime` },
 ] as const;
 
-/** Shop profile hub: Oceanus header, Credits, Features, Edit shop, setup links, logout. */
+/** Shop profile hub: Oceanus header, Features, Edit shop, setup links, logout. */
 export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) {
   const { shop, isGuest } = useShop();
   const installHidden = useInstallHidden();
   const { openAuthCta, isAuthenticated } = useAuthGate();
-  const searchParams = useSearchParams();
-  const [view, setView] = useState<"hub" | "credits">(() => (searchParams.get("credits") === "1" ? "credits" : "hub"));
   const [partnerOn, setPartnerOn] = useState(false);
   const photo = shop.photoUrls?.[0];
   const shops = useShopLocations();
@@ -79,29 +67,6 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
   const locations = shops.enabled ? Math.max(1, shops.branches.length) : mark.locations;
   const bio = shop.about?.trim() || shopBio(shop);
   const signedIn = isAuthenticated && !isGuest;
-
-  if (view === "credits") {
-    return (
-      <div className="mx-auto flex w-full max-w-[560px] flex-col lg:max-w-[880px]">
-        <div className="flex h-14 flex-none items-center justify-between gap-2 px-4 pt-1 lg:px-[30px]">
-          <button
-            type="button"
-            aria-label="Back"
-            onClick={() => setView("hub")}
-            className="inline-flex size-11 flex-none items-center justify-center rounded-full bg-grey-100 text-ink transition-colors hover:bg-grey-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            <ChevronLeft size={22} strokeWidth={1.75} />
-          </button>
-          <span className="flex min-w-0 flex-col items-center leading-tight">
-            <span className="truncate text-[15px] font-bold">Credits</span>
-            <SampleNote className="mt-0.5" />
-          </span>
-          <span className="w-11" />
-        </div>
-        <CreditsPanel />
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-4 pb-6 pt-4 lg:max-w-[880px] lg:px-[30px] lg:pt-6">
@@ -146,27 +111,6 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
 
 
       {shops.ready ? <LocationCard shops={shops} /> : null}
-      <button
-        type="button"
-        onClick={() => setView("credits")}
-        className="mt-3 w-full rounded-card bg-surface px-4 py-4 text-left shadow-card transition-colors hover:bg-grey-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-      >
-        <div className="flex items-start gap-3">
-          <CoinIcon size={48} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[13px] font-semibold text-muted">Credits</p>
-              <ChevronRight size={18} strokeWidth={1.75} className="text-subtle" aria-hidden />
-            </div>
-            <p className="mt-0.5 text-[26px] font-extrabold tracking-[-0.03em] text-ink">
-              {money(DEMO_AVAILABLE_CENTAVOS)}
-            </p>
-            <p className="mt-1 text-[12.5px] font-medium text-muted">
-              Pending {money(DEMO_PENDING_CENTAVOS)} · Withdrawn {money(DEMO_WITHDRAWN_CENTAVOS)}
-            </p>
-          </div>
-        </div>
-      </button>
 
       <div className="mt-6 grid grid-cols-1 gap-4">
         <Card padding="none" className="px-3.5 py-1.5 lg:col-span-2">
@@ -195,7 +139,7 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
           </ul>
         </Card>
 
-        {/* Features — QR card matches the desktop sidebar; Walk-in POS stays a row */}
+        {/* Features — QR card matches the desktop sidebar; Multiple shops and QR */}
         <Card padding="none" className="overflow-visible px-2 py-1.5 lg:col-span-2">
           <b className="block px-2.5 pt-3 text-[16px]">Features</b>
           <Link href="/settings/shops" className="flex min-h-[60px] items-center gap-3 rounded-tile px-1.5 py-2 focus-visible:outline-2 focus-visible:outline-ink">
@@ -209,7 +153,6 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
           {hasProFeatures(shop.tier) ? (
             <ShopQrPromo className="mx-1.5 mb-1 mt-11 lg:hidden" />
           ) : null}
-          <FeatureList tier={shop.tier} className="mt-1" />
         </Card>
 
         <button

@@ -6,10 +6,9 @@ import { RiverMark } from "@/components/brand";
  * Bottom sheet sign-in — mirrors River Mobile AuthGateSheet.
  * Two-step: method list → chosen method (phone form / OTP). Guest can dismiss.
  */
-import { ChatIcon } from "@river-apps/icons";
 import { OtpInput, PhoneInput, formatPhilippineMobile, cn } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, Smartphone, X } from "lucide-react";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { GoogleG } from "@/components/brand";
 import {
@@ -133,7 +132,7 @@ function AuthGateSheetOpen({
                 type="button"
                 fullWidth
                 disabled={busy}
-                leadingIcon={<ChatIcon size={20} />}
+                leadingIcon={<Smartphone size={18} strokeWidth={2} className="text-white" aria-hidden />}
                 onClick={() => goPhone()}
               >
                 Continue with phone
@@ -154,7 +153,7 @@ function AuthGateSheetOpen({
                 error={error ?? undefined}
               />
               <div id={btnId} aria-hidden />
-              <Button type="submit" fullWidth disabled={busy || !e164} leadingIcon={<ChatIcon size={20} />}>
+              <Button type="submit" fullWidth disabled={busy || !e164} leadingIcon={<Smartphone size={18} strokeWidth={2} className="text-white" aria-hidden />}>
                 {busy ? "Sending…" : "Text me a code"}
               </Button>
               <Button

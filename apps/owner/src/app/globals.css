@@ -33,7 +33,8 @@
 
 /* Live "loads in progress" hero (pattern from Barbers.ph). CSS only: transform/opacity on two layers, slow
    cycle, off under prefers-reduced-motion. */
-.live-hero { background: #0a0a0a; }
+/* One clipped, rounded layer: mask forces Safari/Chrome to clip the drifting gradient to the radius (no corner bleed). */
+.live-hero { background: #0a0a0a; overflow: hidden; isolation: isolate; -webkit-mask-image: -webkit-radial-gradient(white, black); mask-image: radial-gradient(white, black); }
 .live-hero::before, .live-hero::after { content: ""; position: absolute; pointer-events: none; z-index: 0; }
 .live-hero::before {
   inset: -60% -60%;
@@ -44,7 +45,7 @@
 }
 .live-hero::after {
   inset: 0; border-radius: inherit;
-  box-shadow: inset 0 0 0 2px rgba(94, 234, 212, 0.45), inset 0 0 28px rgba(94, 234, 212, 0.18);
+  box-shadow: inset 0 0 28px rgba(94, 234, 212, 0.18);
   animation: live-hero-glow 4s ease-in-out infinite;
   will-change: opacity;
 }

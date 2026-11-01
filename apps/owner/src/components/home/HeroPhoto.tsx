@@ -12,7 +12,7 @@ export function HeroPhoto({ src = "/hero/laundry-washer.webp", className = "" }:
       aria-hidden
       draggable={false}
       decoding="async"
-      className={`pointer-events-none absolute inset-y-0 right-0 z-0 h-full w-auto max-w-none select-none ${className}`}
+      className={`pointer-events-none absolute inset-y-0 right-0 z-0 h-full rounded-[inherit] w-auto max-w-none select-none ${className}`}
       style={{ maskImage: mask, WebkitMaskImage: mask, maskComposite: "intersect", WebkitMaskComposite: "source-in" }}
     />
   );
