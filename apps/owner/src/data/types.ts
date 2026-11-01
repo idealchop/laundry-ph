@@ -335,9 +335,12 @@ export interface VerifiedBooking {
 }
 
 export type SupplyMode = "free" | "additional" | "off";
+export interface SupplyAmount { qty?: number; priceCentavos?: number }
 export interface CatalogService {
   /** Per supply: Free (included, auto-applied), Additional (paid extra staff can add) or Off. Unset = by payer. */
   supplyModes?: Record<string, SupplyMode>;
+  /** Per supply on this service: amount used (in the supply's unit) and, for Additional items, the price. Unset = the supply's defaults. */
+  supplyAmounts?: Record<string, SupplyAmount>;
   id: string;
   name: string;
   unit: "kg" | "pc" | "load";

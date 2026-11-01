@@ -3,7 +3,7 @@ import { ChevronDown, Minus, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { CatalogService, Supply } from "@/data/types";
 import { money } from "@/lib/format";
-import { serviceSupplies } from "@/lib/supplies";
+import { forService, serviceSupplies } from "@/lib/supplies";
 
 export type PickSupply = Pick<Supply, "id" | "name" | "unit" | "payer" | "priceCentavos" | "defaultQty"> & { brand?: string };
 const unitOf = (u: PickSupply["unit"]) => (u === "load" ? "load" : u);
@@ -12,8 +12,9 @@ const unitOf = (u: PickSupply["unit"]) => (u === "load" ? "load" : u);
  * Supplies for one service (Jimboy, 2026-10-27): Free items are included automatically (amount editable),
  * Additional items are paid extras the staff taps on (-/+ for more). Resets when the service changes.
  */
-export function useSupplyPicks(service: Pick<CatalogService, "id" | "supplyModes"> | null | undefined, supplies: PickSupply[]) {
-  const { free, additional } = useMemo(() => serviceSupplies(service, supplies), [service, supplies]);
+export function useSupplyPicks(service: Pick<CatalogService, "id" | "supplyModes" | "supplyAmounts"> | null | undefined, supplies: PickSupply[]) {
+  // Per-service amounts and prices (Services › Edit service) replace the item defaults here.
+  const { free, additional } = useMemo(() => serviceSupplies(service, supplies.map((s) => forService(service, s))), [service, supplies]);
   const [state, setState] = useState<{ sid: string; amt: Record<string, string>; count: Record<string, number> }>({ sid: service?.id ?? "", amt: {}, count: {} });
   const cur = state.sid === (service?.id ?? "") ? state : { sid: service?.id ?? "", amt: {}, count: {} };
   if (cur !== state) setState(cur);

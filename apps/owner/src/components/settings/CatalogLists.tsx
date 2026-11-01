@@ -6,7 +6,7 @@ import { Button } from "@/components/common/Button";
 import { ChevronRight, Plus } from "lucide-react";
 import { useState } from "react";
 import type { CatalogService, ClothesPricing, ClothesType, Supply } from "@/data";
-import { supplyMode, isLow, SUPPLY_CATEGORIES, SUPPLY_UNITS, supplyLabel, unitText } from "@/lib/supplies";
+import { supplyMode, supplyPrice, supplyQty, isLow, SUPPLY_CATEGORIES, SUPPLY_UNITS, supplyLabel, unitText } from "@/lib/supplies";
 import { REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import { money } from "@/lib/format";
 import { EditSheet, Segmented, Toggle } from "./EditSheet";
@@ -97,6 +97,9 @@ function SheetFooter({ canSave, busy, error, onSave, onRemove, removeLabel }: { 
 
 /* ---------- Services ---------- */
 
+/** Small inline amount field: 16px so iOS doesn't zoom, white with a hairline. */
+const AMOUNT_INPUT = "h-9 w-[72px] rounded-[10px] bg-surface px-2 text-[16px] font-bold tabular-nums text-ink ring-1 ring-line outline-none focus-visible:ring-2 focus-visible:ring-ink";
+
 type ServiceEdit = { mode: "edit" | "add"; value: CatalogService };
 
 export function ServiceList({ services, supplies = [], disabled, busy, error, onSave, onRemove }: {
@@ -114,6 +117,17 @@ export function ServiceList({ services, supplies = [], disabled, busy, error, on
   const open = (value: CatalogService, mode: ServiceEdit["mode"] = "edit") => !disabled && setEdit({ mode, value: { ...value } });
   const set = (patch: Partial<CatalogService>) => setEdit((e) => (e ? { ...e, value: { ...e.value, ...patch } } : e));
   const v = edit?.value;
+  // Raw text per amount field so "1." or "" can be typed; the parsed number goes into supplyAmounts.
+  const [raw, setRaw] = useState<Record<string, string>>({});
+  const setAmount = (id: string, patch: { qty?: number; priceCentavos?: number }) => setEdit((e) => {
+    if (!e) return e;
+    const cur = { ...(e.value.supplyAmounts?.[id] ?? {}), ...patch };
+    if (cur.qty === undefined || Number.isNaN(cur.qty)) delete cur.qty;
+    if (cur.priceCentavos === undefined) delete cur.priceCentavos;
+    const all = { ...(e.value.supplyAmounts ?? {}), [id]: cur };
+    if (!Object.keys(cur).length) delete all[id];
+    return { ...e, value: { ...e.value, supplyAmounts: all } };
+  });
   return (
     <>
       <ListCard addLabel="Add service" disabled={disabled}
@@ -123,9 +137,9 @@ export function ServiceList({ services, supplies = [], disabled, busy, error, on
         ))}
       </ListCard>
       {edit && v ? (
-        <EditSheet title={edit.mode === "add" ? "Add service" : "Edit service"} onClose={() => setEdit(null)}
+        <EditSheet title={edit.mode === "add" ? "Add service" : "Edit service"} onClose={() => { setRaw({}); setEdit(null); }}
           footer={<SheetFooter canSave={v.name.trim().length >= 2} busy={busy} error={error} removeLabel="Remove service"
-            onSave={async () => { if (await onSave({ ...v, name: v.name.trim() })) setEdit(null); }}
+            onSave={async () => { if (await onSave({ ...v, name: v.name.trim() })) { setRaw({}); setEdit(null); } }}
             onRemove={edit.mode === "edit" && services.length > 1 ? async () => { if (await onRemove(v.id)) setEdit(null); } : undefined} />}>
           <form id="catalog-sheet-form" className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()}>
             <Input size="md" label="Name" value={v.name} maxLength={40} placeholder="e.g. Wash-Dry-Fold" onChange={(e) => set({ name: e.target.value })} />
@@ -139,14 +153,33 @@ export function ServiceList({ services, supplies = [], disabled, busy, error, on
               <div><span className={fieldLabel}>Supplies & add-ons</span>
                 <ul className="flex flex-col gap-2">
                   {supplies.map((s) => (
-                    <li key={s.id} className="flex items-center gap-3">
-                      <span className="min-w-0 flex-1"><b className="block truncate text-[14.5px]">{s.name}</b>
-                        <small className="block text-[12px] font-semibold text-muted">{s.defaultQty} {s.unit}{s.priceCentavos > 0 ? ` · ${money(s.priceCentavos)}` : ""}</small></span>
-                      <div className="w-[216px] flex-none">
-                        <Segmented label={`${s.name} on ${v.name || "this service"}`} value={supplyMode(v, s)}
-                          onChange={(m) => set({ supplyModes: { ...(v.supplyModes ?? {}), [s.id]: m } })}
-                          options={[{ value: "free", label: "Free" }, { value: "additional", label: "Additional" }, { value: "off", label: "Off" }]} />
+                    <li key={s.id} className="border-b border-line pb-2.5 last:border-b-0">
+                      <div className="flex items-center gap-3">
+                        <b className="min-w-0 flex-1 truncate text-[14.5px]">{s.name}</b>
+                        <div className="w-[216px] flex-none">
+                          <Segmented label={`${s.name} on ${v.name || "this service"}`} value={supplyMode(v, s)}
+                            onChange={(m) => set({ supplyModes: { ...(v.supplyModes ?? {}), [s.id]: m } })}
+                            options={[{ value: "free", label: "Free" }, { value: "additional", label: "Additional" }, { value: "off", label: "Off" }]} />
+                        </div>
                       </div>
+                      {supplyMode(v, s) === "off" ? <small className="mt-1 block text-[12px] font-semibold text-muted">Not used on this service</small> : (
+                        <div className="mt-1.5 flex items-center gap-2 text-[13px] font-semibold text-muted">
+                          <input inputMode="decimal" aria-label={`${s.name} amount per ${v.unit === "kg" ? "order" : v.unit}`}
+                            value={raw[`${s.id}:q`] ?? String(supplyQty(v, s))}
+                            onChange={(e) => { const t = e.target.value.replace(/[^\d.]/g, ""); setRaw((r) => ({ ...r, [`${s.id}:q`]: t })); setAmount(s.id, { qty: t === "" ? undefined : Number(t) }); }}
+                            className={AMOUNT_INPUT} />
+                          <span>{unitText(s.unit, supplyQty(v, s))}</span>
+                          {supplyMode(v, s) === "additional" ? (
+                            <>
+                              <span aria-hidden>·</span><span>₱</span>
+                              <input inputMode="decimal" aria-label={`${s.name} price on this service`}
+                                value={raw[`${s.id}:p`] ?? pesosFromCentavos(supplyPrice(v, s))}
+                                onChange={(e) => { const t = e.target.value.replace(/[^\d.]/g, ""); setRaw((r) => ({ ...r, [`${s.id}:p`]: t })); setAmount(s.id, { priceCentavos: t === "" ? undefined : centavosFromPesos(t) }); }}
+                                className={AMOUNT_INPUT} />
+                            </>
+                          ) : null}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>

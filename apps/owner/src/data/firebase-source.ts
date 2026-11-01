@@ -18,7 +18,7 @@
  */
 import type { Expense, ExpenseTypeConfig } from "./types";
 import { normUnit, withRush } from "@/lib/units";
-import { normSupply, supplyAddOns, withSupplies } from "@/lib/supplies";
+import { cleanSupplyAmounts, normSupply, supplyAddOns, withSupplies } from "@/lib/supplies";
 import { normalizeClothesTypes, REGULAR_CLOTHES_ID } from "@/lib/clothes";
 import {
   Timestamp, collection, deleteField, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, runTransaction,
@@ -629,6 +629,7 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
         priceCentavos: Math.max(0, Math.round(Number(s.priceCentavos) || 0)),
         icon: s.icon,
         ...(s.supplyModes ? { supplyModes: Object.fromEntries(Object.entries(s.supplyModes).filter(([, m]) => m === "free" || m === "additional" || m === "off")) } : {}),
+        ...((a) => (a ? { supplyAmounts: a } : {}))(cleanSupplyAmounts(s.supplyAmounts)),
       }));
       if (services.some((s) => s.name.length < 2)) throw new Error("Each service needs a name.");
       const detergents = (next.detergents ?? []).map((o) => ({

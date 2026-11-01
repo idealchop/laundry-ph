@@ -99,7 +99,7 @@ export async function staffView(link: StaffLink) {
   return {
     shopName: link.shopName, branchName: link.branchName, expiresAt: link.expiresAt,
     staffName: link.staffName ?? null, mineToday,
-    services: cat.services.map((s) => ({ id: s.id, name: s.name, icon: s.icon, unit: s.unit, priceCentavos: s.priceCentavos, supplyModes: s.supplyModes ?? {} })),
+    services: cat.services.map((s) => ({ id: s.id, name: s.name, icon: s.icon, unit: s.unit, priceCentavos: s.priceCentavos, supplyModes: s.supplyModes ?? {}, supplyAmounts: s.supplyAmounts ?? {} })),
     defaults: cat.defaults,
     minKg: cat.minKg ?? 0,
     supplies: (cat.supplies ?? []).map((s) => ({ id: s.id, name: s.name, brand: s.brand, unit: s.unit, payer: s.payer, priceCentavos: s.priceCentavos, defaultQty: s.defaultQty })),

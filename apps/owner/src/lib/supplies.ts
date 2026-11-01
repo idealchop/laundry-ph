@@ -106,6 +106,36 @@ export function supplyMode(service: Pick<CatalogService, "supplyModes"> | null |
   return service?.supplyModes?.[s.id] ?? (s.payer === "customer" ? "additional" : "free");
 }
 
+type WithAmounts = Pick<CatalogService, "supplyAmounts"> | null | undefined;
+/** Amount of a supply used per load on this service (owner-set, else the supply default). */
+export const supplyQty = (service: WithAmounts, s: Pick<Supply, "id" | "defaultQty">) => {
+  const q = service?.supplyAmounts?.[s.id]?.qty;
+  return typeof q === "number" && q >= 0 ? q : s.defaultQty;
+};
+/** Price of an Additional supply on this service (owner-set, else the supply price). */
+export const supplyPrice = (service: WithAmounts, s: Pick<Supply, "id" | "priceCentavos">) => {
+  const p = service?.supplyAmounts?.[s.id]?.priceCentavos;
+  return typeof p === "number" && p >= 0 ? p : s.priceCentavos;
+};
+/** The supply as this service uses it (amount and price overrides applied). */
+export const forService = <T extends Pick<Supply, "id" | "defaultQty" | "priceCentavos">>(service: WithAmounts, s: T): T =>
+  ({ ...s, defaultQty: supplyQty(service, s), priceCentavos: supplyPrice(service, s) });
+/** Clean owner input: finite, non-negative, rounded (qty to 0.01, price to whole centavos); drops empty entries. */
+export function cleanSupplyAmounts(raw: unknown): Record<string, { qty?: number; priceCentavos?: number }> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, { qty?: number; priceCentavos?: number }> = {};
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^[A-Za-z0-9_-]{1,60}$/.test(id) || !v || typeof v !== "object") continue;
+    const o = v as { qty?: unknown; priceCentavos?: unknown };
+    const qty = Number(o.qty), price = Number(o.priceCentavos);
+    const e: { qty?: number; priceCentavos?: number } = {};
+    if (o.qty != null && Number.isFinite(qty) && qty >= 0 && qty <= 100_000) e.qty = Math.round(qty * 100) / 100;
+    if (o.priceCentavos != null && Number.isFinite(price) && price >= 0 && price <= 10_000_000) e.priceCentavos = Math.round(price);
+    if (Object.keys(e).length) out[id] = e;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** Split a service's supplies into Free (included) and Additional (paid extras). */
 export function serviceSupplies<T extends Pick<Supply, "id" | "payer">>(service: Pick<CatalogService, "supplyModes"> | null | undefined, supplies: T[]) {
   return {
@@ -131,9 +161,9 @@ export function resolveSupplyUse(catalog: Pick<Catalog, "services" | "supplies">
     if (mode === "off") continue;
     if (mode === "additional") {
       const n = Math.max(1, Math.min(50, Math.round(Number(it.count) || 1)));
-      use.push({ id: s.id, qty: s.defaultQty * n });
-      if (s.priceCentavos > 0) { addOnIds.push(s.id); addOnQty[s.id] = n; }
-    } else use.push({ id: s.id, qty: Math.max(0, Number(it.qty) || 0) });
+      use.push({ id: s.id, qty: supplyQty(service, s) * n });
+      if (supplyPrice(service, s) > 0) { addOnIds.push(s.id); addOnQty[s.id] = n; }
+    } else use.push({ id: s.id, qty: Math.max(0, it.qty == null ? supplyQty(service, s) : Number(it.qty) || 0) });
   }
   const paid = new Set(addOnIds);
   return { use, addOnIds, addOnQty, payerOf: (id: string): "customer" | "shop" => (paid.has(id) ? "customer" : "shop") };

@@ -75,7 +75,11 @@ export function quote(catalog: Catalog, sel: PosSelection): Quote {
   }
   const detergent = catalog.detergents.find((d) => d.id === sel.detergentId) ?? null;
   if (detergent && detergent.priceCentavos > 0) lines.push({ label: detergent.name, amountCentavos: detergent.priceCentavos });
-  const addOns = catalog.addOns.filter((a) => sel.addOnIds.includes(a.id));
+  // Per-service price for Additional supplies (Services › Edit service), else the item price.
+  const addOns = catalog.addOns.filter((a) => sel.addOnIds.includes(a.id)).map((a) => {
+    const p = service.supplyAmounts?.[a.id]?.priceCentavos;
+    return typeof p === "number" && p >= 0 ? { ...a, priceCentavos: p } : a;
+  });
   const nOf = (id: string) => Math.max(1, Math.min(50, Math.round(sel.addOnQty?.[id] ?? 1)));
   for (const a of addOns) lines.push({ label: nOf(a.id) > 1 ? `${a.name} ×${nOf(a.id)}` : a.name, amountCentavos: a.priceCentavos * nOf(a.id) });
   const subtotalCentavos = lines.reduce((sum, l) => sum + l.amountCentavos, 0);

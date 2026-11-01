@@ -21,7 +21,7 @@ const NO_SUPPLIES: never[] = [];
 
 interface View {
   shopName: string; branchName: string; expiresAt: number; staffName: string | null; mineToday: number;
-  services: { id: string; name: string; icon?: IconName; unit: "kg" | "pc" | "load"; priceCentavos: number; supplyModes?: Record<string, "free" | "additional" | "off"> }[];
+  services: { id: string; name: string; icon?: IconName; unit: "kg" | "pc" | "load"; priceCentavos: number; supplyModes?: Record<string, "free" | "additional" | "off">; supplyAmounts?: Record<string, { qty?: number; priceCentavos?: number }> }[];
   minKg?: number;
   defaults: { serviceId: string; kg: number; pieces: number };
   supplies?: { id: string; name: string; brand?: string; unit: "ml" | "pcs" | "load"; payer: "customer" | "shop"; priceCentavos: number; defaultQty: number }[];

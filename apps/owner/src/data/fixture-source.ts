@@ -1,5 +1,5 @@
 import { normUnit, withRush } from "@/lib/units";
-import { normSupply, supplyAddOns, applySupplyUse, resolveSupplyUse, withSupplies } from "@/lib/supplies";
+import { cleanSupplyAmounts, normSupply, supplyAddOns, applySupplyUse, resolveSupplyUse, withSupplies } from "@/lib/supplies";
 import { dayKey } from "@/lib/format";
 import { PARTNER_WALKINS_PER_DAY, WALKIN_LIMIT_MESSAGE } from "@/lib/plans";
 /**
@@ -100,6 +100,7 @@ export function createFixtureDataSource(): LaundryDataSource {
         priceCentavos: Math.max(0, Math.round(s.priceCentavos)),
         icon: s.icon,
         ...(s.supplyModes ? { supplyModes: s.supplyModes } : {}),
+        ...((a) => (a ? { supplyAmounts: a } : {}))(cleanSupplyAmounts(s.supplyAmounts)),
       }));
       if (services.some((s) => s.name.length < 2)) throw new Error("Each service needs a name.");
       const detergents = (next.detergents ?? []).map((o) => ({
