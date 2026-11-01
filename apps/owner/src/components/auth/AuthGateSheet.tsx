@@ -166,7 +166,6 @@ function AuthGateSheetOpen({
               >
                 Back
               </Button>
-              <p className="text-center text-[11.5px] font-medium text-muted">Protected by reCAPTCHA. Google <a href="https://policies.google.com/privacy" className="underline">Privacy</a> &amp; <a href="https://policies.google.com/terms" className="underline">Terms</a> apply.</p>
             </form>
           ) : null}
 

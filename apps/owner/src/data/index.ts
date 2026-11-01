@@ -14,6 +14,7 @@
 import { hasFirebaseWebConfig } from "@/lib/firebase/config";
 import type {
   Expense,
+  ExpenseTypeConfig,
   Booking, BookingStatus, Catalog, Customer, GrowthTip, Machine, NewCustomer, NewWalkInOrder, Order, OrderStatus, PaymentMethod, PickupRequest,
   PublicTicket, Shop, ShopPlanUpdate, ShopProfileUpdate, VerifiedBooking,
 } from "./types";
@@ -73,6 +74,8 @@ export interface LaundryDataSource {
   listExpenses(since: number): Promise<Expense[]>;
   addExpense(e: Omit<Expense, "id">): Promise<Expense>;
   removeExpense(id: string): Promise<void>;
+  getExpenseTypes(): Promise<ExpenseTypeConfig>;
+  saveExpenseTypes(cfg: ExpenseTypeConfig): Promise<ExpenseTypeConfig>;
 
   /**
    * Live River Mobile bookings. "open" = requested / accepted / received (soonest slot first);

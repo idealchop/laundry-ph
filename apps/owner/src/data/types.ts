@@ -407,10 +407,17 @@ export interface Supply {
   /** Optional cost per unit (centavos), for estimated supply cost in Performance. */
   costCentavos?: number;
 }
+/** Legacy fixed expense names (still accepted; older docs only have `type`). */
 export const EXPENSE_TYPES = ["Gas", "Electricity", "Water", "Labor", "Other"] as const;
-export type ExpenseType = (typeof EXPENSE_TYPES)[number];
-/** Owner-entered expense (Sales › Performance). */
-export interface Expense { id: string; type: ExpenseType; amountCentavos: number; date: number; branchId?: string | null }
+export type ExpenseType = string;
+/** Owner-made expense category (e.g. Utilities, Labor, Rent). */
+export interface ExpenseCategory { id: string; name: string; color: string }
+/** Owner-made expense type: name + emoji, optionally under a category. Array order = display order. */
+export interface ExpenseKind { id: string; name: string; emoji: string; categoryId: string | null }
+/** shops/{shopId}/settings/expenseTypes */
+export interface ExpenseTypeConfig { categories: ExpenseCategory[]; types: ExpenseKind[] }
+/** Owner-entered expense (Sales › Performance). `type` is the type's name at save time; `typeId` links to ExpenseKind. */
+export interface Expense { id: string; type: ExpenseType; typeId?: string | null; note?: string | null; amountCentavos: number; date: number; branchId?: string | null }
 /** Supplies used on one order (server-written). */
 export interface SupplyUse { id: string; name: string; qty: number; unit: SupplyUnit; payer: "customer" | "shop" }
 

@@ -16,7 +16,7 @@
  *   shops/{shopId}/bookings/{id}             River Mobile bookings (created by the Partner API; members move status)
  *   public_tickets/{ticketId}                PublicTicket projection (no phone / address), get-only for the public
  */
-import type { Expense } from "./types";
+import type { Expense, ExpenseTypeConfig } from "./types";
 import { normUnit, withRush } from "@/lib/units";
 import { normSupply, supplyAddOns, withSupplies } from "@/lib/supplies";
 import { normalizeClothesTypes, REGULAR_CLOTHES_ID } from "@/lib/clothes";
@@ -207,6 +207,18 @@ async function expensesApi(shopId: string, method: "GET" | "POST" | "DELETE", bo
   });
   const json = (await res.json().catch(() => ({}))) as { error?: { message?: string }; expenses?: unknown; expense?: unknown };
   if (!res.ok) throw new Error(json.error?.message ?? `Couldn’t save the expense (${res.status}).`);
+  return json;
+}
+
+async function expenseTypesApi(shopId: string, method: "GET" | "PUT", body?: unknown) {
+  const user = getFirebaseAuth().currentUser;
+  if (!user) throw new Error("Please sign in again.");
+  const res = await fetch(`/api/shop/expense-types?shopId=${encodeURIComponent(shopId)}`, {
+    method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}` },
+    ...(body ? { body: JSON.stringify({ shopId, ...(body as object) }) } : {}),
+  });
+  const json = (await res.json().catch(() => ({}))) as { error?: { message?: string }; config?: unknown };
+  if (!res.ok) throw new Error(json.error?.message ?? `Couldn’t save expense types (${res.status}).`);
   return json;
 }
 
@@ -515,6 +527,12 @@ export function createFirebaseDataSource(shopId: string): LaundryDataSource {
     },
     async addExpense(e) {
       return (await expensesApi(shopId, "POST", e)).expense as Expense;
+    },
+    async getExpenseTypes() {
+      return (await expenseTypesApi(shopId, "GET")).config as ExpenseTypeConfig;
+    },
+    async saveExpenseTypes(config) {
+      return (await expenseTypesApi(shopId, "PUT", { config })).config as ExpenseTypeConfig;
     },
     async removeExpense(id) {
       await expensesApi(shopId, "DELETE", undefined, `&id=${encodeURIComponent(id)}`);

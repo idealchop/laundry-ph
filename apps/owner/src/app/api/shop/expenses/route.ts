@@ -1,6 +1,6 @@
 import { adminAuth, adminDb } from "@/lib/server/admin";
 import { apiError, apiOk, isDocId, logApiError, rateLimit, readJson } from "@/lib/server/api";
-import { EXPENSE_TYPES, type Expense } from "@/data/types";
+import type { Expense } from "@/data/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ async function owner(req: Request, shopId: string) {
 }
 
 const toExpense = (id: string, d: FirebaseFirestore.DocumentData): Expense => ({
-  id, type: d.type, amountCentavos: Number(d.amountCentavos) || 0, date: Number(d.date) || 0, branchId: d.branchId ?? null,
+  id, type: String(d.type ?? "Other"), typeId: typeof d.typeId === "string" ? d.typeId : null, note: typeof d.note === "string" ? d.note : null, amountCentavos: Number(d.amountCentavos) || 0, date: Number(d.date) || 0, branchId: d.branchId ?? null,
 });
 
 export async function GET(req: Request) {
@@ -39,7 +39,9 @@ export async function POST(req: Request) {
   const body = await readJson(req, 2048);
   if (!body.ok) return body.res;
   const b = body.body as Record<string, unknown>;
-  const type = EXPENSE_TYPES.includes(b.type as Expense["type"]) ? (b.type as Expense["type"]) : null;
+  const type = typeof b.type === "string" ? b.type.replace(/\s+/g, " ").trim().slice(0, 30) : "";
+  const typeId = typeof b.typeId === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(b.typeId) ? b.typeId : null;
+  const note = typeof b.note === "string" ? b.note.replace(/\s+/g, " ").trim().slice(0, 140) || null : null;
   const amount = Number(b.amountCentavos);
   const date = Number(b.date);
   if (!type || !Number.isInteger(amount) || amount <= 0 || amount > 100_000_000 || !Number.isFinite(date) || date <= 0) return apiError("invalid_request", "Pick a type and enter an amount.");
@@ -47,7 +49,7 @@ export async function POST(req: Request) {
   try {
     const o = await owner(req, String(b.shopId ?? ""));
     if ("err" in o) return o.err;
-    const data = { type, amountCentavos: amount, date, branchId, createdAt: Date.now(), createdBy: o.uid };
+    const data = { type, typeId, note, amountCentavos: amount, date, branchId, createdAt: Date.now(), createdBy: o.uid };
     const ref = await o.col.add(data);
     return apiOk({ expense: toExpense(ref.id, data) }, 201);
   } catch (e) { logApiError("expenses-post", e); return apiError("internal", "Couldn’t save the expense."); }

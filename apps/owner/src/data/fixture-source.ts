@@ -13,7 +13,8 @@ import { BOOKING_DONE, BOOKING_OPEN, sortOpenBookings } from "@/lib/bookings";
 import { avatarFor, buildWalkInOrder, formatRef, nextStatus, toPublicTicket } from "@/lib/orders";
 import { PUBLIC_BOOKINGS_KEY, readPublicBookings, writeBookingTicket, writePublicBooking } from "@/lib/public-bookings";
 import { currentBranchId } from "@/lib/shop-locations";
-import { ACTIVE_STATUSES, type Booking, type Customer, type Expense, type Order, type PublicTicket } from "./types";
+import { DEFAULT_EXPENSE_TYPES } from "@/lib/expense-types";
+import { ACTIVE_STATUSES, type Booking, type Customer, type Expense, type ExpenseTypeConfig, type Order, type PublicTicket } from "./types";
 import * as fx from "./fixtures";
 import { normalizeCode, refFromCode, type LaundryDataSource, type PublicTicketSource, type Unsubscribe } from "./index";
 
@@ -26,6 +27,7 @@ const store = {
   shop: { ...fx.shop, address: fx.shop.address ? { ...fx.shop.address } : null, location: fx.shop.location ? { ...fx.shop.location } : null },
   catalog: withSupplies(structuredClone(fx.catalog)),
   expenses: [] as Expense[],
+  expenseTypes: DEFAULT_EXPENSE_TYPES as ExpenseTypeConfig,
   nextNo: 423,
   listeners: new Set<Listener>(),
 };
@@ -191,6 +193,13 @@ export function createFixtureDataSource(): LaundryDataSource {
       const x: Expense = { ...e, id: `exp-${Date.now().toString(36)}` };
       store.expenses = [x, ...store.expenses]; emit();
       return x;
+    },
+    async getExpenseTypes() {
+      return store.expenseTypes;
+    },
+    async saveExpenseTypes(cfg) {
+      store.expenseTypes = cfg; emit();
+      return cfg;
     },
     async removeExpense(id) {
       store.expenses = store.expenses.filter((x) => x.id !== id); emit();
