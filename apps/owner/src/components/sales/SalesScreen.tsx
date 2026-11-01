@@ -12,6 +12,9 @@ import { ordersBetween } from "@/lib/orders";
 import { staffKey, staffName, staffStats, type StaffRow } from "@/lib/staff-performance";
 import { suppliesOf, supplyUsage, isLow } from "@/lib/supplies";
 import { Expenses, ProfitLine, SuppliesUsed } from "./PerformanceExtras";
+import { SalesChartCard } from "./SalesChartCard";
+import { WeeklySalesCard } from "./WeeklySalesCard";
+import { weekSales } from "@/lib/weekly";
 import { useLocationFilter } from "@/lib/shop-locations";
 import { useAction, useBoardOrders, useShop, useShopQuery } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
@@ -37,6 +40,7 @@ export function SalesScreen() {
   const loc = useLocationFilter();
   const here = useMemo(() => orders.filter((o) => loc.keep(o.branchId)), [orders, loc]);
   const report = useMemo(() => salesReport(here, range, now), [here, range, now]);
+  const week = useMemo(() => weekSales(here, now), [here, now]);
   const spec = SALES_RANGES.find((r) => r.value === range) ?? SALES_RANGES[0]!;
   const from = startOfShopDay(now, -(spec.days - 1));
   const inRange = useMemo(() => ordersBetween(here, from), [here, from]);
@@ -96,13 +100,14 @@ export function SalesScreen() {
       {error ? <ErrorNote className="mt-3">{error}</ErrorNote> : null}
       {loading && orders.length === 0 ? <RowsSkeleton rows={4} /> : (
         <>
+          {view !== "staff" ? <WeeklySalesCard week={week} className="mt-3" /> : null}
           {view === "collection" ? <Collection report={report} staff={staff} /> : null}
           {view === "performance" ? (
             <>
               <PerfKpis report={report} />
               <div className="mt-3"><ProfitLine sales={report.totals.salesCentavos} costs={costs} partial={costPartial} /></div>
               <StaffBoard rows={staff} title="Top staff" />
-              <SalesChart report={report} />
+              <SalesChartCard series={report.series} kind={report.seriesKind} className="mt-3" />
               <Breakdown title="Services" empty="No orders." rows={report.services} total={report.totals.salesCentavos} />
               <SuppliesUsed rows={usage} />
               <Expenses items={expenses} canEdit={member?.role === "owner"} busy={act.busy} error={act.error}
@@ -207,16 +212,6 @@ function PerfKpis({ report }: { report: ReturnType<typeof salesReport> }) {
   );
 }
 
-function SalesChart({ report }: { report: ReturnType<typeof salesReport> }) {
-  const peak = report.series.reduce((best, row) => (row.salesCentavos > best.sales ? { sales: row.salesCentavos, label: row.label } : best), { sales: 0, label: "" });
-  return (
-    <Card padding="none" className="mt-3 px-4 py-4">
-      <h2 className="text-[16px] font-bold">{report.seriesKind === "hour" ? "Sales by hour" : "Sales by day"}</h2>
-      {peak.sales > 0 ? <p className="mt-0.5 text-[12.5px] font-semibold text-muted">Peak {peak.label} · {money(peak.sales)}</p> : null}
-      <ColumnChart rows={report.seriesKind === "hour" ? (report.series.some((row) => row.salesCentavos > 0) ? report.series.filter((row) => row.salesCentavos > 0) : report.series) : report.series} />
-    </Card>
-  );
-}
 
 function ShopView({ report }: { report: ReturnType<typeof salesReport> }) {
   return (
@@ -275,50 +270,6 @@ function MixBar({ rows, total, by = "sales", className }: {
   );
 }
 
-/** Column chart for hours or days. The busiest bar is black. */
-function ColumnChart({ rows }: { rows: SalesRow[] }) {
-  const data = rows.length > 0 ? rows : [];
-  const max = Math.max(1, ...data.map((row) => row.salesCentavos));
-  const highlight = data.reduce((best, row, i) => (row.salesCentavos > (data[best]?.salesCentavos ?? 0) ? i : best), 0);
-  const peak = (data[highlight]?.salesCentavos ?? 0) > 0 ? highlight : -1;
-  const dense = data.length > 8;
-  const labeled = new Set<number>();
-  if (peak >= 0) labeled.add(peak);
-  data.forEach((row, i) => {
-    const edge = i === 0 || i === data.length - 1;
-    if (dense && !edge && row.salesCentavos <= 0) return;
-    if (dense && [...labeled].some((kept) => kept !== i && Math.abs(kept - i) < 2)) return;
-    labeled.add(i);
-  });
-  return (
-    <div
-      className="mt-4 flex h-[156px] items-end gap-2"
-      role="img"
-      aria-label={data.map((row) => `${row.label}: ${money(row.salesCentavos)}`).join(", ")}
-    >
-      {data.map((row, i) => {
-        const on = i === peak;
-        const height = row.salesCentavos === 0 ? 4 : Math.max(8, Math.round((row.salesCentavos / max) * 124));
-        return (
-          <div key={`${row.label}-${i}`} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end" title={`${row.label}: ${money(row.salesCentavos)}`}>
-            <div className={cn("w-full max-w-10 rounded-t-[8px]", on ? "bg-ink" : row.salesCentavos > 0 ? "bg-grey-300" : "bg-grey-100")} style={{ height }} />
-            <span className={cn("mt-1.5 h-4 w-full truncate text-center text-[11px] font-bold leading-4", on ? "text-ink" : "text-subtle", !labeled.has(i) && "invisible")}>
-              {tickLabel(row.label, dense)}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function tickLabel(label: string, dense: boolean): string {
-  if (!dense) return label;
-  const hour = /^(\d+)\s*(AM|PM)$/i.exec(label);
-  if (hour) return `${hour[1]}${hour[2]!.toLowerCase().startsWith("a") ? "a" : "p"}`;
-  const day = /(\d+)\s*$/.exec(label);
-  return day?.[1] ?? label.slice(0, 1);
-}
 
 function MeterList({ rows, total, by = "sales", className }: {
   rows: SalesRow[];

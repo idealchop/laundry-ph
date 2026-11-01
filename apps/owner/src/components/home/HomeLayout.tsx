@@ -16,6 +16,10 @@ import { CompanionCard } from "../companion/CompanionCard";
 import { BookingCard } from "../bookings/BookingCard";
 import { useBookingActions } from "../bookings/BookingsList";
 import { ErrorNote } from "../ui";
+import { SalesChartCard } from "../sales/SalesChartCard";
+import { WeeklySalesCard } from "../sales/WeeklySalesCard";
+import type { WeekSales } from "@/lib/weekly";
+import type { SalesRow } from "@/lib/sales";
 import { HomeHeroDesktop, HomeHeroMobile, type LiveWork } from "./HomeHero";
 
 const linkCls = "text-[14px] font-bold underline decoration-grey-300 underline-offset-[3px]";
@@ -39,6 +43,10 @@ export interface HomeLayoutProps {
   footer?: ReactNode;
   /** Loads in progress: turns the hero live (glow, dot, timer). */
   live?: LiveWork;
+  /** This week (Mon–Sun) for the Barbers-style weekly sales card. */
+  week?: WeekSales;
+  /** Today by the hour for the Sales by hour card. */
+  hours?: SalesRow[];
 }
 
 /** Live bookings (new requests first). Desktop shows up to 4, two per row. */
@@ -134,8 +142,10 @@ export function HomeLayout(p: HomeLayoutProps) {
         <ShopHeader shop={shop} className="px-4 pt-1" />
         {switching ? <Sk className="mx-4 mt-1 h-[150px] rounded-banner" /> : <HomeHeroMobile shop={shop} today={today} showWalkIn={canWalkIn} live={p.live} />}
         {switching ? <StatsSkeleton className="mx-4 mt-3" /> : <Stats today={today} online={fresh} className="mx-4 mt-3" />}
+        {p.week && !switching ? <WeeklySalesCard week={p.week} className="mx-4 mt-3" /> : null}
         <CompanionCard className="mx-4 mt-3" />
         <HubTiles className="mx-4 mt-3" />
+        {p.hours && !switching ? <SalesChartCard series={p.hours} kind="hour" className="mx-4 mt-3" /> : null}
         <SectionHeader className="px-4 pb-1 pt-4" title="Bookings to accept" aside={pickupsAside} />
         <div className="mx-4">{pickups(3, false)}</div>
         {p.footer ? <div className="mx-4 mt-3">{p.footer}</div> : null}
@@ -149,8 +159,10 @@ export function HomeLayout(p: HomeLayoutProps) {
           {switching ? <Sk className="h-[248px] rounded-card" /> : <DailyTarget today={today} />}
         </div>
         {switching ? <StatsSkeleton className="mt-5" /> : <Stats today={today} online={fresh} className="mt-5" />}
+        {p.week && !switching ? <WeeklySalesCard week={p.week} className="mt-5" /> : null}
         <CompanionCard className="mt-5" />
         <HubTiles className="mt-5" />
+        {p.hours && !switching ? <SalesChartCard series={p.hours} kind="hour" className="mt-5" /> : null}
         <Card padding="none" className="mt-5 px-[18px] pb-4 pt-4">
           <CardHeader className="mb-3" title="Bookings to accept" subtitle={pickupsAside} action={<Link href={p.onlineHref} className={linkCls}>All bookings</Link>} />
           {pickups(4, true)}

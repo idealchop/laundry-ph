@@ -5,6 +5,8 @@ import { startOfShopDay } from "@/lib/format";
 import { liveWork, summarizeToday } from "@/lib/orders";
 import { useLocationFilter } from "@/lib/shop-locations";
 import { useBoardOrders, useBookings, useCustomers, useShop } from "@/lib/shop";
+import { salesReport } from "@/lib/sales";
+import { weekSales } from "@/lib/weekly";
 import { ErrorNote } from "../ui";
 import { HomeSkeleton } from "../common/Skeleton";
 import { HomeLayout } from "./HomeLayout";
@@ -27,6 +29,8 @@ export function HomeScreen() {
     [scopedOrders, shop.dailyTargetCentavos, newBookings, customers],
   );
 
+  const week = useMemo(() => weekSales(scopedOrders, now), [scopedOrders, now]);
+  const hours = useMemo(() => salesReport(scopedOrders, "today", now).series, [scopedOrders, now]);
   const liveNow = useMemo(() => liveWork(scopedOrders), [scopedOrders]);
 
   if ((loading && orders.length === 0) || !loc.ready) return <HomeSkeleton />;
@@ -43,6 +47,8 @@ export function HomeScreen() {
         canConvert
         onlineHref="/orders?channel=online"
         live={liveNow}
+        week={week}
+        hours={hours}
       />
     </>
   );
