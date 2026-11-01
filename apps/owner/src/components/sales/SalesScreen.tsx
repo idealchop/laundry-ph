@@ -7,7 +7,7 @@ import { Card, cn } from "@river-apps/ui";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { money, startOfShopDay } from "@/lib/format";
-import { salesDelta, salesReport, SALES_RANGES, type SalesRange, type SalesRow } from "@/lib/sales";
+import { salesReport, SALES_RANGES, type SalesRange, type SalesRow } from "@/lib/sales";
 import { ordersBetween } from "@/lib/orders";
 import { staffKey, staffName, staffStats, type StaffRow } from "@/lib/staff-performance";
 import { suppliesOf, supplyUsage, isLow } from "@/lib/supplies";
@@ -101,7 +101,7 @@ export function SalesScreen() {
       {loading && orders.length === 0 ? <RowsSkeleton rows={4} /> : (
         <>
           {view !== "staff" ? <WeeklySalesCard week={week} className="mt-3" /> : null}
-          {view === "collection" ? <Collection report={report} staff={staff} /> : null}
+          {view === "collection" ? <Collection report={report} /> : null}
           {view === "performance" ? (
             <>
               <PerfKpis report={report} />
@@ -129,8 +129,8 @@ export function SalesScreen() {
   );
 }
 
-/** Collected (cash / GCash) vs uncollected, then who brought it in. No commission or remit in Laundry. */
-function Collection({ report, staff }: { report: ReturnType<typeof salesReport>; staff: StaffRow[] }) {
+/** Collected (cash / GCash) vs uncollected. No commission or remit in Laundry. */
+function Collection({ report }: { report: ReturnType<typeof salesReport> }) {
   const { totals } = report;
   const paid = report.payments.filter((p) => p.salesCentavos > 0 && !/unpaid/i.test(p.label));
   // Barbers.ph: Cash and GCash always listed under Collected (₱0 when none), then any other method.
@@ -155,11 +155,6 @@ function Collection({ report, staff }: { report: ReturnType<typeof salesReport>;
           </span>
         </section>
       </div>
-      <p className="mt-3 flex items-center justify-between rounded-card bg-surface px-4 py-3 text-[13.5px] font-semibold shadow-card">
-        <span>Sales <small className="block text-[12px] text-muted">{totals.orders} {totals.orders === 1 ? "order" : "orders"} · {totals.kg} kg · {salesDelta(totals.salesCentavos, report.previousSalesCentavos, report.compare)}</small></span>
-        <b className="text-[17px] tabular-nums">{money(totals.salesCentavos)}</b>
-      </p>
-      <StaffBoard rows={staff} title="By staff" />
     </>
   );
 }
