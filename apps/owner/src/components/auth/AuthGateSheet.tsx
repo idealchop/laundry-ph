@@ -151,7 +151,6 @@ function AuthGateSheetOpen({
                 label="Mobile number"
                 value={formatted}
                 onChange={(f, v) => { setFormatted(f); setE164(v); setError(null); }}
-                autoFocus
                 error={error ?? undefined}
               />
               <div id={btnId} aria-hidden />
@@ -174,7 +173,7 @@ function AuthGateSheetOpen({
 
           {step === "code" ? (
             <div className="mt-5 flex flex-col gap-3">
-              <OtpInput value={code} onChange={setCode} onComplete={(v) => void verify(v)} autoFocus error={!!error} />
+              <OtpInput value={code} onChange={setCode} onComplete={(v) => void verify(v)} error={!!error} />
               {error ? <p role="alert" className="text-[13.5px] font-semibold">{error}</p> : null}
               <Button fullWidth disabled={busy || code.length < 6} onClick={() => void verify()}>
                 {busy ? "Verifying…" : "Verify & continue"}

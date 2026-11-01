@@ -20,7 +20,7 @@ export function SmsOptIn() {
       </div>
       {state === "editing" ? (
         <form className="mt-3 flex flex-col gap-2.5" onSubmit={(e) => { e.preventDefault(); setState("saved"); }}>
-          <PhoneInput hideLabel autoFocus />
+          <PhoneInput hideLabel />
           <Button type="submit" variant="secondary" size="md" fullWidth>Save number</Button>
         </form>
       ) : null}

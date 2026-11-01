@@ -23,7 +23,6 @@ export function OtpInput({ length = 6, value, defaultValue = "", onChange, onCom
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
-    if (autoFocus) refs.current[Math.min(code.length, length - 1)]?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

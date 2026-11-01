@@ -122,7 +122,7 @@ export function StaffSection({ branch }: { branch: ShopBranch }) {
           }}>
             <label className="block">
               <span className="text-[13px] font-bold">Name</span>
-              <input autoFocus value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="e.g. Liza" className="mt-1.5 h-12 w-full rounded-[14px] bg-grey-100 px-3 text-[16px] font-semibold outline-none" />
+              <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="e.g. Liza" className="mt-1.5 h-12 w-full rounded-[14px] bg-grey-100 px-3 text-[16px] font-semibold outline-none" />
             </label>
             {note ? <p className="mt-2 text-[13px] font-semibold" role="alert">{note}</p> : null}
             <div className="mt-4 flex gap-2">

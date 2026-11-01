@@ -49,7 +49,6 @@ export default function PhoneNumberPage() {
                 setFormatted(f);
                 setE164(v);
               }}
-              autoFocus
               hint="Leave out the first 0, e.g. 917 123 4567"
               error={error ?? undefined}
             />

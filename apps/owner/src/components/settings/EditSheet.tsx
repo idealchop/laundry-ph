@@ -14,7 +14,6 @@ export function EditSheet({ title, onClose, children, footer }: { title: string;
     const opener = document.activeElement as HTMLElement | null;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    panel.current?.querySelector<HTMLElement>("input, button:not([data-close])")?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => {

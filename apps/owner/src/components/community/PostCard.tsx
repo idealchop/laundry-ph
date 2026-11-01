@@ -36,7 +36,7 @@ export function PostCard({ post, now, me, onLike, onRepost, onShare, onReply, on
 
   const openReplies = (focus: boolean) => {
     setShowReplies(true);
-    if (focus) requestAnimationFrame(() => replyRef.current?.focus());
+    void focus; // never auto-open the keyboard
   };
 
   return (

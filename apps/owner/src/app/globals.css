@@ -102,3 +102,8 @@ html[data-auth-redirect] body::before {
   to { -webkit-mask-position: 0% 0; mask-position: 0% 0; }
 }
 .grecaptcha-badge { visibility: hidden !important; }
+
+/* iOS zooms the page when a focused field is under 16px. Keep every field at 16px on phones (pinch zoom stays on). Matches Barbers. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px !important; }
+}

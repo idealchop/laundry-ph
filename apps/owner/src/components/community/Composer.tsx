@@ -32,7 +32,6 @@ export const Composer = forwardRef<ComposerHandle, { me: PostAuthor; onPost: (bo
     useImperativeHandle(ref, () => ({
       focus: () => {
         textRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        textRef.current?.focus({ preventScroll: true });
       },
     }));
 

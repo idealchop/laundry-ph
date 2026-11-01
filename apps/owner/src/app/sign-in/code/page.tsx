@@ -54,7 +54,7 @@ export default function CodePage() {
           Sent to +63 {national} ·{" "}
           <Link href="/sign-in/phone" className="font-bold text-ink underline decoration-grey-300 underline-offset-[3px]">Change</Link>
         </p>
-        <OtpInput className="mt-6" value={code} onChange={setCode} onComplete={verify} autoFocus error={!!error} />
+        <OtpInput className="mt-6" value={code} onChange={setCode} onComplete={verify} error={!!error} />
         {error ? (
           <p role="alert" className="mt-3 text-[13.5px] font-semibold">{error}</p>
         ) : (

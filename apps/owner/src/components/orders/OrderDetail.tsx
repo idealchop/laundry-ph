@@ -304,7 +304,7 @@ function EditForm({ order, onDone }: { order: Order; onDone: () => void }) {
         ) : null}
       </div>
       {showNotes ? (
-        <textarea aria-label="Notes" autoFocus={!order.notes} value={notes} maxLength={500} rows={2} onChange={(e) => setNotes(e.target.value)} placeholder="Note" className={`mt-2.5 block w-full resize-none px-3 py-2.5 text-[16px] font-medium outline-none placeholder:text-muted sm:text-[14.5px] ${box}`} />
+        <textarea aria-label="Notes" value={notes} maxLength={500} rows={2} onChange={(e) => setNotes(e.target.value)} placeholder="Note" className={`mt-2.5 block w-full resize-none px-3 py-2.5 text-[16px] font-medium outline-none placeholder:text-muted sm:text-[14.5px] ${box}`} />
       ) : (
         <button type="button" className="mt-1.5 inline-flex h-8 items-center gap-1 px-1 text-[13px] font-bold text-ink-2" onClick={() => setShowNotes(true)}><Plus size={14} strokeWidth={2.4} aria-hidden />Add note</button>
       )}

@@ -68,7 +68,7 @@ function LookupForm({ initial }: { initial: string }) {
   return (
     <form onSubmit={submit} className="mt-auto flex flex-col gap-3 px-6 pb-10 pt-6">
       <Input size="lg" label="Ticket number or link" value={value} onChange={(e) => setValue(e.target.value)} placeholder="LDY-0423 or paste the ticket link"
-        leadingIcon={<ScanLine size={20} strokeWidth={1.75} />} autoFocus={!initial} autoCapitalize="characters"
+        leadingIcon={<ScanLine size={20} strokeWidth={1.75} />} autoCapitalize="characters"
         hint="Type the number on the customer’s ticket, or paste the /t/… link they show you." />
       <Button type="submit" fullWidth disabled={!value.trim()} leadingIcon={<Search size={20} strokeWidth={2} />}>Find ticket</Button>
     </form>
