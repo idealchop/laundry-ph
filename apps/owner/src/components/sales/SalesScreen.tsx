@@ -12,7 +12,6 @@ import { ordersBetween } from "@/lib/orders";
 import { staffKey, staffName, staffStats, type StaffRow } from "@/lib/staff-performance";
 import { suppliesOf, supplyUsage, isLow } from "@/lib/supplies";
 import { Expenses, ProfitLine, SuppliesUsed } from "./PerformanceExtras";
-import { SalesChartCard } from "./SalesChartCard";
 import { WeeklySalesCard } from "./WeeklySalesCard";
 import { weekSales } from "@/lib/weekly";
 import { useLocationFilter } from "@/lib/shop-locations";
@@ -107,7 +106,6 @@ export function SalesScreen() {
               <PerfKpis report={report} />
               <div className="mt-3"><ProfitLine sales={report.totals.salesCentavos} costs={costs} partial={costPartial} /></div>
               <StaffBoard rows={staff} title="Top staff" />
-              <SalesChartCard series={report.series} kind={report.seriesKind} className="mt-3" />
               <Breakdown title="Services" empty="No orders." rows={report.services} total={report.totals.salesCentavos} />
               <SuppliesUsed rows={usage} />
               <Expenses items={expenses} canEdit={member?.role === "owner"} busy={act.busy} error={act.error}
