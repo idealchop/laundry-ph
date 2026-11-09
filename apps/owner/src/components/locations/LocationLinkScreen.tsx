@@ -9,7 +9,6 @@ import { useCallback, useState } from "react";
 import { useVisiblePoll } from "@/lib/visible-poll";
 import { money } from "@/lib/format";
 import { PAID_PER_MO } from "@/lib/plans";
-import { useInstallHidden } from "@/lib/pwa";
 import { InstallPanel } from "@/components/pwa/InstallPanel";
 import { STAFF_FEATURES } from "@/components/pwa/InstallScreen";
 import { BottomSheet } from "@/components/common/BottomSheet";
@@ -41,7 +40,6 @@ export function LocationLinkScreen({ token }: { token: string }) {
   const [qty, setQty] = useState("6");
   const [busy, setBusy] = useState(false);
   const [install, setInstall] = useState(false);
-  const installHidden = useInstallHidden(token);
   const [note, setNote] = useState<string | null>(null);
   const [capHit, setCapHit] = useState<string | null>(null);
   const picks = useSupplyPicks(view?.services.find((s) => s.id === serviceId), view?.supplies ?? NO_SUPPLIES);
@@ -152,11 +150,9 @@ export function LocationLinkScreen({ token }: { token: string }) {
         )}
       </section>
 
-      {installHidden ? null : (
-        <button type="button" onClick={() => setInstall(true)} className="mx-auto mt-8 flex min-h-11 items-center gap-2 px-2 text-[13.5px] font-semibold text-muted">
-          <RiverIcon name="install" size={22} /> Install this counter as an app
-        </button>
-      )}
+      <button type="button" onClick={() => setInstall(true)} className="mx-auto mt-8 flex min-h-11 items-center gap-2 px-2 text-[13.5px] font-semibold text-muted">
+        <RiverIcon name="install" size={22} /> Install this counter as an app
+      </button>
       {install ? <BottomSheet title="Install app" onClose={() => setInstall(false)} tall><InstallPanel token={token} features={STAFF_FEATURES} /></BottomSheet> : null}
     </main>
   );

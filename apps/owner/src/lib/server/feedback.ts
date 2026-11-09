@@ -44,7 +44,7 @@ export async function saveFeedback(w: FeedbackWho, f: { rating: number; comment:
     const p = prev.exists ? (prev.data() as { rating: number; createdAt?: number }) : null;
     const s = (sum.exists ? sum.data() : {}) as Partial<FeedbackSummary>;
     const now = Date.now();
-    tx.set(ref, { role: w.role, shopId: w.shopId, rating: f.rating, comment: f.comment, createdAt: p?.createdAt ?? now, updatedAt: now });
+    tx.set(ref, { role: w.role, shopId: w.shopId, ...(w.role === "owner" ? { uid: w.uid } : {}), rating: f.rating, comment: f.comment, createdAt: p?.createdAt ?? now, updatedAt: now });
     tx.set(sumRef, { count: (Number(s.count) || 0) + (p ? 0 : 1), sum: (Number(s.sum) || 0) + f.rating - (p?.rating ?? 0), updatedAt: now });
   });
   return feedbackSummary();

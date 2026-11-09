@@ -1,6 +1,6 @@
 import { adminAuth, adminDb } from "@/lib/server/admin";
 import { apiError, apiOk, logApiError, rateLimit, readJson } from "@/lib/server/api";
-import { cleanFeedback, feedbackSummary, myFeedback, saveFeedback, type FeedbackWho } from "@/lib/server/feedback";
+import { cleanFeedback, myFeedback, saveFeedback, type FeedbackWho } from "@/lib/server/feedback";
 import { resolveLink } from "@/lib/server/staff";
 
 export const runtime = "nodejs";
@@ -16,12 +16,13 @@ async function who(req: Request, token: string | null): Promise<FeedbackWho | nu
   return { role: "owner", uid, shopId: String(m?.docs[0]?.data().shopId ?? "") };
 }
 
+/** Install page open: at most one doc read (the caller's own review). Summary is server-only. */
 export async function GET(req: Request) {
   const token = new URL(req.url).searchParams.get("token");
   try {
     const w = await who(req, token).catch(() => null);
-    return apiOk({ summary: await feedbackSummary(), mine: w ? await myFeedback(w) : null });
-  } catch (e) { logApiError("feedback-get", e); return apiOk({ summary: { count: 0, sum: 0 }, mine: null }); }
+    return apiOk({ mine: w ? await myFeedback(w) : null });
+  } catch (e) { logApiError("feedback-get", e); return apiOk({ mine: null }); }
 }
 
 export async function POST(req: Request) {
@@ -35,6 +36,6 @@ export async function POST(req: Request) {
     if (!w) return apiError("unauthorized", "Log in to rate Laundry.ph.");
     const retry = rateLimit(`feedback:${w.role === "owner" ? w.uid : w.shopId}`, 10);
     if (retry) return apiError("rate_limited", `Slow down, try again in ${retry}s.`);
-    return apiOk({ summary: await saveFeedback(w, f) });
+    return apiOk({ ok: true, summary: await saveFeedback(w, f) });
   } catch (e) { logApiError("feedback-post", e); return apiError("internal", "Couldn’t send. Try again."); }
 }

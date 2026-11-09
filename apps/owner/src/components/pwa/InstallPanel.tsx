@@ -1,16 +1,13 @@
 "use client";
 /**
- * Install Laundry.ph (owner Settings › Install app, and the staff link). Copied from Barbers.ph. One layout on every phone:
- * big icon, title, stats row (placeholders until real ratings: src/lib/app-stats.ts), three feature lines with 3D icons,
- * full-width "Install the app" and "Rate & send feedback" (Jimboy, 2026-10-20).
- * Android/Chrome/Edge: the browser's own install prompt. iPhone/iPad can't install from a page, so the button
- * dims the screen and points at Safari's Share button ("Tap Share, then Add to Home Screen"); tap anywhere
- * closes it. Opened from the home screen (standalone): Installed, plus a one-time welcome (PwaHost).
+ * Install Laundry.ph (owner Settings › Install app, and the staff link). Barbers.ph layout
+ * (Jimboy Nov 9 2026): grey icon well, title, three feature lines, Install button; installed
+ * shows Installed badge + Open app. No stats row / average / count / reviews list. Feedback is
+ * a Rate & send feedback sheet (stars + comment), one editable rating per user via /api/feedback.
  */
 import { CheckCircle2, Loader2, Share, Star, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthGate } from "@/components/auth/AuthGateProvider";
-import { displayStats, type FeedbackSummary } from "@/lib/app-stats";
 import { useAuth } from "@/lib/auth";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { Button } from "@/components/common/Button";
@@ -31,12 +28,16 @@ export function InstallPanel({ features, token }: { features: InstallFeature[]; 
   const [guide, setGuide] = useState<null | "ios" | "safari" | "menu">(null);
   const [rating, setRating] = useState(false);
   const fb = useFeedback(token);
-  const stats = displayStats(fb.summary);
   const installed = pwa.state === "installed";
 
   async function onInstall() {
     if (pwa.platform === "prompt") await pwa.install();
     else setGuide(pwa.platform === "ios-safari" ? "ios" : pwa.platform === "ios-other" ? "safari" : "menu");
+  }
+
+  function openApp() {
+    // Manifest start_url is /home. In standalone or a remembered install, go there.
+    window.location.assign("/home");
   }
 
   return (
@@ -52,11 +53,6 @@ export function InstallPanel({ features, token }: { features: InstallFeature[]; 
         </p>
       ) : null}
 
-      <dl className="mt-4 grid w-full grid-cols-2 divide-x divide-line rounded-[16px] bg-surface py-2.5 shadow-card" aria-label="App stats">
-        <div><dt className="sr-only">Rating</dt><dd className="flex items-center justify-center gap-1 text-[17px] font-extrabold"><span>{stats.rating}</span><Star size={15} className="fill-current" aria-label="stars" /></dd><dd className="text-[11.5px] font-semibold text-muted">{stats.real ? "Average rating" : "Rating"}</dd></div>
-        <div><dt className="sr-only">{stats.countLabel}</dt><dd className="text-[17px] font-extrabold">{stats.count}</dd><dd className="text-[11.5px] font-semibold text-muted">{stats.countLabel}</dd></div>
-      </dl>
-
       {installed ? null : (
         <ul className="mt-4 flex w-full flex-col gap-2.5 text-left">
           {features.map(({ art, text }) => (
@@ -68,16 +64,21 @@ export function InstallPanel({ features, token }: { features: InstallFeature[]; 
         </ul>
       )}
 
-      <div className="mt-6 w-full">
+      <div className="mt-6 flex w-full flex-col gap-2.5">
         {installed ? (
-          <p className="flex h-12 items-center justify-center gap-2 rounded-pill bg-grey-100 text-[15px] font-bold"><CheckCircle2 size={18} aria-hidden /> Installed</p>
+          <>
+            <Button fullWidth onClick={openApp}>Open app</Button>
+            <p className="flex h-12 items-center justify-center gap-2 rounded-pill bg-grey-100 text-[15px] font-bold" role="status">
+              <CheckCircle2 size={18} aria-hidden /> Installed
+            </p>
+          </>
         ) : pwa.state === "installing" ? (
           <Button fullWidth disabled><Loader2 size={18} className="animate-spin" aria-hidden /> Installing…</Button>
         ) : (
           <Button fullWidth onClick={() => void onInstall()}>Install the app</Button>
         )}
       </div>
-      <button type="button" onClick={() => setRating(true)} className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-[13.5px] font-bold text-muted hover:underline">
+      <button type="button" onClick={() => setRating(true)} className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-[13.5px] font-bold text-muted underline">
         <Star size={14} aria-hidden /> {fb.mine ? `You rated ${fb.mine.rating} ★ · Edit` : "Rate & send feedback"}
       </button>
       {guide ? <InstallHint kind={guide} onClose={() => setGuide(null)} /> : null}
@@ -95,23 +96,23 @@ async function api(path: string, init: RequestInit = {}) {
   if (!res.ok) throw new Error(j?.error?.message ?? "Couldn’t send. Try again.");
   return j;
 }
+/** One read on open: the signed-in user's (or staff token's) own review. No summary, no polling. */
 function useFeedback(token?: string) {
   const { user } = useAuth();
   const uid = user?.uid;
-  const [summary, setSummary] = useState<FeedbackSummary | null>(null);
   const [mine, setMine] = useState<Mine>(null);
   useEffect(() => {
     let live = true;
     api(`/api/feedback${token ? `?token=${encodeURIComponent(token)}` : ""}`)
-      .then((r: { summary: FeedbackSummary; mine: Mine }) => { if (live) { setSummary(r.summary); setMine(r.mine); } })
+      .then((r: { mine: Mine }) => { if (live) setMine(r.mine); })
       .catch(() => {});
     return () => { live = false; };
   }, [token, uid]);
   async function submit(rating: number, comment: string) {
-    const r = (await api("/api/feedback", { method: "POST", body: JSON.stringify({ token, rating, comment }) })) as { summary: FeedbackSummary };
-    setSummary(r.summary); setMine({ rating, comment });
+    await api("/api/feedback", { method: "POST", body: JSON.stringify({ token, rating, comment }) });
+    setMine({ rating, comment });
   }
-  return { summary, mine, submit, signedIn: !!uid };
+  return { mine, submit, signedIn: !!uid };
 }
 
 function RateSheet({ fb, token, onClose }: { fb: ReturnType<typeof useFeedback>; token?: string; onClose: () => void }) {
@@ -159,10 +160,18 @@ function RateSheet({ fb, token, onClose }: { fb: ReturnType<typeof useFeedback>;
                 </button>
               ))}
             </div>
-            <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={500} rows={3} placeholder="Tell us what to improve (optional)" aria-label="Feedback"
-              className="mt-4 w-full resize-none rounded-[16px] bg-grey-100 px-3.5 py-3 text-[14px] font-semibold outline-none placeholder:text-muted" />
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="Tell us what to improve (optional)"
+              aria-label="Feedback"
+              autoFocus={false}
+              className="mt-4 w-full resize-none rounded-[16px] bg-grey-100 px-3.5 py-3 text-[16px] font-semibold outline-none placeholder:text-muted"
+            />
             {error ? <p className="mt-2 text-[13px] font-semibold" role="alert">{error}</p> : null}
-            <Button className="mt-4" fullWidth onClick={() => void send()} disabled={busy}>{busy ? "Sending…" : "Submit"}</Button>
+            <Button className="mt-4" fullWidth onClick={() => void send()} disabled={busy}>{busy ? "Sending…" : "Post"}</Button>
           </>
         )}
       </div>

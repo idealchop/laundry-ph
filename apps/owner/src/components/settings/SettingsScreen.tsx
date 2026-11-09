@@ -1,7 +1,6 @@
 "use client";
 
 import { RiverIcon } from "@/components/common/RiverIcon";
-import { useInstallHidden } from "@/lib/pwa";
 import {
   ChevronRight, CreditCard, LogOut, MapPin, Package, Pencil, Store,
 } from "lucide-react";
@@ -53,7 +52,6 @@ const HUB_LINKS = [
 /** Shop profile hub: Oceanus header, Features, Edit shop, setup links, logout. */
 export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) {
   const { shop, isGuest } = useShop();
-  const installHidden = useInstallHidden();
   const { openAuthCta, isAuthenticated } = useAuthGate();
   const [partnerOn, setPartnerOn] = useState(false);
   const photo = shop.photoUrls?.[0];
@@ -118,7 +116,7 @@ export function SettingsScreen({ title = "Settings" }: { title?: string } = {}) 
           <ul className="mt-1">
             {[
               ...(shop.tier === "partner" ? [SHOP_LISTING_LINK, ...HUB_LINKS] : HUB_LINKS),
-              ...(installHidden ? [] : [INSTALL_LINK]),
+              INSTALL_LINK,
             ].map((it) => {
               const Icon = it.icon;
               return (
