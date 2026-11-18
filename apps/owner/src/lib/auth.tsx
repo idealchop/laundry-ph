@@ -135,6 +135,7 @@ export const useAuth = () => useContext(AuthContext);
 
 let pending: { phoneE164: string; confirmation: ConfirmationResult; sentAt: number } | null = null;
 let verifier: RecaptchaVerifier | null = null;
+let widgetId: number | null = null;
 const RECAPTCHA_HOST_ID = "laundry-recaptcha-host";
 
 /** One container on <body>, outside any sheet, so it never unmounts. Hidden with visibility (display:none breaks reCAPTCHA). */
@@ -153,6 +154,7 @@ function recaptchaHost(): HTMLElement {
 function resetVerifier() {
   try { verifier?.clear(); } catch { /* already gone */ }
   verifier = null;
+  widgetId = null;
   const host = document.getElementById(RECAPTCHA_HOST_ID);
   if (host) host.innerHTML = ""; // clear() leaves the widget iframe; start clean
 }
@@ -165,7 +167,7 @@ export function prepareRecaptcha(): RecaptchaVerifier | null {
   const slot = document.createElement("div");
   host.appendChild(slot);
   verifier = new RecaptchaVerifier(getFirebaseAuth(), slot, { size: "invisible", "expired-callback": resetVerifier });
-  void verifier.render().catch(() => resetVerifier());
+  void verifier.render().then((id) => { widgetId = id; }, () => resetVerifier());
   return verifier;
 }
 
@@ -178,14 +180,54 @@ export async function sendPhoneCode(phoneE164: string) {
   const auth = getFirebaseAuth();
   const v = prepareRecaptcha();
   if (!v) throw new Error("Couldn’t start phone sign-in. Reload and try again.");
+  // A reCAPTCHA picture check that is closed (tap outside) never settles the Firebase promise, which left
+  // the button on "Sending…" forever. Race it with a timeout and a cancel (Back) so the person can retry.
+  let stop: ((err: unknown) => void) | null = null;
+  const stopped = new Promise<never>((_, reject) => { stop = reject; });
+  cancelSend = () => stop?.(Object.assign(new Error("Cancelled"), { code: "auth/cancelled" }));
+  const timer = window.setTimeout(() => stop?.(Object.assign(new Error("Timed out"), { code: "auth/timeout" })), SEND_TIMEOUT_MS);
+  // Picture check shown then closed without solving: stop right away instead of waiting for the timeout.
+  let sawChallenge = false;
+  let closedTicks = 0;
+  const watch = window.setInterval(() => {
+    if (challengeOpen()) { sawChallenge = true; closedTicks = 0; return; }
+    // Solved checks also close; only stop when it closed with no answer for ~2s.
+    if (sawChallenge && !challengeSolved() && ++closedTicks >= 3) {
+      stop?.(Object.assign(new Error("Check closed"), { code: "auth/captcha-closed" }));
+    }
+  }, 700);
   try {
-    const confirmation = await signInWithPhoneNumber(auth, phoneE164, v);
+    const confirmation = await Promise.race([signInWithPhoneNumber(auth, phoneE164, v), stopped]);
     pending = { phoneE164, confirmation, sentAt: Date.now() };
   } catch (err) {
+    console.warn("[phone-auth] send failed:", (err as { code?: string })?.code ?? err);
     resetVerifier();
     prepareRecaptcha(); // fresh widget ready for the next tap
     throw err;
+  } finally {
+    window.clearTimeout(timer);
+    window.clearInterval(watch);
+    cancelSend = null;
   }
+}
+
+const SEND_TIMEOUT_MS = 90_000;
+/** The invisible widget already holds an answer (the check was solved). */
+function challengeSolved(): boolean {
+  const g = (window as unknown as { grecaptcha?: { getResponse?: (id?: number) => string } }).grecaptcha;
+  try { return Boolean(g?.getResponse?.(widgetId ?? undefined)); } catch { return false; }
+}
+/** reCAPTCHA's picture check (bframe) is on screen. */
+function challengeOpen(): boolean {
+  return Array.from(document.querySelectorAll<HTMLIFrameElement>('iframe[src*="recaptcha/api2/bframe"]')).some((f) => {
+    const r = f.getBoundingClientRect();
+    return r.height > 50 && r.bottom > 0 && getComputedStyle(f).visibility !== "hidden";
+  });
+}
+let cancelSend: (() => void) | null = null;
+/** Stop a send that is waiting on reCAPTCHA (Back / close). */
+export function cancelPhoneSend() {
+  cancelSend?.();
 }
 
 export const pendingPhone = () => pending;
@@ -221,14 +263,19 @@ export async function signOut() {
 /** Friendly messages for common Firebase Auth errors. */
 export function authErrorMessage(err: unknown): string {
   const code = (err as { code?: string })?.code ?? "";
+  if (code === "auth/cancelled") return "";
+  if (code === "auth/timeout") return "That took too long. Tap Text me a code again.";
+  if (code === "auth/captcha-closed") return "The check was closed. Tap Text me a code again.";
   if (code.includes("invalid-verification-code")) return "That code is not right. Please check and try again.";
   if (code.includes("code-expired")) return "That code expired. Please request a new one.";
-  if (code.includes("invalid-phone-number")) return "Please enter a valid PH mobile number.";
-  if (code.includes("too-many-requests")) return "Too many tries. Please wait a few minutes.";
+  if (code.includes("invalid-phone-number") || code.includes("missing-phone-number")) return "Please enter a valid PH mobile number.";
+  if (code.includes("too-many-requests") || code.includes("quota-exceeded")) return "Too many tries. Please wait a few minutes.";
   if (code.includes("popup-closed") || code.includes("cancelled-popup-request")) return "Google sign-in was closed before finishing.";
   if (code.includes("unauthorized-domain")) return "This site is not allowed to sign in yet. Please contact support.";
-  if (code.includes("captcha")) return "We couldn’t verify you’re not a robot. Please try again.";
+  if (code.includes("captcha") || code.includes("app-credential")) return "We couldn’t verify you’re not a robot. Please try again.";
   if (code.includes("network-request-failed")) return "No connection. Check your internet and try again.";
-  if (code.includes("operation-not-allowed")) return "That sign-in method is not enabled yet.";
-  return "Something went wrong. Please try again.";
+  if (code.includes("operation-not-allowed")) return "Text codes aren’t available for this number yet.";
+  if (code.includes("billing-not-enabled")) return "Text codes are paused right now. Please use Google for now.";
+  // Unknown: keep the code visible so support can tell what failed.
+  return code ? `Couldn’t send. Please try again. (${code.replace(/^auth\//, "")})` : "Something went wrong. Please try again.";
 }

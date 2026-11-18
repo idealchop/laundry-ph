@@ -1,8 +1,6 @@
-import { WeeklySalesScreen } from "@/components/sales/WeeklySalesScreen";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Weekly sales" };
-
-/** Barbers.ph "Weekly profit report" parity: this week's sales by day and staff (no commission). */
-export default function WeeklySalesPage() {
-  return <WeeklySalesScreen />;
+/** Sales was removed from the app (Jimboy, Nov 18 2026). Old links land on Home. */
+export default function RemovedSalesPage() {
+  redirect("/home");
 }

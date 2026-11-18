@@ -1,5 +1,5 @@
 "use client";
-import { CoinIcon, Icon3D } from "@river-apps/icons";
+import { Icon3D } from "@river-apps/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Shop } from "@/data";
@@ -7,16 +7,6 @@ import { useAuth } from "@/lib/auth";
 import { useShopMark } from "@/lib/shop-mark";
 import { useAuthGate } from "../auth/AuthGateProvider";
 import { LocationMenu } from "./LocationMenu";
-
-/** Sales link: gold coin + "Sales", plain (no pill). */
-export function SalesPill() {
-  return (
-    <Link href="/sales" aria-label="Sales" className="inline-flex min-h-11 flex-none items-center gap-1.5 whitespace-nowrap py-1 transition-opacity hover:opacity-70">
-      <CoinIcon size={26} />
-      <span className="text-[13px] font-bold leading-none text-ink">Sales</span>
-    </Link>
-  );
-}
 
 /** Shop logo, name and location (switcher when there are several). Logo and name open the profile. */
 export function ShopBrand({ shop }: { shop: Shop }) {
@@ -46,13 +36,12 @@ export function ShopBrand({ shop }: { shop: Shop }) {
   );
 }
 
-/** Home header (phone + desktop): brand left, Sales right. No greeting, search or generic avatar. */
+/** Home header (phone + desktop): brand only. No greeting, search, sales or generic avatar. */
 export function ShopHeader({ shop, className }: { shop: Shop; className?: string }) {
   return (
     <header className={className}>
       <div className="flex h-16 items-center justify-between gap-2">
         <div className="flex min-w-0 items-center"><ShopBrand shop={shop} /></div>
-        <SalesPill />
       </div>
     </header>
   );

@@ -312,9 +312,13 @@ export function growthStats(orders: Order[], now = Date.now()): GrowthStat[] {
 const IN_PROGRESS: OrderStatus[] = ["washing", "drying", "folding"];
 
 /** Loads in progress right now and when the oldest one started washing (for the live Home hero). */
-export function liveWork(orders: Pick<Order, "status" | "stageTimes" | "updatedAt">[]): { count: number; since: number | null } {
-  const busy = orders.filter((o) => IN_PROGRESS.includes(o.status));
+/** Loads older than this are forgotten tickets, not work in the machines now (they showed "1057:07:43"). */
+const LIVE_MAX_MS = 24 * 3600_000;
+
+export function liveWork(orders: Pick<Order, "status" | "stageTimes" | "updatedAt">[], now = Date.now()): { count: number; since: number | null } {
+  const started = (o: Pick<Order, "status" | "stageTimes" | "updatedAt">) => o.stageTimes?.washing ?? o.stageTimes?.[o.status] ?? o.updatedAt;
+  const busy = orders.filter((o) => IN_PROGRESS.includes(o.status) && now - started(o) < LIVE_MAX_MS);
   if (!busy.length) return { count: 0, since: null };
-  const since = Math.min(...busy.map((o) => o.stageTimes?.washing ?? o.stageTimes?.[o.status] ?? o.updatedAt));
+  const since = Math.min(...busy.map(started));
   return { count: busy.length, since: Number.isFinite(since) ? since : null };
 }

@@ -12,7 +12,7 @@ import { ArrowLeft, Smartphone, X } from "lucide-react";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { GoogleG } from "@/components/brand";
 import {
-  authErrorMessage, confirmPhoneCode, pendingPhone, sendPhoneCode, signInWithGoogle, useAuth,
+  authErrorMessage, cancelPhoneSend, confirmPhoneCode, pendingPhone, sendPhoneCode, signInWithGoogle, useAuth,
   prepareRecaptcha,
 } from "@/lib/auth";
 
@@ -83,7 +83,7 @@ function AuthGateSheetOpen({
       setCode("");
       setStep("code");
     } catch (err) {
-      setError(authErrorMessage(err));
+      setError(authErrorMessage(err) || null);
     } finally {
       setBusy(false);
     }
@@ -103,6 +103,7 @@ function AuthGateSheetOpen({
   }
 
   function goMethods() {
+    cancelPhoneSend(); // Back while waiting on reCAPTCHA stops the send
     setStep("methods");
     setCode("");
     setError(null);
@@ -120,11 +121,11 @@ function AuthGateSheetOpen({
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-labelledby="laundry-auth-gate-title">
-      <button type="button" className="absolute inset-0 bg-ink/45" aria-label="Dismiss" onClick={onClose} />
+      <button type="button" className="absolute inset-0 bg-ink/45" aria-label="Dismiss" onClick={() => { cancelPhoneSend(); onClose(); }} />
       <div className={cn("relative z-[1] flex w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-surface shadow-card sm:max-h-[90dvh] sm:rounded-[28px]")}>
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => { cancelPhoneSend(); onClose(); }}
           className="absolute right-3 top-3 z-[1] inline-flex size-9 items-center justify-center rounded-full bg-grey-100 text-ink hover:bg-grey-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           aria-label="Close"
         >
@@ -179,7 +180,6 @@ function AuthGateSheetOpen({
                 type="button"
                 fullWidth
                 variant="ghost"
-                disabled={busy}
                 leadingIcon={<ArrowLeft size={18} strokeWidth={2.2} />}
                 onClick={goMethods}
               >

@@ -1,8 +1,7 @@
 "use client";
 
-import { ScanLine, Search } from "lucide-react";
 import { AppLoader } from "@/components/common/AppLoader";
-import { Avatar, Card, EmptyState, Input, MonoText, StatusDot, SuccessState } from "@river-apps/ui";
+import { Avatar, Card, Input, MonoText, StatusDot, SuccessState } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
@@ -12,8 +11,9 @@ import { money, whenLabel } from "@/lib/format";
 import { actionLabel, nextStatus } from "@/lib/orders";
 import { useAction, useOrder, useShop } from "@/lib/shop";
 import { FocusHeader, FocusSurface } from "../FocusHeader";
-import { ErrorNote, PaymentBadge, Spinner, StatusBadge } from "../ui";
+import { ErrorNote, PaymentBadge, StatusBadge } from "../ui";
 import { ScanResult } from "./ScanResult";
+import { QrScanner } from "./QrScanner";
 
 type Resolved = { kind: "order"; orderId: string } | { kind: "booking"; booking: VerifiedBooking } | { kind: "none" };
 
@@ -43,35 +43,41 @@ export function ScanScreen() {
   const state = code && result.code === code ? { ...result, loading: false } : { loading: Boolean(code), resolved: undefined, error: undefined };
   if (state.resolved?.kind === "booking") return <ScanResult booking={state.resolved.booking} />;
   return (
-    <FocusSurface style={{ background: "linear-gradient(180deg,#F2F2F4 0%,#fff 46%)" }}>
-      <FocusHeader title={code ? "Scan result" : "Find a ticket"} backHref="/home" variant="close" />
-      {state.loading ? <Spinner label="Looking up ticket" /> : null}
-      {state.error ? <div className="px-5"><ErrorNote>{state.error}</ErrorNote></div> : null}
+    <FocusSurface>
+      <FocusHeader title={state.resolved?.kind === "order" ? "Scan result" : "Scan QR"} backHref="/home" variant="close" />
+            {state.error ? <div className="px-5"><ErrorNote>{state.error}</ErrorNote></div> : null}
       {state.resolved?.kind === "order" ? <ResolvedOrder orderId={state.resolved.orderId} /> : null}
       {state.resolved?.kind === "none" ? (
-        <div className="px-5 pt-2">
-          <EmptyState title="No ticket found" description={`Nothing in this shop matches “${code}”. Check the ticket number and try again.`} />
-        </div>
+        <p role="alert" className="px-6 pb-1 text-center text-[14px] font-semibold">No ticket for “{code}”</p>
       ) : null}
-      {!state.loading && state.resolved?.kind !== "order" ? <LookupForm initial={code} /> : null}
+      {state.resolved?.kind !== "order" ? <Scan paused={state.loading} initial={state.resolved?.kind === "none" ? "" : code} /> : null}
     </FocusSurface>
   );
 }
 
-function LookupForm({ initial }: { initial: string }) {
+/** Camera + typed code. A scanned ticket link, ticket id or ref opens /scan/result?code=… */
+function Scan({ paused, initial }: { paused: boolean; initial: string }) {
   const router = useRouter();
   const [value, setValue] = useState(initial);
+  const go = (raw: string) => {
+    const v = raw.trim();
+    if (v) router.replace(`/scan/result?code=${encodeURIComponent(v)}`);
+  };
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (value.trim()) router.push(`/scan/result?code=${encodeURIComponent(value.trim())}`);
+    go(value);
   };
   return (
-    <form onSubmit={submit} className="mt-auto flex flex-col gap-3 px-6 pb-10 pt-6">
-      <Input size="lg" label="Ticket number or link" value={value} onChange={(e) => setValue(e.target.value)} placeholder="LDY-0423 or paste the ticket link"
-        leadingIcon={<ScanLine size={20} strokeWidth={1.75} />} autoCapitalize="characters"
-        hint="Type the number on the customer’s ticket, or paste the /t/… link they show you." />
-      <Button type="submit" fullWidth disabled={!value.trim()} leadingIcon={<Search size={20} strokeWidth={2} />}>Find ticket</Button>
-    </form>
+    <>
+      <div className="px-5 pt-3">
+        <QrScanner paused={paused} onResult={go} />
+        <p className="mt-3 text-center text-[14px] font-semibold text-muted">{paused ? "Looking up…" : "Point at the ticket QR"}</p>
+      </div>
+      <form onSubmit={submit} className="mt-auto flex flex-col gap-2.5 px-6 pb-10 pt-6">
+        <Input size="lg" label="Or type the code" value={value} onChange={(e) => setValue(e.target.value)} placeholder="LDY-0423" autoCapitalize="characters" autoComplete="off" />
+        <Button type="submit" fullWidth disabled={!value.trim() || paused}>Find</Button>
+      </form>
+    </>
   );
 }
 
@@ -91,7 +97,7 @@ function ResolvedOrder({ orderId }: { orderId: string }) {
         </span>
         <MonoText inverse className="text-[14px]">{order.ref}</MonoText>
       </Card>
-      <Card tone="muted" radius="panel" padding="none" className="mx-5 mt-2.5 flex items-center justify-between rounded-[22px] px-4 py-3">
+      <Card radius="panel" padding="none" className="shadow-none ring-1 ring-line mx-5 mt-2.5 flex items-center justify-between rounded-[22px] px-4 py-3">
         <span className="flex items-center gap-2"><StatusBadge status={order.status} /><PaymentBadge order={order} /></span>
         <b className="text-[18px] font-extrabold">{money(order.totalCentavos)}</b>
       </Card>

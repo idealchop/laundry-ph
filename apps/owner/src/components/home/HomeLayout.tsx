@@ -1,6 +1,5 @@
 "use client";
-import { Badge, Card, CardHeader, ProgressRing, SectionHeader, StatCard } from "@river-apps/ui";
-import { Button } from "../common/Button";
+import { Card, CardHeader, SectionHeader, StatCard } from "@river-apps/ui";
 import { EmptyQueue } from "../common/EmptyQueue";
 import { useLocationSwitching } from "../common/LocationMenu";
 import { ShopHeader } from "../common/ShopHeader";
@@ -11,14 +10,10 @@ import { ChevronRight } from "lucide-react";
 import { RiverIcon } from "@/components/common/RiverIcon";
 import type { Booking, DaySummary, Shop } from "@/data";
 import { money } from "@/lib/format";
-import { PAID_PER_MO } from "@/lib/plans";
 import { CompanionCard } from "../companion/CompanionCard";
 import { BookingCard } from "../bookings/BookingCard";
 import { useBookingActions } from "../bookings/BookingsList";
 import { ErrorNote } from "../ui";
-import { WeeklySalesCard } from "../sales/WeeklySalesCard";
-import type { WeekSales } from "@/lib/weekly";
-import type { SalesRow } from "@/lib/sales";
 import { HomeHeroDesktop, HomeHeroMobile, type LiveWork } from "./HomeHero";
 
 const linkCls = "text-[14px] font-bold underline decoration-grey-300 underline-offset-[3px]";
@@ -38,14 +33,10 @@ export interface HomeLayoutProps {
   onlineHref: string;
   /** Extra subtitle bits after "date · shop" on desktop (e.g. " · Partner"). */
   subtitleExtra?: ReactNode;
-  /** Optional block at the very bottom (Partner: small upgrade card). */
+  /** Optional block at the very bottom. */
   footer?: ReactNode;
   /** Loads in progress: turns the hero live (glow, dot, timer). */
   live?: LiveWork;
-  /** This week (Mon–Sun) for the Barbers-style weekly sales card. */
-  week?: WeekSales;
-  /** Today by the hour (no longer shown on Home). */
-  hours?: SalesRow[];
 }
 
 /** Live bookings (new requests first). Desktop shows up to 4, two per row. */
@@ -105,22 +96,6 @@ function HubTiles({ className }: { className?: string }) {
   );
 }
 
-function DailyTarget({ today }: { today: DaySummary }) {
-  const pct = today.dailyTargetCentavos > 0 ? Math.round((today.salesCentavos / today.dailyTargetCentavos) * 100) : 0;
-  return (
-    <StatCard
-      className="px-5 pb-4 pt-[18px]"
-      layout="title"
-      label="Daily target"
-      footer={<>
-        <span className="flex flex-col leading-[1.2]"><b className="text-[17px] font-extrabold">{money(today.salesCentavos)}</b><small className="text-[12px] font-semibold text-muted">of {money(today.dailyTargetCentavos)}</small></span>
-        <Badge variant="soft">{money(Math.max(0, today.dailyTargetCentavos - today.salesCentavos))} to go</Badge>
-      </>}
-    >
-      <div className="my-1.5 flex justify-center"><ProgressRing value={pct} size={124} thickness={11.5} label={`${pct}%`} labelSize={23} ariaLabel={`${pct}% of daily target`} /></div>
-    </StatCard>
-  );
-}
 
 /**
  * The one home layout for Paid and Partner, phone and desktop: header, black hero, In queue / Ready / Unpaid,
@@ -141,7 +116,6 @@ export function HomeLayout(p: HomeLayoutProps) {
         <ShopHeader shop={shop} className="px-4 pt-1" />
         {switching ? <Sk className="mx-4 mt-1 h-[150px] rounded-banner" /> : <HomeHeroMobile shop={shop} today={today} showWalkIn={canWalkIn} live={p.live} />}
         {switching ? <StatsSkeleton className="mx-4 mt-3" /> : <Stats today={today} online={fresh} className="mx-4 mt-3" />}
-        {p.week && !switching ? <WeeklySalesCard week={p.week} className="mx-4 mt-3" /> : null}
         <CompanionCard className="mx-4 mt-3" />
         <HubTiles className="mx-4 mt-3" />
         <SectionHeader className="px-4 pb-1 pt-4" title="Bookings to accept" aside={pickupsAside} />
@@ -152,12 +126,10 @@ export function HomeLayout(p: HomeLayoutProps) {
       {/* Desktop (lg and up). */}
       <div className="mx-auto hidden w-full max-w-[1120px] px-4 pb-6 pt-4 lg:block lg:px-[30px] lg:pt-6">
         <ShopHeader shop={shop} className="px-1" />
-        <div className="mt-4 grid gap-5 xl:grid-cols-[1fr_286px]">
+        <div className="mt-4">
           {switching ? <Sk className="h-[248px] rounded-banner" /> : <HomeHeroDesktop shop={shop} today={today} showWalkIn={canWalkIn} live={p.live} />}
-          {switching ? <Sk className="h-[248px] rounded-card" /> : <DailyTarget today={today} />}
         </div>
         {switching ? <StatsSkeleton className="mt-5" /> : <Stats today={today} online={fresh} className="mt-5" />}
-        {p.week && !switching ? <WeeklySalesCard week={p.week} className="mt-5" /> : null}
         <CompanionCard className="mt-5" />
         <HubTiles className="mt-5" />
         <Card padding="none" className="mt-5 px-[18px] pb-4 pt-4">
@@ -167,18 +139,5 @@ export function HomeLayout(p: HomeLayoutProps) {
         {p.footer ? <div className="mt-5">{p.footer}</div> : null}
       </div>
     </>
-  );
-}
-
-/** Small Partner → Paid nudge for the bottom of Partner home. */
-export function UpgradeCard() {
-  return (
-    <Card padding="none" className="flex items-center justify-between gap-3 px-4 py-3.5">
-      <span className="flex min-w-0 flex-col leading-[1.3]">
-        <b className="text-[14px]">You’re on Partner</b>
-        <small className="text-[12.5px] font-semibold text-muted">Pro adds unlimited walk-ins and Sales · {PAID_PER_MO}</small>
-      </span>
-      <Button href="/settings/billing" variant="secondary" size="sm" className="flex-none">Plans</Button>
-    </Card>
   );
 }

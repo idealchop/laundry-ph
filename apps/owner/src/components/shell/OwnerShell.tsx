@@ -3,9 +3,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppShell } from "@river-apps/ui";
-import { Button } from "@/components/common/Button";
 import { useShop } from "@/lib/shop";
-import { PAID_PER_MONTH, planLabel, hasProFeatures } from "@/lib/plans";
+import { hasProFeatures } from "@/lib/plans";
 import { LaundryBrand } from "../brand";
 import { ShopQrPromo } from "../qr/ShopQrPromo";
 import { PlanGate } from "../billing/PlanGate";
@@ -17,18 +16,6 @@ import {
 
 /** Routes that take over the phone screen (own back button and bottom action, no tab bar). */
 const FOCUS_ROUTES = ["/scan", "/orders/new", "/profile/edit", "/profile/services", "/profile/features", "/bookings", "/companion"];
-
-function PartnerTierCard({ label }: { label: string }) {
-  return (
-    <div className="rounded-[22px] bg-grey-100 p-4">
-      <b className="block text-[14.5px]">You’re on {label}</b>
-      <small className="mb-3 mt-0.5 block text-[12.5px] font-semibold text-ink/55">
-        Pro adds unlimited walk-ins and Sales Record — {PAID_PER_MONTH}.
-      </small>
-      <Button size="sm" variant="secondary" fullWidth href="/settings/billing">Upgrade to Pro</Button>
-    </div>
-  );
-}
 
 /** AppShell + WideSidebar (desktop) + OwnerTabBar (phone). Nav follows shop.tier. */
 export function OwnerShell({ children }: { children: ReactNode }) {
@@ -59,7 +46,7 @@ export function OwnerShell({ children }: { children: ReactNode }) {
           brand={<Link href={homeHref} aria-label="Laundry.ph home"><LaundryBrand /></Link>}
           items={items}
           activeKey={activeKeyFor(items, pathForNav)}
-          footer={!isPaid ? <PartnerTierCard label={planLabel(shop.tier, shop.planSource)} /> : <ShopQrPromo />}
+          footer={<ShopQrPromo />}
         />
       }
       mobileTabBar={

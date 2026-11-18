@@ -19,16 +19,17 @@
     "@river-apps/icons": "workspace:*",
     "@river-apps/tokens": "workspace:*",
     "@river-apps/ui": "workspace:*",
+    "@river/map": "workspace:*",
     "firebase": "12.6.0",
     "firebase-admin": "13.10.0",
+    "jsqr": "^1.4.0",
     "lucide-react": "1.51.0",
+    "maplibre-gl": "^6.14.0",
     "next": "16.3.8",
+    "pmtiles": "^4.5.0",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "@river/map": "workspace:*",
-    "maplibre-gl": "^6.14.0",
-    "pmtiles": "^4.5.0"
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",

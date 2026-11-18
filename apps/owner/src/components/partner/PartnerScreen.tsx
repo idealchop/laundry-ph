@@ -5,7 +5,7 @@ import { startOfShopDay } from "@/lib/format";
 import { liveWork, summarizeToday } from "@/lib/orders";
 import { useLocationFilter } from "@/lib/shop-locations";
 import { useBookings, useOrders, useShop } from "@/lib/shop";
-import { HomeLayout, UpgradeCard } from "../home/HomeLayout";
+import { HomeLayout } from "../home/HomeLayout";
 
 /**
  * Partner home: the same HomeLayout as Paid, without walk-ins. Stats come from River Mobile bookings
@@ -40,7 +40,6 @@ export function PartnerScreen() {
       canConvert={false}
       onlineHref="/partner/orders"
       subtitleExtra=" · Partner"
-      footer={<UpgradeCard />}
       live={liveNow}
     />
   );

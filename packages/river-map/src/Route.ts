@@ -35,7 +35,7 @@ export function useRoute(
     const ctrl = new AbortController();
 
     const draw = (coords: [number, number][], straight: boolean) => {
-      const data: GeoJSON.Feature = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } };
+      const data = { type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: coords } };
       const src = map.getSource(SRC) as maplibregl.GeoJSONSource | undefined;
       if (src) src.setData(data);
       else map.addSource(SRC, { type: 'geojson', data });

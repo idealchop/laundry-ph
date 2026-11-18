@@ -26,8 +26,16 @@ describe("live hero", () => {
       { status: "washing", stageTimes: { washing: 2000 }, updatedAt: 9 },
       { status: "folding", stageTimes: { washing: 1000, folding: 5000 }, updatedAt: 9 },
       { status: "received", stageTimes: {}, updatedAt: 9 },
-    ]);
+    ], 6000);
     expect(r).toEqual({ count: 2, since: 1000 });
+  });
+  it("TC-HOME-ODD-01 loads started over a day ago are not live (no 1057-hour timer)", () => {
+    const now = 10 * 86_400_000;
+    const r = liveWork([
+      { status: "washing", stageTimes: { washing: now - 2 * 86_400_000 }, updatedAt: 9 },
+      { status: "drying", stageTimes: { washing: now - 600_000 }, updatedAt: 9 },
+    ], now);
+    expect(r).toEqual({ count: 1, since: now - 600_000 });
   });
   it("TC-HOME-NEG-01 nothing in progress → not live", () => {
     expect(liveWork([{ status: "ready", stageTimes: {}, updatedAt: 1 }])).toEqual({ count: 0, since: null });

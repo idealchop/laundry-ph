@@ -8,6 +8,7 @@ import { Button } from "@/components/common/Button";
 import type { Shop, ShopAddress, ShopLocation } from "@/data";
 import { fileToDataUrl } from "@/components/community/posts";
 import { useAuthGate } from "@/components/auth/AuthGateProvider";
+import { useAuth } from "@/lib/auth";
 import { reverseGeocodePin } from "@/lib/geocode";
 import { useAction, useShop, useShopQuery } from "@/lib/shop";
 import { SHOP_ABOUT_MAX, defaultShopAbout } from "@/lib/shop-about";
@@ -30,12 +31,14 @@ export function EditShopScreen() {
   const { isAuthenticated } = useAuthGate();
   const router = useRouter();
   const mark = useShopMark(shop.id, Math.max(1, locationCount(shop.area, Boolean(shop.location))));
+  const { loading: authLoading } = useAuth();
   const signedIn = isAuthenticated && !isGuest;
 
+  // Wait for Firebase to restore the session: a direct open / reload of this page used to bounce to /profile.
   useEffect(() => {
-    if (signedIn) return;
+    if (authLoading || signedIn) return;
     router.replace("/profile");
-  }, [signedIn, router]);
+  }, [authLoading, signedIn, router]);
 
   if (!signedIn) return null;
 

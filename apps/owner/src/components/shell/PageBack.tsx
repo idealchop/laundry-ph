@@ -15,7 +15,7 @@ export function backFallback(pathname: string, home: string): string {
   if (pathname.startsWith("/settings/shops/")) return "/settings/shops";
   if (pathname.startsWith("/profile/") || pathname.startsWith("/settings/")) return "/profile";
   if (pathname.startsWith("/partner/")) return "/partner";
-  if (pathname === "/history" || pathname === "/sales/weekly") return "/sales";
+  if (pathname === "/history") return "/orders";
   if (pathname === "/qr") return "/profile";
   return home;
 }

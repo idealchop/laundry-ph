@@ -5,11 +5,10 @@
  * PayMongo keys are not wired yet — checkout shows prices and a clear demo/test upgrade
  * that writes shops/{id}.tier in Firestore. Stub webhook lives at /api/billing/webhook.
  */
-import { Check, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { Badge, Card, Topbar } from "@river-apps/ui";
+import { Topbar } from "@river-apps/ui";
 import { Button } from "@/components/common/Button";
-import { PLAN_OPTIONS, monthlyExpiryFrom, planLabel, type PlanOptionId, isLifetimeOption } from "@/lib/plans";
+import { PLAN_OPTIONS, monthlyExpiryFrom, type PlanOptionId, isLifetimeOption } from "@/lib/plans";
 import { useAuthGatePrompt } from "@/components/auth/AuthGateProvider";
 import { useAction, useShop } from "@/lib/shop";
 import { SampleNote } from "../SampleNote";
@@ -75,98 +74,76 @@ export function BillingScreen() {
     }
   }
 
+  // Which plan the shop is on now (Lifetime 1–5 and 5+ share planSource "lifetime").
+  const currentId: PlanOptionId =
+    shop.tier !== "paid" ? "partner" : shop.planSource === "lifetime" ? "lifetime" : "paid_monthly";
+  const currentIdx = PLAN_OPTIONS.findIndex((o) => o.id === currentId);
+
   return (
-    <div className="mx-auto w-full max-w-[560px] px-4 pb-8 pt-4 lg:max-w-[960px] lg:px-[30px] lg:pt-6">
-      <Topbar
-        className="px-1"
-        leading={<ShellBack />}
-        title="Plan & billing"
-        subtitle={<>Partner, Pro or Lifetime <SampleNote className="ml-1 align-middle" /></>}
-      />
+    <div className="mx-auto w-full max-w-[560px] px-4 pb-8 pt-4 lg:max-w-[720px] lg:px-[30px] lg:pt-6">
+      <Topbar className="px-1" leading={<ShellBack />} title="Plans" subtitle={<SampleNote />} />
 
-      <Card className="mt-4 px-4 py-3.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <b className="text-[16px]">Current plan</b>
-            <p className="mt-0.5 text-[14px] font-semibold">{planLabel(shop.tier, shop.planSource)}</p>
-            <p className="text-[13px] font-medium text-muted">
-              {shop.tier === "paid"
-                ? shop.planSource === "lifetime"
-                  ? "Lifetime unlock — no renewal date"
-                  : shop.planExpiresAt
-                    ? `Demo/monthly access until ${new Date(shop.planExpiresAt).toLocaleDateString("en-PH", { timeZone: "Asia/Manila" })}`
-                    : "Pro features unlocked"
-                : "Partner — River Mobile bookings and scan"}
-            </p>
-          </div>
-          <Badge variant={shop.tier === "paid" ? "solid" : "soft"}>{shop.tier === "paid" ? "Pro" : "Partner"}</Badge>
-        </div>
-      </Card>
-
-      {readOnlySample ? (
-        <p className="mt-3 rounded-tile bg-surface ring-1 ring-line px-4 py-3 text-[13.5px] font-semibold text-muted">
-          The shared demo shop stays on Pro sample data. Create your own shop to try Partner ↔ Pro upgrades.
-        </p>
-      ) : null}
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {PLAN_OPTIONS.map((opt) => {
-          const active =
-            (opt.id === "partner" && shop.tier === "partner") ||
-            (opt.id === "lifetime" && shop.tier === "paid" && shop.planSource === "lifetime") ||
-            (opt.id === "paid_monthly" && shop.tier === "paid" && shop.planSource !== "lifetime");
+      {/* Plan ladder: where the shop sits, Partner first. */}
+      <ol aria-label="Plans" className="mt-4 grid grid-cols-4 rounded-card bg-surface px-2 pb-3 pt-4 ring-1 ring-line">
+        {PLAN_OPTIONS.map((opt, i) => {
+          const on = i === currentIdx;
           return (
-            <Card key={opt.id} className={`flex flex-col px-4 py-4 ${active ? "ring-2 ring-ink" : ""}`}>
-              <div className="flex items-start justify-between gap-2">
-                <b className="text-[17px]">{opt.title}</b>
-                {opt.id === "paid_monthly" ? <Sparkles size={18} className="text-ink" /> : null}
-              </div>
-              {opt.priceLabel ? (
-                <p className="mt-2 flex items-baseline gap-2 leading-none">
-                  {opt.wasLabel ? <s className="text-[15px] font-semibold text-muted">{opt.wasLabel}</s> : null}
-                  <span className="text-[28px] font-extrabold tracking-[-0.03em]">{opt.priceLabel}</span>
-                </p>
-              ) : null}
-              <p className="mt-1 text-[13px] font-semibold text-muted">{opt.period}</p>
-              <p className="mt-2 text-[13.5px] font-medium text-ink-2">{opt.blurb}</p>
-              <ul className="mt-3 flex flex-1 flex-col gap-1.5">
-                {opt.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-[13px] font-medium text-ink-2">
-                    <Check size={14} strokeWidth={2.5} className="mt-0.5 shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Button
-                className="mt-4"
-                size="md"
-                fullWidth
-                variant={active ? "secondary" : opt.id === "partner" ? "ghost" : "primary"}
-                disabled={!canManage || busy || active}
-                onClick={() => void choose(opt.id)}
-              >
-                {active ? "Current plan" : opt.priceCentavos === 0 ? "Switch to Partner" : `Choose · ${opt.priceLabel}`}
-              </Button>
-            </Card>
+            <li key={opt.id} className="relative flex flex-col items-center gap-1.5" aria-current={on ? "step" : undefined}>
+              {i > 0 ? <span aria-hidden className={`absolute right-1/2 top-[7px] h-px w-full ${i <= currentIdx ? "bg-ink" : "bg-line"}`} /> : null}
+              <span aria-hidden className={`relative z-[1] size-[15px] rounded-full ${on ? "bg-ink ring-4 ring-ink/10" : i < currentIdx ? "bg-ink" : "bg-surface ring-1 ring-grey-300"}`} />
+              <span className={`text-[12px] leading-tight ${on ? "font-extrabold text-ink" : "font-semibold text-muted"}`}>{opt.short}</span>
+            </li>
           );
         })}
-      </div>
+      </ol>
 
-      <Card className="mt-4 px-4 py-3.5">
-        <b className="text-[15px]">Payments</b>
-        <p className="mt-1 text-[13.5px] font-medium text-muted">
-          PayMongo checkout isn’t live yet. Choosing Pro or Lifetime applies a demo upgrade so you can try it.
-        </p>
-      </Card>
+      {readOnlySample ? <p className="mt-3 px-1 text-[13px] font-semibold text-muted">Demo shop · plans can’t change here.</p> : null}
+
+      <ul className="mt-3 flex flex-col gap-2.5">
+        {PLAN_OPTIONS.map((opt) => {
+          const active = opt.id === currentId;
+          return (
+            <li key={opt.id} className={`rounded-card bg-surface px-4 py-4 ${active ? "ring-2 ring-ink" : "ring-1 ring-line"}`}>
+              <div className="flex items-start justify-between gap-3">
+                <span className="flex min-w-0 flex-col">
+                  <span className="flex items-center gap-2">
+                    <b className="text-[17px] tracking-[-0.01em]">{opt.title}</b>
+                    {active ? <span className="rounded-pill bg-ink px-2 py-0.5 text-[11px] font-bold text-on-ink">Current</span> : null}
+                  </span>
+                  <span className="mt-1 text-[13px] font-semibold text-muted">{opt.features.join(" · ")}</span>
+                </span>
+                <span className="flex flex-none flex-col items-end leading-none">
+                  {opt.priceLabel ? (
+                    <>
+                      {opt.wasLabel ? <s className="text-[12.5px] font-semibold text-muted">{opt.wasLabel}</s> : null}
+                      <b className="mt-1 text-[20px] font-extrabold tracking-[-0.02em]">{opt.priceLabel}</b>
+                      <small className="mt-1 text-[11.5px] font-semibold text-muted">{opt.id === "paid_monthly" ? "/ month" : "one-time"}</small>
+                    </>
+                  ) : (
+                    <b className="text-[14px] font-extrabold">Entry</b>
+                  )}
+                </span>
+              </div>
+              {active ? null : (
+                <Button
+                  className="mt-3"
+                  size="sm"
+                  fullWidth
+                  variant={opt.id === "partner" ? "secondary" : "primary"}
+                  disabled={!canManage || busy}
+                  onClick={() => void choose(opt.id)}
+                >
+                  {opt.id === "partner" ? "Switch to Partner" : `Choose ${opt.title}`}
+                </Button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
 
       {error ? <ErrorNote className="mt-3">{error}</ErrorNote> : null}
       {note ? <p className="mt-3 text-[14px] font-semibold">{note}</p> : null}
-
-      <div className="mt-4">
-        <Button href="/settings" variant="secondary" size="md">
-          Back to settings
-        </Button>
-      </div>
+      <p className="mt-4 px-1 text-center text-[12.5px] font-medium text-muted">Online payment is coming soon. Choosing a plan applies a demo upgrade.</p>
     </div>
   );
 }

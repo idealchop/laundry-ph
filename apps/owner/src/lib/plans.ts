@@ -47,6 +47,8 @@ export interface PlanOption {
   id: PlanOptionId;
   tier: Tier;
   title: string;
+  /** Step label on the plan ladder. */
+  short: string;
   priceCentavos: Centavos;
   /** Original price shown struck through next to priceLabel. */
   wasLabel?: string;
@@ -67,47 +69,51 @@ export const PLAN_OPTIONS: PlanOption[] = [
     id: "partner",
     tier: "partner",
     title: "Partner",
+    short: "Partner",
     priceCentavos: PARTNER_PRICE_CENTAVOS,
     priceLabel: "",
     period: "Entry plan",
     blurb: "List on River Mobile, accept pickups, and scan customers.",
-    features: ["Shop listing for River Mobile", "Bookings · accept / decline", "10 walk-ins a day", "Scan customers · history"],
+    features: ["River Mobile listing", "Bookings", "10 walk-ins a day"],
     planSource: null,
   },
   {
     id: "paid_monthly",
     tier: "paid",
     title: "Pro",
+    short: "Pro",
     priceCentavos: PAID_MONTHLY_CENTAVOS,
     wasLabel: peso(PAID_MONTHLY_WAS_CENTAVOS),
     priceLabel: PAID_PRICE_LABEL,
     period: "per month",
     blurb: "All features, 1 shop.",
-    features: ["Unlimited walk-ins and order board", "Sales Record", "Public customer tickets"],
+    features: ["Unlimited walk-ins", "Order board", "Customer tickets"],
     planSource: "subscription",
   },
   {
     id: "lifetime",
     tier: "paid",
-    title: "Lifetime · 1–5 locations",
+    title: "Lifetime",
+    short: "Lifetime",
     priceCentavos: LIFETIME_UNLOCK_CENTAVOS,
     wasLabel: peso(LIFETIME_UNLOCK_WAS_CENTAVOS),
     priceLabel: peso(LIFETIME_UNLOCK_CENTAVOS),
     period: "one-time",
     blurb: "Pay once. All Pro features, no monthly bill.",
-    features: ["All Pro features", "Up to 5 locations"],
+    features: ["All of Pro", "Up to 5 locations"],
     planSource: "lifetime",
   },
   {
     id: "lifetime_multi",
     tier: "paid",
-    title: "Lifetime · 5+ locations",
+    title: "Lifetime 5+",
+    short: "Lifetime 5+",
     priceCentavos: LIFETIME_MULTI_CENTAVOS,
     wasLabel: peso(LIFETIME_MULTI_WAS_CENTAVOS),
     priceLabel: peso(LIFETIME_MULTI_CENTAVOS),
     period: "one-time",
     blurb: "Pay once. All Pro features, no monthly bill.",
-    features: ["All Pro features", "More than 5 locations"],
+    features: ["All of Pro", "5+ locations"],
     planSource: "lifetime",
   },
 ];

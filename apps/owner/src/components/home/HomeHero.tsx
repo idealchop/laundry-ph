@@ -3,7 +3,6 @@ import { Plus, ScanLine } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../common/Button";
 import type { DaySummary, Shop } from "@/data";
-import { money } from "@/lib/format";
 import { useGreeting } from "@/lib/greeting";
 import { HeroPhoto } from "./HeroPhoto";
 
@@ -45,24 +44,24 @@ function useTick(on: boolean) {
   return now;
 }
 
-function LiveLine({ live, kg, className }: { live?: LiveWork; kg: number; className: string }) {
+/** "23.5 kg" (no trailing .0). */
+const kgLabel = (kg: number) => `${Number.isInteger(kg) ? kg : kg.toFixed(1)} kg`;
+
+/** Live line under the headline: loads in progress and the oldest one's timer. Nothing when idle. */
+function LiveLine({ live, className }: { live?: LiveWork; className: string }) {
   const busy = live?.count ?? 0;
   const now = useTick(busy > 0);
+  if (!busy) return null;
   return (
-    <div className={`font-medium text-white/65 ${className}`}>
-      <p className="truncate">{kg} kg washed</p>
-      {busy ? (
-        <p className="mt-0.5 flex items-center gap-1.5 whitespace-nowrap">
-          <span className="live-dot" aria-hidden />
-          <span>{busy} in progress</span>
-          {live?.since ? <b className="font-bold tabular-nums text-white" aria-label="Time since the oldest load started">{elapsedLabel(live.since, now)}</b> : null}
-        </p>
-      ) : null}
-    </div>
+    <p className={`flex items-center gap-1.5 whitespace-nowrap font-medium text-white/65 ${className}`}>
+      <span className="live-dot" aria-hidden />
+      <span>{busy} in progress</span>
+      {live?.since ? <b className="font-bold tabular-nums text-white" aria-label="Time since the oldest load started">{elapsedLabel(live.since, now)}</b> : null}
+    </p>
   );
 }
 
-/** Phone hero: greeting + shop, today's sales, kg (live when loads are in progress), compact pills, washer art. */
+/** Phone hero: greeting + shop, today's kg washed (live when loads are in progress), compact pills, washer art. */
 export function HomeHeroMobile({ shop, today, showWalkIn = true, live, className }: HomeHeroProps) {
   const greeting = useGreeting();
   const busy = (live?.count ?? 0) > 0;
@@ -74,8 +73,8 @@ export function HomeHeroMobile({ shop, today, showWalkIn = true, live, className
         <span className="font-semibold text-white/90">{shop.name}</span>
       </p>
       <div className="relative z-10 min-w-0">
-        <h2 className="mt-1.5 whitespace-nowrap text-[20px] font-extrabold leading-[1.12] tracking-[-0.025em]">Today: {money(today.salesCentavos)}</h2>
-        <LiveLine live={live} kg={today.kgWashed} className="mt-1 text-[13px]" />
+        <h2 className="mt-1.5 whitespace-nowrap text-[20px] font-extrabold leading-[1.12] tracking-[-0.025em]">Today: {kgLabel(today.kgWashed)}</h2>
+        <LiveLine live={live} className="mt-1 text-[13px]" />
         <div className="mt-2.5 flex flex-nowrap items-center gap-1.5">
           {showWalkIn ? <Button href="/orders/new" variant="white" size="sm" className={PILL} leadingIcon={<Plus size={14} strokeWidth={2} />}>Walk-in</Button> : null}
           <Button href="/scan/result" variant="ghost-inverse" size="sm" className={PILL} leadingIcon={<ScanLine size={14} strokeWidth={1.9} />}>Scan QR</Button>
@@ -93,8 +92,8 @@ export function HomeHeroDesktop({ today, showWalkIn = true, live, className }: H
       <HeroPhoto className={busy ? "mix-blend-lighten" : ""} />
       <div className="relative z-10 max-w-[460px]">
         <p className="text-[13px] font-semibold text-white/65">Today · {today.dateLabel}</p>
-        <h2 className="mt-2 text-[36px] font-extrabold leading-[1.08] tracking-[-0.03em]">Today: {money(today.salesCentavos)}</h2>
-        <LiveLine live={live} kg={today.kgWashed} className="mt-2 text-[15px]" />
+        <h2 className="mt-2 text-[36px] font-extrabold leading-[1.08] tracking-[-0.03em]">Today: {kgLabel(today.kgWashed)}</h2>
+        <LiveLine live={live} className="mt-2 text-[15px]" />
         <div className="mt-5 flex flex-nowrap items-center gap-2.5">
           {showWalkIn ? <Button href="/orders/new" variant="white" size="md" leadingIcon={<Plus size={18} strokeWidth={1.9} />}>Walk-in</Button> : null}
           <Button href="/scan/result" variant={showWalkIn ? "ghost-inverse" : "white"} size="md" leadingIcon={<ScanLine size={18} strokeWidth={1.75} />}>Scan QR</Button>

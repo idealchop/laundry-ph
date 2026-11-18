@@ -11,7 +11,7 @@ export function ScanResult({ booking }: { booking: VerifiedBooking }) {
   const addOnTotal = booking.addOns.reduce((s, a) => s + a.priceCentavos, 0);
   const total = booking.estimateCentavos + addOnTotal + booking.pickup.feeCentavos;
   return (
-    <FocusSurface style={{ background: "linear-gradient(180deg,#F2F2F4 0%,#fff 46%)" }}>
+    <FocusSurface>
       <FocusHeader title="Scan result" backHref="/partner" variant="close" />
       <SuccessState className="-mt-3 px-6" title="Customer verified" description={`${booking.source} booking · ${booking.checkedIn}`} />
       <Card padding="sm" className="mx-5 mt-4 flex items-center gap-3 p-3.5">
@@ -24,14 +24,14 @@ export function ScanResult({ booking }: { booking: VerifiedBooking }) {
           { i: <Icon3D name={booking.serviceIcon} size={34} />, k: "Service", v: booking.serviceName },
           { i: <LaundryBasketIcon size={34} />, k: "Estimate", v: `About ${booking.estimateKg} kg · ${money(booking.estimateCentavos)}` },
         ].map((t) => (
-          <Card key={t.k} tone="muted" radius="panel" padding="none" className="flex flex-col gap-0.5 rounded-[22px] p-3.5">
+          <Card key={t.k} radius="panel" padding="none" className="shadow-none ring-1 ring-line flex flex-col gap-0.5 rounded-[22px] p-3.5">
             <span className="mb-1.5">{t.i}</span>
             <small className="text-[12px] font-semibold text-muted">{t.k}</small>
             <b className="text-[15px] tracking-[-0.01em]">{t.v}</b>
           </Card>
         ))}
       </div>
-      <Card tone="muted" radius="panel" padding="none" className="mx-5 mt-2.5 rounded-[22px] px-3.5 py-1.5">
+      <Card radius="panel" padding="none" className="shadow-none ring-1 ring-line mx-5 mt-2.5 rounded-[22px] px-3.5 py-1.5">
         <ListItem variant="row" leading={<IconTile tone="white" size={44}><DetergentIcon size={30} /></IconTile>} title="Add-ons"
           subtitle={booking.addOns.map((a) => a.name).join(" · ")} trailing={<b className="text-[14px] font-extrabold">+{money(addOnTotal)}</b>} />
         <ListItem variant="row" leading={<IconTile tone="white" size={44}><MapPin size={20} strokeWidth={1.75} /></IconTile>} title={`Pickup ${booking.pickup.window}`}

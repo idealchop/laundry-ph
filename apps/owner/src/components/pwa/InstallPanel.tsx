@@ -7,6 +7,7 @@
  */
 import { CheckCircle2, Loader2, Share, Star, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuthGate } from "@/components/auth/AuthGateProvider";
 import { useAuth } from "@/lib/auth";
 import { getFirebaseAuth } from "@/lib/firebase/client";
@@ -25,6 +26,7 @@ export function Icon3d({ src }: { src: string }) {
 /** token set = staff link (rates as that link); unset = owner (rates with their sign-in). */
 export function InstallPanel({ features, token }: { features: InstallFeature[]; token?: string }) {
   const pwa = usePwaInstall(token);
+  const router = useRouter();
   const [guide, setGuide] = useState<null | "ios" | "safari" | "menu">(null);
   const [rating, setRating] = useState(false);
   const fb = useFeedback(token);
@@ -37,7 +39,7 @@ export function InstallPanel({ features, token }: { features: InstallFeature[]; 
 
   function openApp() {
     // Manifest start_url is /home. In standalone or a remembered install, go there.
-    window.location.assign("/home");
+    router.push("/home");
   }
 
   return (
