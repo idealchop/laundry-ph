@@ -12,9 +12,11 @@ Next.js route handlers in `apps/owner/src/app/api/**`, Admin SDK helpers in `app
 | 404 | `not_found` |
 | 409 | `conflict` |
 | 410 | `expired` (staff link) |
+| 413 | `payload_too_large` |
+| 422 | `idempotency_conflict` |
 | 429 | `rate_limited` |
 | 500 | `internal` |
-| 503 | `not_configured` (Partner API keys / billing not set) |
+| 503 | `not_configured` (River Bridge dev config / billing not set) |
 
 ## Routes
 | Method + path | Auth | Purpose | Writes (audited) |
@@ -25,10 +27,10 @@ Next.js route handlers in `apps/owner/src/app/api/**`, Admin SDK helpers in `app
 | POST `/api/public/bookings` | none (10/min/IP) | Customer QR booking request | booking + `booking.create` |
 | GET `/api/public/bookings/{bookingId}` | unguessable id (240/min/IP) | Customer-safe booking status (no phone/email) | – |
 | GET `/api/v1` | none | Partner API index | – |
-| GET `/api/v1/shops`, `/api/v1/shops/{shopId}` | `X-River-Key` | Bookable shops | – |
-| POST `/api/v1/shops/{shopId}/bookings` | `X-River-Key` | River Mobile booking | booking + `booking.create` |
-| GET `/api/v1/bookings/{bookingId}` | `X-River-Key` | Booking status | – |
-| POST `/api/v1/bookings/{bookingId}/cancel` | `X-River-Key` | Cancel | `booking.cancel` |
+| GET `/api/v1/shops`, `/api/v1/shops/{shopId}` | OIDC + HMAC `shops:read` | Bookable shops (near-me when `lat` and `lng` are set) | – |
+| POST `/api/v1/shops/{shopId}/bookings` | OIDC + HMAC `orders:write` + `Idempotency-Key` | River Mobile booking | booking + `booking.create` |
+| GET `/api/v1/bookings/{bookingId}` | OIDC + HMAC `orders:read` | Booking status | – |
+| POST `/api/v1/bookings/{bookingId}/cancel` | OIDC + HMAC `orders:write` + `Idempotency-Key` | Cancel | `booking.cancel` |
 | POST `/api/billing/checkout` | none (stub, no writes) | Returns a demo checkout intent until PayMongo is configured; must require a Firebase session before it creates real sessions | – |
 | POST `/api/billing/webhook` | PayMongo signature | Payment events | – |
 | POST `/api/dev/test-booking` | Bearer ID token (owner) | Dev-only sample booking | booking |

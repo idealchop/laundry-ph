@@ -18,7 +18,7 @@ Laundry.ph uses Firebase Auth in project `mylaundryph`. **Do not change Auth set
 | --- | --- |
 | `/api/staff/{token}/*` | Unguessable staff-link token published by the owner in `staff_links/{token}`; expires, scoped to one shop + branch |
 | `/api/public/bookings*` | None (customer QR booking); rate-limited by IP, booking id is unguessable |
-| `/api/v1/*` (Partner API) | `X-River-Key` header, SHA-256 compared in constant time |
+| `/api/v1/*` (Partner API) | Google OIDC ID token (Bridge service account, audience = laundry-dev API base) plus HMAC-SHA256 (`X-River-Signature`). `GET /api/v1` has no auth. Prod stays unconfigured. |
 | `/api/dev/test-booking` | `Authorization: Bearer <Firebase ID token>`, verified with Admin SDK |
 | `/api/billing/webhook` | `Paymongo-Signature` HMAC |
 

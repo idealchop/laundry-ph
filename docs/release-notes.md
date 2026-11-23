@@ -1,5 +1,10 @@
 # What's new
 
+## 2026-11-23
+- Partner API on dev uses River Bridge OIDC + HMAC instead of `X-River-Key`. Audience is `https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1`. Prod stays unconfigured.
+- `GET /api/v1/shops` can list nearest shops (`lat`, `lng`, `radiusKm`) with `distanceKm`.
+- Create and cancel require `Idempotency-Key`. Booking and order status changes map to the shared River statuses and are ready to POST as signed webhooks once the Bridge URL and secrets exist.
+
 ## 2026-10-17 (UI parity, phase 1)
 - Home header: shop logo, name and location (switcher with All locations) on the left; Sales pill with the gold coin on the right. No greeting row, search or generic avatar.
 - Live hero while loads are washing, drying or folding: drifting teal/warm glow, pulsing dot, ticking timer (off with reduced motion).

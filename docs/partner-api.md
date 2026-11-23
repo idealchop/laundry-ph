@@ -13,29 +13,94 @@ The Partner API is how **River Mobile** lists Laundry.ph shops and books them. I
 
 ## Authentication
 
-Every endpoint except the `GET /api/v1` index needs this header:
+Every endpoint except `GET /api/v1` needs two factors over HTTPS. A shared `X-River-Key` is no longer accepted. Prod (`laundry-prod`) is not part of this rollout: a server with `NEXT_PUBLIC_APP_ENV=prod` answers `503 not_configured` and will not accept a token minted for the prod host.
+
+**OIDC audience (exact string the Bridge must mint):**
+
+`https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1`
+
+That is the public Partner API base (`/api/v1` on the laundry-dev App Hosting URL). Tokens whose `aud` is the prod host, or any other string, are rejected.
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer <Google OIDC ID token>` from the Bridge service account. Issuer `https://accounts.google.com`, `aud` = the audience above, `email` on the allowlist. |
+| `X-River-Key-Id` | Which active request-secret version signed the call, for example `bridge-to-laundry-dev-v1`. One or two versions may be active. |
+| `X-River-Timestamp` | Unix seconds. Rejected outside ±5 minutes. |
+| `X-River-Nonce` | UUID v4. Single use for 10 minutes. |
+| `X-River-Signature` | `v1=` + hex HMAC-SHA256 over the canonical string. |
+| `Idempotency-Key` | Required on create and cancel. 8–128 characters (`A-Z a-z 0-9 _ . : ~ -`). |
+
+Canonical string (the same function signs webhooks, with the webhook secret):
 
 ```
-X-River-Key: <api key>
+v1
+METHOD
+PATH?SORTED_QUERY
+X-River-Timestamp
+X-River-Nonce
+hex(SHA-256(raw body bytes))
 ```
 
-- Keys are server-to-server secrets. **Call the API from the River Mobile backend, never from the mobile app binary**, where a key can be extracted.
-- Dev key: stored as the App Hosting secret `river-api-key-dev` (Secret Manager, project `mylaundryph`) and mounted as `RIVER_API_KEYS` on `laundry-dev`. People with project access can read it with `firebase apphosting:secrets:access river-api-key-dev --project mylaundryph`. Share it through a password manager, never in chat or git.
-- Prod key: stored as the App Hosting secret `river-api-key-prod` (Secret Manager, project `mylaundryph`) and mounted as `RIVER_API_KEYS` on `laundry-prod`. Read it with `firebase apphosting:secrets:access river-api-key-prod --project mylaundryph`. Same sharing rules as the dev key.
-- Rotation: the secret can hold several comma-separated keys. Add the new key, redeploy, move River Mobile over, then remove the old key and redeploy.
-- A missing or wrong key gets `401 unauthorized`. If a server has no key configured, every call gets `503 not_configured`.
+Query keys and values are sorted and encoded with `encodeURIComponent`. An empty body hashes as SHA-256 of `""`. Comparison is constant-time against every active secret version.
+
+Failures are generic: `401` `unauthorized` or `403` `forbidden`, with no hint of which check failed. The server audit log (`river_bridge_audit` and stdout `river-bridge-audit`) records the reason code and never the token, signature or body. If the allowlist or secret bindings are missing, every call gets `503 not_configured`.
+
+### Config (names only)
+
+Nothing below is a secret value. River Ecosystem will generate the dev secret values when the Bridge PR lands. Jimboy adds them to Secret Manager in project `mylaundryph`. Suggested resource names, not yet created:
+
+| Direction | Example key ids (not assigned yet) | Suggested Secret Manager names |
+| --- | --- | --- |
+| Bridge → Laundry (requests) | `bridge-to-laundry-dev-v1`, `bridge-to-laundry-dev-v2` | `river-bridge-request-dev-v1`, `river-bridge-request-dev-v2` |
+| Laundry → Bridge (webhooks) | `laundry-to-bridge-dev-v1`, `laundry-to-bridge-dev-v2` | `river-bridge-webhook-dev-v1`, `river-bridge-webhook-dev-v2` |
+
+Runtime env (empty until those names are confirmed):
+
+| Env | Where | Meaning |
+| --- | --- | --- |
+| `RIVER_BRIDGE_OIDC_AUDIENCE` | `apphosting.dev.yaml` | The audience string above. Any other value, including prod, is refused. |
+| `RIVER_BRIDGE_SERVICE_ACCOUNTS` | laundry-dev runtime | Comma-separated Bridge service-account emails. |
+| `RIVER_BRIDGE_REQUEST_KEYS` | laundry-dev runtime | One or two `keyId=projects/mylaundryph/secrets/<name>/versions/latest` bindings. |
+| `RIVER_BRIDGE_SCOPES` | `apphosting.dev.yaml` | `shops:read,orders:read,orders:write`. |
+| `RIVER_BRIDGE_WEBHOOK_URL` | Cloud Functions env | HTTPS URL for status webhooks. |
+| `RIVER_BRIDGE_WEBHOOK_AUDIENCE` | Cloud Functions env | OIDC `aud` for the webhook token. Defaults to the webhook URL. |
+| `RIVER_BRIDGE_WEBHOOK_KEYS` | Cloud Functions env | Same shape as request keys, webhook secret only. |
+
+The App Hosting runtime service account needs `roles/secretmanager.secretAccessor` on the **request** secrets. The Cloud Functions runtime service account (the one that will send webhooks) needs it on the **webhook** secrets. Do not grant either on prod, and do not create prod secrets in this change.
+
+Add a version without putting the value in git, shell history or the PR. Example shape (the value comes from River Ecosystem out of band):
+
+```bash
+gcloud secrets create river-bridge-request-dev-v1 --project=mylaundryph --replication-policy=automatic
+gcloud secrets versions add river-bridge-request-dev-v1 --project=mylaundryph --data-file=-
+```
+
+Repeat for `river-bridge-request-dev-v2`, `river-bridge-webhook-dev-v1` and `river-bridge-webhook-dev-v2`. Then set the env bindings to the resource names. Rotate by adding the second version, deploying the receiver, switching the signer, then disabling the old version.
+
+Nonce documents need a TTL on `expireAt` for **laundrydb-dev only** (this does not touch `laundrydb`):
+
+```bash
+gcloud firestore fields ttls update expireAt \
+  --collection-group=river_bridge_nonces \
+  --database=laundrydb-dev \
+  --project=mylaundryph \
+  --enable-ttl
+```
+
+Near-me uses the automatic single-field index on `shops.location.lat`. No new composite index is required. Do not deploy rules, indexes or App Hosting from this change.
 
 ## Rate limits and validation
 
 | Kind | Limit (per minute) |
 | --- | --- |
-| Reads (`GET`) | 120 per key and 120 per client IP |
-| Writes (create / cancel) | 30 per key and 10 per client IP |
+| Reads (`GET`) | 120 per key id and 120 per client IP |
+| Writes (create / cancel) | 30 per key id and 10 per client IP |
 | Open bookings | At most **3** `requested` bookings per phone number per shop (a 4th gets `409 conflict`) |
 
-- Limits are best-effort and counted per server instance.
+- Limits are best-effort and counted per server instance. They are unchanged from the previous API.
 - Over the limit you get `429 rate_limited` with a `Retry-After` header (seconds). Back off and retry.
-- Request bodies must be `Content-Type: application/json` and at most 8 KB. Control characters are stripped and strings are trimmed.
+- Request bodies must be `Content-Type: application/json` and at most 16 KB. Control characters are stripped and strings are trimmed.
+- Plain HTTP to the public host is refused.
 
 ## Errors
 
@@ -45,14 +110,16 @@ X-River-Key: <api key>
 
 | HTTP | code | When |
 | --- | --- | --- |
-| 400 | `invalid_request` | Validation failed. `details.fields` maps each field to a message. |
-| 401 | `unauthorized` | Missing or invalid `X-River-Key`. |
+| 400 | `invalid_request` | Validation failed, or `Idempotency-Key` is missing. `details.fields` maps each field to a message. |
+| 401 | `unauthorized` | OIDC or HMAC check failed. The body does not say which. |
+| 403 | `forbidden` | The caller is authenticated but not allowed (scope), or the call was not HTTPS. |
 | 404 | `not_found` | Unknown shop or booking. |
 | 409 | `shop_unavailable` | The shop has no price list yet, so it can't take bookings. |
 | 409 | `conflict` | Too many open bookings for this phone at this shop, or the booking can no longer be cancelled. |
-| 413 | `payload_too_large` | Body over 8 KB. |
+| 413 | `payload_too_large` | Body over 16 KB. |
+| 422 | `idempotency_conflict` | This `Idempotency-Key` was already used with a different body or path. |
 | 429 | `rate_limited` | Slow down (see `Retry-After`). |
-| 500 / 503 | `internal` / `not_configured` | Server problem. Safe to retry `GET`s. For `POST`s, retry with the same `externalRef`. |
+| 500 / 503 | `internal` / `not_configured` | Server problem, or the Bridge allowlist / secrets are not set. Safe to retry `GET`s. For `POST`s, retry with the same `Idempotency-Key`. |
 
 ---
 
@@ -60,12 +127,16 @@ X-River-Key: <api key>
 
 ### `GET /api/v1/shops`
 
-Public listing of shops, paginated by shop id.
+With `lat` and `lng`, shops are returned nearest first inside `radiusKm`. Without them, the list stays paginated by shop id.
 
 | Query | |
 | --- | --- |
+| `lat`, `lng` | Degrees. Send both. Shops without a map pin are left out. |
+| `radiusKm` | Optional, default 10, range 0.1–50. |
 | `limit` | 1–50, default 20 |
-| `cursor` | `nextCursor` from the previous page |
+| `cursor` | Near-me: opaque `nextCursor`. Id paging: a shop id. |
+
+The near-me query is `location.lat` within the bounding box, `orderBy(location.lat)`, `limit` 100 (automatic single-field index). Distance is haversine on that cap, then the page is the nearest `limit` rows. Each near-me item includes `distanceKm` (kilometres, 3 decimals). Sample shops stay dev-only.
 
 ```json
 {
@@ -144,7 +215,8 @@ Creates a booking with status `requested`. It shows up live in the shop's app (O
 | `location` | Optional, recommended for pickup / delivery: the customer's pin as `{ lat, lng }` in degrees. The shop app shows it on a map with the route and ETA from the shop. Without it the app looks up `address` on OpenStreetMap, which is less precise. |
 | `clothesTypeId` | Optional. One of the shop's enabled `clothesTypes[].id`. Leave it out (or send `regular`) for regular clothes. Unknown ids get `400 invalid_request`. |
 | `notes` | Optional, at most 500 characters |
-| `externalRef` | Optional, recommended. Your own booking id (1–64 characters: `A-Z a-z 0-9 _ . : -`). Makes the call **idempotent**: sending the same `externalRef` to the same shop again returns the existing booking with `200` instead of creating a duplicate. |
+| `externalRef` | Optional. Your own booking id (1–64 characters: `A-Z a-z 0-9 _ . : -`). When set, it must equal the `Idempotency-Key` header. When omitted, a key that fits this pattern is stored as `externalRef`. |
+| `Idempotency-Key` | Required header. Same key and same body returns the existing booking (`200`). Same key and a different body returns `422`. |
 
 Responses:
 
@@ -153,7 +225,7 @@ Responses:
 
 ### `GET /api/v1/bookings/{bookingId}`
 
-The current status, for showing to the customer. Poll it, for example every 30–60 s while the booking is open.
+The current status, for showing to the customer. The Bridge receives status changes as signed webhooks; this GET remains for a direct read.
 
 ```json
 {
@@ -219,23 +291,32 @@ requested ──accept──▶ accepted ──▶ received ──▶ completed 
 | `declined` | The shop can't take it. `declineReason` may say why (for example "Fully booked"). |
 | `cancelled` | `cancelledBy` is `customer` or `shop`, with an optional `cancelReason` |
 
-Webhooks aren't available yet. Poll `GET /bookings/{id}`.
+Status changes on Bridge bookings (not QR or dev-tool test bookings) are pushed to the Bridge. Polling is not required. The dev Cloud Functions `riverBridgeBookingHook` and `riverBridgeOrderHook` listen only to `laundrydb-dev`. They are not deployed by this change. Until `RIVER_BRIDGE_WEBHOOK_URL` and the webhook secret bindings are set, the functions record `not_configured` and do not call out.
+
+Each event is `POST` to the webhook URL with the same OIDC + HMAC scheme, using the **webhook** secret and an ID token whose `aud` is `RIVER_BRIDGE_WEBHOOK_AUDIENCE` (or the webhook URL). `Idempotency-Key` is the event id (`laundry_` + a stable hash). The body has no phone number.
+
+| Laundry booking status | River status | Event |
+| --- | --- | --- |
+| `requested` | `requested` | `order.requested` |
+| `accepted` | `accepted` | `order.accepted` |
+| `received` | `in_progress` | `order.in_progress` |
+| `converted` | `in_progress` | `order.in_progress` |
+| `completed` | `completed` | `order.completed` |
+| `declined` | `declined` | `order.declined` |
+| `cancelled` | `cancelled` | `order.cancelled` |
+
+Order stages for a `source: "river-mobile"` order that came from a Bridge booking: `received` / `washing` / `drying` / `folding` → `in_progress` (a second in-progress stage does not send another event), `ready` → `ready`, `claimed` / `delivered` → `completed`, `cancelled` → `cancelled`. Bookings are still stored in `shops/{shopId}/bookings`. Converted orders are still `source: "river-mobile"`.
 
 ## Testing on dev
 
-- Each call to `pnpm seed:booking` (repo root) creates one test booking on `laundry-dev` through this API, for shop `sample-laundry` unless you pass another id: `pnpm seed:booking -- <shopId>`.
-  - It reads `RIVER_API_KEY`, or falls back to `firebase apphosting:secrets:access`.
-- Signed-in owners on laundry-dev also get a **Create test booking · DEV** button under Bookings. It's hidden on prod.
+- `pnpm seed:booking` creates one test booking on laundry-dev once the operator has exported `RIVER_BRIDGE_REQUEST_KEY_ID`, `RIVER_BRIDGE_REQUEST_SECRET` (the secret value, shell only) and either `RIVER_BRIDGE_ID_TOKEN` or `RIVER_BRIDGE_IMPERSONATE` (a service account `gcloud` can impersonate for the dev audience). The script never prints those values and refuses laundry-prod. Until the secrets exist, use **Create test booking · DEV** under Bookings instead.
+- Signed-in owners on laundry-dev also get that **Create test booking · DEV** button. It's hidden on prod. Dev-tool bookings are not sent to the Bridge.
 - Demo login on dev: phone `917 123 4567`, code `123456`. It opens `sample-laundry`.
 
+Sign each call with the canonical string above. Do not paste the secret into the repo. `GET /api/v1` needs no auth and reports the audience.
+
 ```bash
-KEY=$(firebase apphosting:secrets:access river-api-key-dev --project mylaundryph)
-BASE=https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1
-curl -s -H "X-River-Key: $KEY" "$BASE/shops?limit=5"
-curl -s -H "X-River-Key: $KEY" -H 'Content-Type: application/json' \
-  -d '{"customer":{"name":"Maria Santos","phone":"09171234567"},"serviceId":"wdf","type":"dropoff","slot":{"date":"2026-10-07","time":"10:00"},"externalRef":"demo-1"}' \
-  "$BASE/shops/sample-laundry/bookings"
-curl -s -H "X-River-Key: $KEY" "$BASE/bookings/<id>"
+curl -s https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1
 ```
 
 ## Data model (Laundry.ph side, for reference)

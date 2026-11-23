@@ -19,6 +19,14 @@ Matrix per river-ai-rules 04-test: HP (happy path), NEG (negative), ODD (edge), 
 | TC-QR-NEG-02 | Past slot rejected | NEG | Pass |
 | TC-QR-ODD-01 | Pickup without address rejected | ODD | Pass |
 | TC-QR-ODD-02 | Mobile formats normalise to +63 | ODD | Pass |
+| TC-BR-HP-01 | Valid OIDC + HMAC, both secret versions | HP | Pass (unit) |
+| TC-BR-NEG-01 | Missing, invalid or foreign OIDC token | NEG | Pass (unit) |
+| TC-BR-NEG-02 | Bad signature, ±6 min timestamp, replayed nonce, changed body | NEG | Pass (unit) |
+| TC-BR-NEG-03 | Prod audience and public HTTP refused | NEG | Pass (unit) |
+| TC-IDEM-HP-01 | Same Idempotency-Key and body replays | HP | Pass (unit) |
+| TC-IDEM-NEG-01 | Same key, different body conflicts | NEG | Pass (unit) |
+| TC-NEAR-HP-01 | Near-me order and limit | HP | Pass (unit) |
+| TC-HOOK-HP-01 | Status map (`converted` → `in_progress`) and webhook signature | HP | Pass (unit) |
 
 ## Dev smoke (Playwright, laundry-dev, commit 453f353)
 | ID | Check | Type | Result |

@@ -15,7 +15,7 @@
 ## Tenant and authz
 
 - Client: rules resolve the tenant from `request.auth.uid` → `shops/{shopId}/members/{uid}` (active, role). Client-supplied shop ids are never trusted on their own.
-- Server routes: Partner API by API key (`RIVER_API_KEYS`), staff link by an unguessable token doc `staff_links/{token}` that only the shop owner can publish (checked against `shops/{id}.ownerUid`), QR bookings are create-only into a shop's `bookings` with rate limits.
+- Server routes: Partner API by River Bridge OIDC + HMAC (dev only; see [partner-api.md](./partner-api.md)), staff link by an unguessable token doc `staff_links/{token}` that only the shop owner can publish (checked against `shops/{id}.ownerUid`), QR bookings are create-only into a shop's `bookings` with rate limits. Booking and order status webhooks are a dev-only Cloud Function (`laundrydb-dev`) and are not deployed by this change.
 - Functions: `ownerShop()` re-checks the caller's membership and owner role.
 
 ## Feature flags

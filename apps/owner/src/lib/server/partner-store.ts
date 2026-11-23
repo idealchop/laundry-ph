@@ -8,6 +8,17 @@
  */
 import { createHash, randomInt } from "node:crypto";
 import { FieldPath, FieldValue, Timestamp, type DocumentData, type DocumentSnapshot, type Firestore } from "firebase-admin/firestore";
+import {
+  NEARBY_QUERY_CAP,
+  bridgeBookingId,
+  encodeNearbyCursor,
+  idempotencyDocId,
+  idempotencyVerdict,
+  latBounds,
+  selectNearby,
+  type IdempotencyRecord,
+  type NearbyCursor,
+} from "@laundry-ph/river-bridge";
 import { BOOKING_LIMITS, BOOKING_STATUSES, type BookingInput } from "@/lib/bookings";
 import type { BookingStatus, ClothesPricing } from "@/data/types";
 import { normalizeClothesTypes, REGULAR_CLOTHES_ID } from "@/lib/clothes";
@@ -104,6 +115,37 @@ export async function listShops(opts: { limit: number; cursor?: string | null })
   };
 }
 
+/**
+ * Nearest shops inside radiusKm. The Firestore query is a single-field range on `location.lat`
+ * (automatic index) capped at NEARBY_QUERY_CAP. Haversine distance and ordering happen on that cap.
+ * Sample shops are dropped in memory on prod. No composite index.
+ */
+export async function listShopsNearby(opts: { lat: number; lng: number; radiusKm: number; limit: number; cursor: NearbyCursor | null }): Promise<{ data: (PublicShop & { distanceKm: number })[]; nextCursor: string | null }> {
+  const db = adminDb();
+  const bounds = latBounds(opts.lat, opts.radiusKm);
+  const snap = await db.collection("shops")
+    .where("location.lat", ">=", bounds.min)
+    .where("location.lat", "<=", bounds.max)
+    .orderBy("location.lat")
+    .limit(NEARBY_QUERY_CAP)
+    .get();
+  const rows: { id: string; lat: number; lng: number; snap: DocumentSnapshot }[] = [];
+  for (const doc of snap.docs) {
+    if (doc.data()?.sample === true && !showSamples()) continue;
+    const loc = doc.data()?.location as { lat?: unknown; lng?: unknown } | undefined;
+    const lat = typeof loc?.lat === "number" ? loc.lat : Number.NaN;
+    const lng = typeof loc?.lng === "number" ? loc.lng : Number.NaN;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    rows.push({ id: doc.id, lat, lng, snap: doc });
+  }
+  const page = selectNearby(rows, { lat: opts.lat, lng: opts.lng }, opts.radiusKm, opts.limit, opts.cursor);
+  const catalogs = page.data.length ? await db.getAll(...page.data.map((row) => row.snap.ref.collection("meta").doc("catalog"))) : [];
+  return {
+    data: page.data.map((row, i) => ({ ...toPublicShop(row.snap, catalogs[i]?.data()), distanceKm: row.distanceKm })),
+    nextCursor: page.nextCursor ? encodeNearbyCursor(page.nextCursor) : null,
+  };
+}
+
 export async function getShop(shopId: string): Promise<PublicShop | null> {
   const db = adminDb();
   const ref = db.collection("shops").doc(shopId);
@@ -188,24 +230,56 @@ function idFor(db: Firestore, shopId: string, externalRef: string | null): strin
 }
 
 export class BookingError extends Error {
-  constructor(public code: "not_found" | "shop_unavailable" | "invalid_request" | "conflict", message: string, public details?: Record<string, unknown>) {
+  constructor(public code: "not_found" | "shop_unavailable" | "invalid_request" | "conflict" | "idempotency_conflict", message: string, public details?: Record<string, unknown>) {
     super(message);
   }
 }
 
-export interface CreateMeta { keyId: string; test?: boolean; createdBy?: string; /** Extra allow-listed fields (QR page: channel, payWhere, branchId, customer email). */ extra?: DocumentData }
+export interface IdempotencyWrite {
+  key: string;
+  bodySha256: string;
+  method: string;
+  path: string;
+}
+
+export interface CreateMeta { keyId: string; test?: boolean; createdBy?: string; /** Extra allow-listed fields (QR page: channel, payWhere, branchId, customer email). */ extra?: DocumentData; idempotency?: IdempotencyWrite }
+
+function readIdem(data: DocumentData | undefined): IdempotencyRecord | null {
+  if (!data || typeof data.bodySha256 !== "string" || typeof data.method !== "string" || typeof data.path !== "string") return null;
+  return { bodySha256: data.bodySha256, method: data.method, path: data.path };
+}
+
+const IDEMPOTENCY_CONFLICT = "This Idempotency-Key was already used with a different request.";
 
 /** Create a requested booking. Returns { booking, created } (created false = idempotent replay). */
 export async function createBooking(shopId: string, input: BookingInput, meta: CreateMeta, base: string): Promise<{ booking: PublicBooking; created: boolean }> {
   const db = adminDb();
   const shopRef = db.collection("shops").doc(shopId);
-  const id = idFor(db, shopId, input.externalRef);
+  const id = meta.idempotency ? bridgeBookingId(shopId, meta.idempotency.key) : idFor(db, shopId, input.externalRef);
   const bookingRef = shopRef.collection("bookings").doc(id);
   const lookupRef = db.collection("booking_refs").doc(id);
+  const idemRef = meta.idempotency ? db.collection("river_bridge_idempotency").doc(idempotencyDocId(meta.idempotency.key)) : null;
 
   const result = await db.runTransaction(async (tx) => {
-    const [shopSnap, catalogSnap, existing] = await tx.getAll(shopRef, shopRef.collection("meta").doc("catalog"), bookingRef);
+    const snaps = idemRef
+      ? await tx.getAll(shopRef, shopRef.collection("meta").doc("catalog"), bookingRef, idemRef)
+      : await tx.getAll(shopRef, shopRef.collection("meta").doc("catalog"), bookingRef);
+    const shopSnap = snaps[0];
+    const catalogSnap = snaps[1];
+    const existing = snaps[2];
+    const idemSnap = snaps[3];
     if (!shopSnap?.exists || (shopSnap.data()?.sample === true && !showSamples())) throw new BookingError("not_found", "Shop not found.");
+    if (meta.idempotency && existing?.exists) {
+      const prev = existing.data()?.idempotencyBodySha256;
+      if (typeof prev === "string" && prev !== meta.idempotency.bodySha256) throw new BookingError("idempotency_conflict", IDEMPOTENCY_CONFLICT);
+      return { snap: existing, shopName: String(shopSnap.data()?.name ?? ""), created: false };
+    }
+    if (meta.idempotency && idemSnap?.exists) {
+      const verdict = idempotencyVerdict(readIdem(idemSnap.data()), meta.idempotency);
+      if (verdict === "conflict") throw new BookingError("idempotency_conflict", IDEMPOTENCY_CONFLICT);
+      if (!existing?.exists) throw new Error("Idempotency record is missing its booking.");
+      return { snap: existing, shopName: String(shopSnap.data()?.name ?? ""), created: false };
+    }
     if (existing?.exists) return { snap: existing, shopName: String(shopSnap.data()?.name ?? ""), created: false };
     const services: DocumentData[] = Array.isArray(catalogSnap?.data()?.services) ? catalogSnap!.data()!.services : [];
     if (!services.length) throw new BookingError("shop_unavailable", "This shop is not taking bookings yet (no price list).");
@@ -256,12 +330,23 @@ export async function createBooking(shopId: string, input: BookingInput, meta: C
       updatedAt: now,
       updatedBy: meta.createdBy ?? "api",
       apiKeyId: meta.keyId,
+      ...(meta.idempotency ? { idempotencyBodySha256: meta.idempotency.bodySha256 } : {}),
       test: meta.test === true,
       ...(shopSnap.data()?.sample === true ? { sample: true } : {}),
       ...(meta.extra ?? {}),
     };
     tx.create(bookingRef, body);
     tx.create(lookupRef, { shopId, createdAt: now });
+    if (idemRef && meta.idempotency) {
+      tx.create(idemRef, {
+        bodySha256: meta.idempotency.bodySha256,
+        method: meta.idempotency.method,
+        path: meta.idempotency.path,
+        bookingId: id,
+        shopId,
+        createdAt: now,
+      });
+    }
     auditInTx(tx, shopId, meta.createdBy ?? `api:${meta.keyId}`, "booking.create", bookingRef);
     return { snap: null, shopName: String(shopSnap.data()?.name ?? ""), created: true };
   });
@@ -297,15 +382,33 @@ export async function getBooking(bookingId: string, base: string): Promise<Publi
 }
 
 /** Customer cancels (River Mobile). Allowed while requested or accepted. */
-export async function cancelBooking(bookingId: string, reason: string | null, base: string): Promise<PublicBooking> {
+export async function cancelBooking(bookingId: string, reason: string | null, base: string, idempotency?: IdempotencyWrite): Promise<PublicBooking> {
   const loc = await locate(bookingId);
   if (!loc) throw new BookingError("not_found", "Booking not found.");
   const db = adminDb();
+  const idemRef = idempotency ? db.collection("river_bridge_idempotency").doc(idempotencyDocId(idempotency.key)) : null;
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(loc.bookingRef);
+    const idemSnap = idemRef ? await tx.get(idemRef) : null;
     if (!snap.exists) throw new BookingError("not_found", "Booking not found.");
+    if (idempotency && idemSnap?.exists) {
+      const verdict = idempotencyVerdict(readIdem(idemSnap.data()), idempotency);
+      if (verdict === "conflict") throw new BookingError("idempotency_conflict", IDEMPOTENCY_CONFLICT);
+      return;
+    }
     const status = snap.data()?.status;
-    if (status === "cancelled") return;
+    const record = idempotency && idemRef ? {
+      bodySha256: idempotency.bodySha256,
+      method: idempotency.method,
+      path: idempotency.path,
+      bookingId,
+      shopId: loc.shopRef.id,
+      createdAt: FieldValue.serverTimestamp(),
+    } : null;
+    if (status === "cancelled") {
+      if (record && idemRef) tx.create(idemRef, record);
+      return;
+    }
     if (status !== "requested" && status !== "accepted") {
       throw new BookingError("conflict", `A booking that is ${status} can no longer be cancelled.`);
     }
@@ -317,6 +420,7 @@ export async function cancelBooking(bookingId: string, reason: string | null, ba
       updatedAt: FieldValue.serverTimestamp(),
       updatedBy: "api",
     });
+    if (record && idemRef) tx.create(idemRef, record);
     auditInTx(tx, loc.shopRef.id, "api", "booking.cancel", loc.bookingRef);
   });
   const b = await getBooking(bookingId, base);

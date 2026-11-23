@@ -45,7 +45,13 @@ firebase deploy --only apphosting:laundry-prod --project mylaundryph --force
 | `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_WEBAPP_CONFIG` | App Hosting | Public web app config |
 | `COMPANION_ENABLED` | yaml (dev `1`, prod `0`) | AI Companion UI (copied to `NEXT_PUBLIC_COMPANION_ENABLED` at build) |
 | `ALL_FEATURES_UNLOCKED` | yaml (dev `1`, prod `0`) | Test phase: every tier gets Pro features in the app (copied to `NEXT_PUBLIC_ALL_FEATURES_UNLOCKED`); also read by the staff-link API |
-| `RIVER_API_KEYS` | secret `river-api-key-{dev,prod}` | Partner API keys |
+| `RIVER_BRIDGE_OIDC_AUDIENCE` | dev yaml | `https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1` (prod audiences rejected) |
+| `RIVER_BRIDGE_SERVICE_ACCOUNTS` | dev runtime, empty until shared | Bridge service-account emails allowed to call the API |
+| `RIVER_BRIDGE_REQUEST_KEYS` | dev runtime, empty until shared | `keyId=projects/mylaundryph/secrets/<name>/versions/<version>` (one or two) |
+| `RIVER_BRIDGE_SCOPES` | dev yaml | `shops:read,orders:read,orders:write` |
+| `RIVER_BRIDGE_WEBHOOK_URL` | functions env, empty until shared | HTTPS URL the dev function POSTs status events to |
+| `RIVER_BRIDGE_WEBHOOK_AUDIENCE` | functions env, empty until shared | OIDC audience for those webhooks (defaults to the webhook URL) |
+| `RIVER_BRIDGE_WEBHOOK_KEYS` | functions env, empty until shared | Webhook-direction key id and Secret Manager resource (one or two) |
 | `PUBLIC_BASE_URL` | optional | Base for ticket links in API responses |
 | `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET` | secret (not set yet) | Billing; demo upgrade path without them |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | optional | Places autocomplete |
@@ -55,7 +61,10 @@ firebase deploy --only apphosting:laundry-prod --project mylaundryph --force
 
 | Var | Purpose |
 | --- | --- |
-| `COMPANION_DATABASE` | Firestore db (`laundrydb-dev`) |
+| `COMPANION_DATABASE` | Firestore db (`laundrydb-dev`). The Bridge webhook trigger ignores this and stays on `laundrydb-dev`. |
+| `RIVER_BRIDGE_WEBHOOK_URL` | HTTPS webhook URL. Empty until River Ecosystem shares it. |
+| `RIVER_BRIDGE_WEBHOOK_AUDIENCE` | OIDC audience for the webhook token. Empty until shared. |
+| `RIVER_BRIDGE_WEBHOOK_KEYS` | `keyId=projects/mylaundryph/secrets/<name>/versions/<version>` for the webhook secret. Empty until shared. |
 | `COMPANION_MODEL`, `COMPANION_VERTEX_LOCATION` | Gemini model / region (defaults `gemini-2.5-flash`, `asia-southeast1`) |
 | `ALL_FEATURES_UNLOCKED` | `1` = every tier gets Pro Companion limits |
 
