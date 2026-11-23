@@ -1,0 +1,26 @@
+{
+  "name": "@river/bridge-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Copy-paste reference for River Bridge ↔ River App two-factor auth (OIDC + HMAC). Not published.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --import tsx --test test/*.test.ts",
+    "conformance": "node --import tsx conformance/run.ts --self-test"
+  },
+  "dependencies": {
+    "google-auth-library": "^9.15.1"
+  },
+  "peerDependencies": {
+    "express": "^4.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.19.1",
+    "express": "^4.21.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.2"
+  }
+}

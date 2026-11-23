@@ -19,6 +19,9 @@ Matrix per river-ai-rules 04-test: HP (happy path), NEG (negative), ODD (edge), 
 | TC-QR-NEG-02 | Past slot rejected | NEG | Pass |
 | TC-QR-ODD-01 | Pickup without address rejected | ODD | Pass |
 | TC-QR-ODD-02 | Mobile formats normalise to +63 | ODD | Pass |
+| TC-BR-CONF | bridge-kit prod-key checklist against the real /api/v1 handlers + Firestore emulator (`pnpm test:bridge`) | HP/NEG | Pass (34/34) |
+| TC-BR-KIT | Vendored kit tests + `npm run conformance --self-test` (`pnpm test:bridge-kit`) | HP/NEG | Pass (8 tests, 20/20) |
+| TC-BR-UNIT | Settings, canonical string, idempotency, near-me, status map, webhook signing verified as the Bridge does (`pnpm test`) | HP/NEG | Pass (11) |
 
 ## Dev smoke (Playwright, laundry-dev, commit 453f353)
 | ID | Check | Type | Result |

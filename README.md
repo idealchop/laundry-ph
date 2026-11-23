@@ -116,7 +116,7 @@ Status flow (UI labels): **Received → Washing → Drying → Folding → Ready
 
 ## Partner API (River Mobile)
 
-Versioned REST API in the Next.js app (`src/app/api/v1`, firebase-admin): shop listing, shop detail, create booking, booking status, cancel. Auth with the `X-River-Key` header (App Hosting secret `river-api-key-dev` → `RIVER_API_KEYS` on laundry-dev). Full reference for the River Mobile team: [`docs/partner-api.md`](docs/partner-api.md). Demo: `pnpm seed:booking` (or **Create test booking · DEV** under Orders → Bookings on laundry-dev).
+Versioned REST API in the Next.js app (`src/app/api/v1`, firebase-admin): near-me shop listing, shop detail, create booking, booking status, cancel, and signed status webhooks. Auth is Google OIDC plus HMAC (the old shared `X-River-Key` is retired on dev). Audience: `https://laundry-dev--mylaundryph.asia-southeast1.hosted.app` (origin only). Full reference: [`docs/partner-api.md`](docs/partner-api.md). Demo bookings still use **Create test booking · DEV** under Orders → Bookings on laundry-dev. `pnpm seed:booking` signs a request only when the operator supplies the dev secret and an ID token in the shell (nothing is committed).
 
 
 ## Sign in (demo) — browse first, login on action

@@ -2,7 +2,7 @@
 
 Enforced by `firestore.rules` (browser reads/writes) and by the server routes (`lib/server/*`). The server always derives the shop from the credential, never from the request body (tenant wall).
 
-| Action | Owner | Staff member | Staff link (no login) | Customer (QR) | Partner API key |
+| Action | Owner | Staff member | Staff link (no login) | Customer (QR) | River Bridge |
 | --- | --- | --- | --- | --- | --- |
 | See today's queue | ✓ | ✓ | ✓ own branch only | – | – |
 | Add a walk-in order | ✓ | ✓ | ✓ (server, audited) | – | – |

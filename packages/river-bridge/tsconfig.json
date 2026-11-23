@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "outDir": "dist",
+    "rootDir": ".",
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "emitDeclarationOnly": true,
+    // The vendored kit is written for its own tsconfig (no noUncheckedIndexedAccess). Do not edit kit/.
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src"]
+}

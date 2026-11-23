@@ -45,7 +45,11 @@ firebase deploy --only apphosting:laundry-prod --project mylaundryph --force
 | `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_WEBAPP_CONFIG` | App Hosting | Public web app config |
 | `COMPANION_ENABLED` | yaml (dev `1`, prod `0`) | AI Companion UI (copied to `NEXT_PUBLIC_COMPANION_ENABLED` at build) |
 | `ALL_FEATURES_UNLOCKED` | yaml (dev `1`, prod `0`) | Test phase: every tier gets Pro features in the app (copied to `NEXT_PUBLIC_ALL_FEATURES_UNLOCKED`); also read by the staff-link API |
-| `RIVER_API_KEYS` | secret `river-api-key-{dev,prod}` | Partner API keys |
+| `RIVER_BRIDGE_OIDC_AUDIENCE` | dev yaml | `https://laundry-dev--mylaundryph.asia-southeast1.hosted.app` (origin only; prod and `/api/v1` audiences rejected) |
+| `RIVER_BRIDGE_SERVICE_ACCOUNTS` | dev yaml | `248617671827-compute@developer.gserviceaccount.com` (River Bridge dev) |
+| `RIVER_BRIDGE_REQUEST_KEYS` | dev yaml | `bridge-to-laundry-dev-v1,bridge-to-laundry-dev-v2` → mylaundryph secrets of the same name (values never in git) |
+| `RIVER_BRIDGE_SCOPES` | dev yaml | `shops:read,orders:read,orders:write` |
+| `RIVER_API_KEYS` | prod yaml only (secret `river-api-key-prod`) | Old prod Partner key. Unused by this code: prod answers `503` until a prod Bridge rollout is approved. |
 | `PUBLIC_BASE_URL` | optional | Base for ticket links in API responses |
 | `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET` | secret (not set yet) | Billing; demo upgrade path without them |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | optional | Places autocomplete |
@@ -55,7 +59,10 @@ firebase deploy --only apphosting:laundry-prod --project mylaundryph --force
 
 | Var | Purpose |
 | --- | --- |
-| `COMPANION_DATABASE` | Firestore db (`laundrydb-dev`) |
+| `COMPANION_DATABASE` | Firestore db (`laundrydb-dev`). The Bridge webhook trigger ignores this and stays on `laundrydb-dev`. |
+| `RIVER_BRIDGE_WEBHOOK_URL` | `https://asia-southeast1-rivermobile-ph.cloudfunctions.net/bridge/hooks/laundry` (only accepted value). Unset = webhooks off. |
+| `RIVER_BRIDGE_WEBHOOK_AUDIENCE` | OIDC audience for the webhook token (defaults to the URL). |
+| `RIVER_BRIDGE_WEBHOOK_KEYS` | `laundry-to-bridge-dev-v1,laundry-to-bridge-dev-v2` → mylaundryph secrets of the same name. |
 | `COMPANION_MODEL`, `COMPANION_VERTEX_LOCATION` | Gemini model / region (defaults `gemini-2.5-flash`, `asia-southeast1`) |
 | `ALL_FEATURES_UNLOCKED` | `1` = every tier gets Pro Companion limits |
 

@@ -37,7 +37,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Monorepo root, so Turbopack can resolve the vendored kit packages in ../../packages.
   // @river/map: tsc reads src/types/river-map.d.ts (paths); the bundler uses the vendored package source.
-  turbopack: { root: fileURLToPath(new URL("../..", import.meta.url)), resolveAlias: { "@river/map": "./packages/river-map/src/index.ts" } },
+  transpilePackages: ["@laundry-ph/river-bridge"],
+  turbopack: { root: fileURLToPath(new URL("../..", import.meta.url)), resolveAlias: { "@river/map": "./packages/river-map/src/index.ts", "@laundry-ph/river-bridge": "./packages/river-bridge/src/index.ts", "@laundry-ph/river-bridge/oidc": "./packages/river-bridge/src/oidc.ts" } },
   // COMPANION_ENABLED=1 (apphosting.dev.yaml) turns the AI Companion on; copied for the browser at build time.
   env: { ...webConfigEnv(), NEXT_PUBLIC_APP_VERSION: APP_VERSION, NEXT_PUBLIC_BUILD_ID: BUILD_ID, NEXT_PUBLIC_COMPANION_ENABLED: process.env.COMPANION_ENABLED ?? process.env.NEXT_PUBLIC_COMPANION_ENABLED ?? "",
     NEXT_PUBLIC_ALL_FEATURES_UNLOCKED: process.env.ALL_FEATURES_UNLOCKED ?? process.env.NEXT_PUBLIC_ALL_FEATURES_UNLOCKED ?? "" },

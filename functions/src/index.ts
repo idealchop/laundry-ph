@@ -11,6 +11,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { chat, ownerShop } from "./chat.js";
 import { weeklyAll, weeklyForShop } from "./weekly.js";
 import { db, DAY } from "./db.js";
+export { riverBridgeBookingHook, riverBridgeOrderHook } from "./bridge-webhook.js";
 
 setGlobalOptions({ region: "asia-southeast1", maxInstances: 5, memory: "512MiB", timeoutSeconds: 120 });
 
