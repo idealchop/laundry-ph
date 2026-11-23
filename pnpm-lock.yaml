@@ -110,6 +110,10 @@ importers:
         version: 5.9.3
 
   packages/river-bridge:
+    dependencies:
+      google-auth-library:
+        specifier: ^9.15.1
+        version: 9.15.1
     devDependencies:
       '@types/node':
         specifier: 22.20.5

@@ -22,7 +22,9 @@
     "test:emulator": "sh scripts/test-emulator.sh",
     "firebase:deploy:rules:dev": "firebase deploy --only firestore:laundrydb-dev --project mylaundryph",
     "seed:booking": "node scripts/seed-booking.mjs",
-    "test": "pnpm --filter @laundry-ph/owner test"
+    "test": "pnpm --filter @laundry-ph/owner test",
+    "test:bridge": "sh scripts/test-bridge-conformance.sh",
+    "test:bridge-kit": "pnpm --filter @laundry-ph/river-bridge kit:install && pnpm --filter @laundry-ph/river-bridge kit:test && pnpm --filter @laundry-ph/river-bridge kit:conformance"
   },
   "devDependencies": {
     "typescript": "5.9.3",

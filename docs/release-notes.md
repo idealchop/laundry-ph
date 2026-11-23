@@ -1,7 +1,7 @@
 # What's new
 
 ## 2026-11-23
-- Partner API on dev uses River Bridge OIDC + HMAC instead of `X-River-Key`. Audience is `https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1`. Prod stays unconfigured.
+- Partner API on dev uses River Bridge OIDC + HMAC instead of `X-River-Key`. Audience is the laundry-dev origin `https://laundry-dev--mylaundryph.asia-southeast1.hosted.app` (origin only), caller `248617671827-compute@developer.gserviceaccount.com`, key ids `bridge-to-laundry-dev-v1/-v2`. Auth uses the vendored River Bridge kit (River-Mobile-App PR #3). New API bookings use `source: "river_mobile"`. Status webhooks go to the Bridge `/hooks/laundry` (laundrydb-dev triggers). Prod stays unconfigured.
 - `GET /api/v1/shops` can list nearest shops (`lat`, `lng`, `radiusKm`) with `distanceKm`.
 - Create and cancel require `Idempotency-Key`. Booking and order status changes map to the shared River statuses and are ready to POST as signed webhooks once the Bridge URL and secrets exist.
 

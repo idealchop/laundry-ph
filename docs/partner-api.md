@@ -11,83 +11,118 @@ The Partner API is how **River Mobile** lists Laundry.ph shops and books them. I
 | Times | Slots are **Asia/Manila** wall-clock (`date` `YYYY-MM-DD`, `time` `HH:mm`). Timestamps in responses are ISO 8601 UTC. |
 | Versioning | The version is in the path (`/v1`). Fields may be **added** within v1, so ignore unknown fields. Breaking changes ship as `/v2`. Every response carries `X-Laundry-Api-Version: 1`. |
 
-## Authentication
+## Authentication (River Bridge 2FA)
 
-Every endpoint except `GET /api/v1` needs two factors over HTTPS. A shared `X-River-Key` is no longer accepted. Prod (`laundry-prod`) is not part of this rollout: a server with `NEXT_PUBLIC_APP_ENV=prod` answers `503 not_configured` and will not accept a token minted for the prod host.
+Every endpoint except `GET /api/v1` and `GET /api/v1/health` needs two factors over HTTPS, checked by the
+River Bridge kit verifier (`packages/river-bridge/kit`, vendored verbatim from idealchop/River-Mobile-App PR #3,
+commit `aa192e8`). The old shared `X-River-Key` is retired on dev. Prod (`laundry-prod`) is not part of this
+rollout: a server with `NEXT_PUBLIC_APP_ENV=prod` answers `503 not_configured`, and the dev verifier refuses any
+token minted for the prod host.
 
-**OIDC audience (exact string the Bridge must mint):**
+**OIDC audience (exact string; origin only, same as Carwash):**
 
-`https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1`
+`https://laundry-dev--mylaundryph.asia-southeast1.hosted.app`
 
-That is the public Partner API base (`/api/v1` on the laundry-dev App Hosting URL). Tokens whose `aud` is the prod host, or any other string, are rejected.
+**Allowed caller (exactly one):** `248617671827-compute@developer.gserviceaccount.com` (River Bridge, rivermobile-ph).
 
 | Header | Value |
 | --- | --- |
-| `Authorization` | `Bearer <Google OIDC ID token>` from the Bridge service account. Issuer `https://accounts.google.com`, `aud` = the audience above, `email` on the allowlist. |
-| `X-River-Key-Id` | Which active request-secret version signed the call, for example `bridge-to-laundry-dev-v1`. One or two versions may be active. |
+| `Authorization` | `Bearer <Google OIDC ID token>` minted by the Bridge service account, `aud` = the audience above. |
+| `X-River-Key-Id` | `bridge-to-laundry-dev-v1` or `bridge-to-laundry-dev-v2` (two active versions for rotation). |
 | `X-River-Timestamp` | Unix seconds. Rejected outside ±5 minutes. |
-| `X-River-Nonce` | UUID v4. Single use for 10 minutes. |
-| `X-River-Signature` | `v1=` + hex HMAC-SHA256 over the canonical string. |
-| `Idempotency-Key` | Required on create and cancel. 8–128 characters (`A-Z a-z 0-9 _ . : ~ -`). |
+| `X-River-Nonce` | UUID v4. Single use for 10 minutes (shared Firestore store, see below). |
+| `X-River-Signature` | `v1=` + hex HMAC-SHA256 over the canonical string, with the secret of the key id named in `X-River-Key-Id`. |
+| `Idempotency-Key` | Required on every write (create, cancel). 8–128 of `A-Za-z0-9_.:-`. |
 
-Canonical string (the same function signs webhooks, with the webhook secret):
+Canonical string (the kit's `canonicalString`; the same function signs webhooks with the webhook secret):
 
 ```
 v1
 METHOD
-PATH?SORTED_QUERY
+PATH?SORTED_QUERY          e.g. /api/v1/shops?lat=14.57&limit=5&lng=121.05
 X-River-Timestamp
 X-River-Nonce
 hex(SHA-256(raw body bytes))
 ```
 
-Query keys and values are sorted and encoded with `encodeURIComponent`. An empty body hashes as SHA-256 of `""`. Comparison is constant-time against every active secret version.
+`PATH` is the full request path including `/api/v1`. Query pairs are sorted by key then value and
+re-encoded with `encodeURIComponent` (kit `normalizePath`). An empty body hashes as SHA-256 of `""`.
+Signatures are compared with `crypto.timingSafeEqual` (kit `signaturesMatch`).
 
-Failures are generic: `401` `unauthorized` or `403` `forbidden`, with no hint of which check failed. The server audit log (`river_bridge_audit` and stdout `river-bridge-audit`) records the reason code and never the token, signature or body. If the allowlist or secret bindings are missing, every call gets `503 not_configured`.
+Checks run in the kit order: TLS → OIDC (audience + allowlist) → key id → timestamp → nonce → HMAC → scope.
+Failures are generic `application/problem+json` — `401 unauthorized` or `403 forbidden` — with no hint of which
+check failed. Each decision is one audit line (stdout `river-bridge-audit` and the `river_bridge_audit`
+collection, 90-day `expireAt`) with request id, method, path, key id, caller email, result and reason code;
+never the token, signature, secret or body. Bodies over 16 KB get `413`.
 
-### Config (names only)
+### Secrets and config (names only — never values)
 
-Nothing below is a secret value. River Ecosystem will generate the dev secret values when the Bridge PR lands. Jimboy adds them to Secret Manager in project `mylaundryph`. Suggested resource names, not yet created:
+Secret values are canonical in **rivermobile-ph** Secret Manager (generated by River Ecosystem). Laundry reads
+copies from **mylaundryph** Secret Manager at runtime, one secret per key id, named exactly as the key id:
 
-| Direction | Example key ids (not assigned yet) | Suggested Secret Manager names |
+| Direction | Key ids | mylaundryph Secret Manager secret | Read by |
+| --- | --- | --- | --- |
+| Bridge → Laundry (requests) | `bridge-to-laundry-dev-v1`, `bridge-to-laundry-dev-v2` | `projects/mylaundryph/secrets/bridge-to-laundry-dev-v1` / `-v2` | laundry-dev App Hosting: `firebase-app-hosting-compute@mylaundryph.iam.gserviceaccount.com` |
+| Laundry → Bridge (webhooks) | `laundry-to-bridge-dev-v1`, `laundry-to-bridge-dev-v2` | `projects/mylaundryph/secrets/laundry-to-bridge-dev-v1` / `-v2` | Cloud Functions gen2 runtime: `500578192242-compute@developer.gserviceaccount.com` |
+
+Runtime env (all names, already set where noted):
+
+| Env | Where | Value |
 | --- | --- | --- |
-| Bridge → Laundry (requests) | `bridge-to-laundry-dev-v1`, `bridge-to-laundry-dev-v2` | `river-bridge-request-dev-v1`, `river-bridge-request-dev-v2` |
-| Laundry → Bridge (webhooks) | `laundry-to-bridge-dev-v1`, `laundry-to-bridge-dev-v2` | `river-bridge-webhook-dev-v1`, `river-bridge-webhook-dev-v2` |
+| `RIVER_BRIDGE_OIDC_AUDIENCE` | `apphosting.dev.yaml` | `https://laundry-dev--mylaundryph.asia-southeast1.hosted.app`. Anything else (prod, or origin + `/api/v1`) is refused. |
+| `RIVER_BRIDGE_SERVICE_ACCOUNTS` | `apphosting.dev.yaml` | `248617671827-compute@developer.gserviceaccount.com` |
+| `RIVER_BRIDGE_REQUEST_KEYS` | `apphosting.dev.yaml` | `bridge-to-laundry-dev-v1,bridge-to-laundry-dev-v2` (a bare key id means `projects/mylaundryph/secrets/<key id>/versions/latest`) |
+| `RIVER_BRIDGE_SCOPES` | `apphosting.dev.yaml` | `shops:read,orders:read,orders:write` |
+| `RIVER_BRIDGE_WEBHOOK_URL` | `functions/.env` (not committed) | `https://asia-southeast1-rivermobile-ph.cloudfunctions.net/bridge/hooks/laundry` (the only accepted value) |
+| `RIVER_BRIDGE_WEBHOOK_AUDIENCE` | `functions/.env` | Same URL (defaults to it). |
+| `RIVER_BRIDGE_WEBHOOK_KEYS` | `functions/.env` | `laundry-to-bridge-dev-v1,laundry-to-bridge-dev-v2` (request key ids are refused here) |
 
-Runtime env (empty until those names are confirmed):
+Each version loads on its own: with one secret missing (mid-rotation) the other still works; with none, `/api/v1`
+answers `503 not_configured` and webhooks log `skipped`.
 
-| Env | Where | Meaning |
-| --- | --- | --- |
-| `RIVER_BRIDGE_OIDC_AUDIENCE` | `apphosting.dev.yaml` | The audience string above. Any other value, including prod, is refused. |
-| `RIVER_BRIDGE_SERVICE_ACCOUNTS` | laundry-dev runtime | Comma-separated Bridge service-account emails. |
-| `RIVER_BRIDGE_REQUEST_KEYS` | laundry-dev runtime | One or two `keyId=projects/mylaundryph/secrets/<name>/versions/latest` bindings. |
-| `RIVER_BRIDGE_SCOPES` | `apphosting.dev.yaml` | `shops:read,orders:read,orders:write`. |
-| `RIVER_BRIDGE_WEBHOOK_URL` | Cloud Functions env | HTTPS URL for status webhooks. |
-| `RIVER_BRIDGE_WEBHOOK_AUDIENCE` | Cloud Functions env | OIDC `aud` for the webhook token. Defaults to the webhook URL. |
-| `RIVER_BRIDGE_WEBHOOK_KEYS` | Cloud Functions env | Same shape as request keys, webhook secret only. |
-
-The App Hosting runtime service account needs `roles/secretmanager.secretAccessor` on the **request** secrets. The Cloud Functions runtime service account (the one that will send webhooks) needs it on the **webhook** secrets. Do not grant either on prod, and do not create prod secrets in this change.
-
-Add a version without putting the value in git, shell history or the PR. Example shape (the value comes from River Ecosystem out of band):
+**Add the secrets (Jimboy, later; nothing here contains a value).** Copy each canonical value from rivermobile-ph
+into mylaundryph by piping, so the value never lands in a file, shell history, chat or the PR:
 
 ```bash
-gcloud secrets create river-bridge-request-dev-v1 --project=mylaundryph --replication-policy=automatic
-gcloud secrets versions add river-bridge-request-dev-v1 --project=mylaundryph --data-file=-
+for KEY in bridge-to-laundry-dev-v1 bridge-to-laundry-dev-v2 laundry-to-bridge-dev-v1 laundry-to-bridge-dev-v2; do
+  gcloud secrets describe "$KEY" --project=mylaundryph >/dev/null 2>&1 \
+    || gcloud secrets create "$KEY" --project=mylaundryph --replication-policy=automatic
+  gcloud secrets versions access latest --secret="$KEY" --project=rivermobile-ph \
+    | gcloud secrets versions add "$KEY" --project=mylaundryph --data-file=-
+done
 ```
 
-Repeat for `river-bridge-request-dev-v2`, `river-bridge-webhook-dev-v1` and `river-bridge-webhook-dev-v2`. Then set the env bindings to the resource names. Rotate by adding the second version, deploying the receiver, switching the signer, then disabling the old version.
-
-Nonce documents need a TTL on `expireAt` for **laundrydb-dev only** (this does not touch `laundrydb`):
+Then grant read access per secret (IAM — Jimboy's call, dev secrets only, nothing on prod):
 
 ```bash
-gcloud firestore fields ttls update expireAt \
-  --collection-group=river_bridge_nonces \
-  --database=laundrydb-dev \
-  --project=mylaundryph \
-  --enable-ttl
+for KEY in bridge-to-laundry-dev-v1 bridge-to-laundry-dev-v2; do
+  gcloud secrets add-iam-policy-binding "$KEY" --project=mylaundryph \
+    --member=serviceAccount:firebase-app-hosting-compute@mylaundryph.iam.gserviceaccount.com \
+    --role=roles/secretmanager.secretAccessor
+done
+for KEY in laundry-to-bridge-dev-v1 laundry-to-bridge-dev-v2; do
+  gcloud secrets add-iam-policy-binding "$KEY" --project=mylaundryph \
+    --member=serviceAccount:500578192242-compute@developer.gserviceaccount.com \
+    --role=roles/secretmanager.secretAccessor
+done
 ```
 
-Near-me uses the automatic single-field index on `shops.location.lat`. No new composite index is required. Do not deploy rules, indexes or App Hosting from this change.
+Rotation: River Ecosystem adds the new value in rivermobile-ph, Jimboy re-runs the copy loop for that key id (a new
+version under `latest`), both sides keep v1 and v2 active, then the old one is disabled. Laundry caches secret
+values for 5 minutes.
+
+**Firestore TTL (laundrydb-dev only; does not touch `laundrydb`).** Nonces (`river_bridge_nonces`) and audit lines
+(`river_bridge_audit`) carry `expireAt`:
+
+```bash
+for GROUP in river_bridge_nonces river_bridge_audit; do
+  gcloud firestore fields ttls update expireAt --collection-group="$GROUP" \
+    --database=laundrydb-dev --project=mylaundryph --enable-ttl
+done
+```
+
+Near-me uses the automatic single-field index on `shops.location.lat`; no composite index is needed. Do not deploy
+rules, indexes, functions or App Hosting from this change without Jimboy's go-ahead.
 
 ## Rate limits and validation
 
@@ -104,15 +139,20 @@ Near-me uses the automatic single-field index on `shops.location.lat`. No new co
 
 ## Errors
 
+All `/api/v1` errors are `application/problem+json` (kit `problem()`):
+
 ```json
-{ "error": { "code": "invalid_request", "message": "Some fields are missing or invalid.", "details": { "fields": { "slot": "The slot is in the past." } } } }
+{ "type": "https://river.app/problems/invalid_request", "title": "Bad Request", "status": 400, "code": "invalid_request",
+  "detail": "Some fields are missing or invalid.", "errors": { "slot": "The slot is in the past." } }
 ```
+
+Auth failures are only `{ type, title, status, code }` with `code` `unauthorized` or `forbidden` — no `detail`.
 
 | HTTP | code | When |
 | --- | --- | --- |
-| 400 | `invalid_request` | Validation failed, or `Idempotency-Key` is missing. `details.fields` maps each field to a message. |
-| 401 | `unauthorized` | OIDC or HMAC check failed. The body does not say which. |
-| 403 | `forbidden` | The caller is authenticated but not allowed (scope), or the call was not HTTPS. |
+| 400 | `invalid_request` | Validation failed, or `Idempotency-Key` is missing / malformed. `errors` maps each field to a message. |
+| 401 | `unauthorized` | Any OIDC, HMAC, timestamp, nonce or TLS check failed. The body does not say which. |
+| 403 | `forbidden` | Authenticated but missing the scope. |
 | 404 | `not_found` | Unknown shop or booking. |
 | 409 | `shop_unavailable` | The shop has no price list yet, so it can't take bookings. |
 | 409 | `conflict` | Too many open bookings for this phone at this shop, or the booking can no longer be cancelled. |
@@ -136,7 +176,7 @@ With `lat` and `lng`, shops are returned nearest first inside `radiusKm`. Withou
 | `limit` | 1–50, default 20 |
 | `cursor` | Near-me: opaque `nextCursor`. Id paging: a shop id. |
 
-The near-me query is `location.lat` within the bounding box, `orderBy(location.lat)`, `limit` 100 (automatic single-field index). Distance is haversine on that cap, then the page is the nearest `limit` rows. Each near-me item includes `distanceKm` (kilometres, 3 decimals). Sample shops stay dev-only.
+The near-me query is two capped range reads on `location.lat` inside the radius bounding box, walking outward from the caller's latitude (north ascending, south descending, `limit` 100 each; automatic single-field index). Distance is haversine on those ≤ 200 rows, then the page is the nearest `limit` rows. Each near-me item includes `distanceKm` (kilometres, 3 decimals). Sample shops stay dev-only.
 
 ```json
 {
@@ -269,7 +309,7 @@ The customer cancels. Body: `{ "reason": "Changed plans" }` (optional, at most 2
 
 ### `GET /api/v1`
 
-Index with no key needed: the version and the list of endpoints. Use it for health checks.
+Index with no auth: the version, audience and list of endpoints. `GET /api/v1/health` (no auth) is the openapi liveness check.
 
 ---
 
@@ -291,21 +331,39 @@ requested ──accept──▶ accepted ──▶ received ──▶ completed 
 | `declined` | The shop can't take it. `declineReason` may say why (for example "Fully booked"). |
 | `cancelled` | `cancelledBy` is `customer` or `shop`, with an optional `cancelReason` |
 
-Status changes on Bridge bookings (not QR or dev-tool test bookings) are pushed to the Bridge. Polling is not required. The dev Cloud Functions `riverBridgeBookingHook` and `riverBridgeOrderHook` listen only to `laundrydb-dev`. They are not deployed by this change. Until `RIVER_BRIDGE_WEBHOOK_URL` and the webhook secret bindings are set, the functions record `not_configured` and do not call out.
+Bookings created through this API are stored with `source: "river_mobile"` (older API rows say `river-mobile`;
+both are treated the same). Owners still see them live in Orders → Bookings.
 
-Each event is `POST` to the webhook URL with the same OIDC + HMAC scheme, using the **webhook** secret and an ID token whose `aud` is `RIVER_BRIDGE_WEBHOOK_AUDIENCE` (or the webhook URL). `Idempotency-Key` is the event id (`laundry_` + a stable hash). The body has no phone number.
+**Status webhooks replace polling.** Every River-visible status change on a Bridge booking (not QR-page or dev-tool
+test bookings) is `POST`ed to `https://asia-southeast1-rivermobile-ph.cloudfunctions.net/bridge/hooks/laundry` by the
+Cloud Functions `riverBridgeBookingHook` / `riverBridgeOrderHook` (Firestore triggers on **laundrydb-dev only**,
+runtime service account `500578192242-compute@developer.gserviceaccount.com`). They are not deployed by this change.
+Until `RIVER_BRIDGE_WEBHOOK_URL` / `RIVER_BRIDGE_WEBHOOK_KEYS` and the webhook secrets exist, they log `skipped`.
 
-| Laundry booking status | River status | Event |
+- Factor 1: an ID token from the metadata server, `aud` = the hook URL.
+- Factor 2: kit `signRequest` with the **webhook** secret (`laundry-to-bridge-dev-v1`, falling back to `-v2`).
+  The signed path is `/hooks/laundry` — the Bridge verifies from `/hooks/` on (its `signaturePath()` drops the
+  Cloud Functions `/bridge` prefix).
+- `Idempotency-Key` = event `id` (`laundry_` + hash of shop, booking and shared status), so retries and a
+  booking + order echo of the same status dedupe at the Bridge. Up to 3 attempts on 5xx/429.
+- Body (openapi `WebhookEvent`, no phone number):
+
+```json
+{ "id": "laundry_3f…", "type": "order.ready", "occurredAt": "2026-11-23T07:00:00Z",
+  "data": { "orderId": "<bookingId returned by create>", "status": "ready", "shopId": "…", "reference": "BK-…" } }
+```
+
+| Laundry status | Shared status | Event |
 | --- | --- | --- |
-| `requested` | `requested` | `order.requested` |
-| `accepted` | `accepted` | `order.accepted` |
-| `received` | `in_progress` | `order.in_progress` |
-| `converted` | `in_progress` | `order.in_progress` |
-| `completed` | `completed` | `order.completed` |
-| `declined` | `declined` | `order.declined` |
-| `cancelled` | `cancelled` | `order.cancelled` |
+| booking `requested` | `requested` | none (the create call already returned it) |
+| booking `accepted` | `accepted` | `order.accepted` |
+| booking `received`, `converted`; order `received` / `washing` / `drying` / `folding` | `in_progress` | `order.in_progress` (once) |
+| order `ready` | `ready` | `order.ready` |
+| booking `completed`; order `claimed` / `delivered` | `completed` | `order.completed` |
+| booking `declined` | `declined` | `order.declined` |
+| booking / order `cancelled` | `cancelled` | `order.cancelled` |
 
-Order stages for a `source: "river-mobile"` order that came from a Bridge booking: `received` / `washing` / `drying` / `folding` → `in_progress` (a second in-progress stage does not send another event), `ready` → `ready`, `claimed` / `delivered` → `completed`, `cancelled` → `cancelled`. Bookings are still stored in `shops/{shopId}/bookings`. Converted orders are still `source: "river-mobile"`.
+Converted counter orders keep `source: "river-mobile"` (the Firestore rules for order create depend on that value).
 
 ## Testing on dev
 
@@ -314,6 +372,19 @@ Order stages for a `source: "river-mobile"` order that came from a Bridge bookin
 - Demo login on dev: phone `917 123 4567`, code `123456`. It opens `sample-laundry`.
 
 Sign each call with the canonical string above. Do not paste the secret into the repo. `GET /api/v1` needs no auth and reports the audience.
+
+Conformance (no secrets needed):
+
+```bash
+pnpm test:bridge-kit   # the vendored kit's own tests + `npm run conformance` (--self-test)
+pnpm test:bridge       # the same checklist against the real /api/v1 handlers on the Firestore emulator
+pnpm test              # unit tests incl. webhook signing verified the way the Bridge verifies it
+```
+
+Live check on laundry-dev (after the secrets exist and laundry-dev is deployed with Jimboy's OK): enable the
+Laundry row on the Bridge and call `GET /api/v1/shops` through it, or run `pnpm seed:booking` with
+`RIVER_BRIDGE_IMPERSONATE` set to a service account allowed to mint a token for the audience (the Bridge SA needs
+`roles/iam.serviceAccountTokenCreator` granted to the operator — an IAM change, Jimboy's call).
 
 ```bash
 curl -s https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1

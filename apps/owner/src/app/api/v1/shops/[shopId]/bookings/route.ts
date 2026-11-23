@@ -1,6 +1,6 @@
 import { externalRefForKey, parseIdempotencyKey, sha256Hex } from "@laundry-ph/river-bridge";
 import { validateBookingInput } from "@/lib/bookings";
-import { apiError, apiOk, guard, isDocId, logApiError, requireJson } from "@/lib/server/api";
+import { partnerError, apiOk, guard, isDocId, logApiError, requireJson } from "@/lib/server/api";
 import { BookingError, createBooking, publicBase } from "@/lib/server/partner-store";
 
 export const runtime = "nodejs";
@@ -14,15 +14,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ shopId:
   const ctx = await guard(req, "write", "orders:write");
   if (ctx instanceof Response) return ctx;
   const { shopId } = await params;
-  if (!isDocId(shopId)) return apiError("not_found", "Shop not found.");
+  if (!isDocId(shopId)) return partnerError("not_found", "Shop not found.");
   const key = parseIdempotencyKey(req.headers.get("idempotency-key"));
-  if (!key) return apiError("invalid_request", "Idempotency-Key is required (8–128 characters).");
+  if (!key) return partnerError("invalid_request", "Idempotency-Key is required (8–128 characters).");
   const body = requireJson(req, ctx.rawBody);
   if (!body.ok) return body.res;
   const parsed = validateBookingInput(body.body);
-  if (!parsed.ok) return apiError("invalid_request", "Some fields are missing or invalid.", { fields: parsed.errors });
+  if (!parsed.ok) return partnerError("invalid_request", "Some fields are missing or invalid.", { fields: parsed.errors });
   const mapped = externalRefForKey(key, parsed.value.externalRef);
-  if (!mapped.ok) return apiError("invalid_request", "Some fields are missing or invalid.", { fields: { externalRef: mapped.message } });
+  if (!mapped.ok) return partnerError("invalid_request", "Some fields are missing or invalid.", { fields: { externalRef: mapped.message } });
   const path = new URL(req.url).pathname;
   try {
     const { booking, created } = await createBooking(shopId, { ...parsed.value, externalRef: mapped.externalRef }, {
@@ -34,8 +34,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ shopId:
       ...(created ? { Location: `/api/v1/bookings/${booking.id}` } : {}),
     });
   } catch (err) {
-    if (err instanceof BookingError) return apiError(err.code, err.message, err.details);
+    if (err instanceof BookingError) return partnerError(err.code, err.message, err.details);
     logApiError("POST /shops/{id}/bookings", err);
-    return apiError("internal", "Could not create the booking.");
+    return partnerError("internal", "Could not create the booking.");
   }
 }

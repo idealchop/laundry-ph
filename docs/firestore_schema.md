@@ -11,8 +11,9 @@ Databases: `laundrydb` (prod), `laundrydb-dev` (dev), project `mylaundryph`. Mon
 | `shops/{shopId}/audit_logs/{id}` | server routes only: `{actor, action, resource, resourceId, at}` (no PII) | owner |
 | `shops/{shopId}/companion/**`, `insights/{weekId}` | Cloud Functions | owner |
 | `booking_refs/{bookingId}` | Admin SDK | nobody (server only) |
+| `shops/{shopId}/bookings/{id}` `source` | Partner API writes `river_mobile`; older rows `river-mobile`. Readers accept both. | members |
 | `river_bridge_nonces/{id}` | Partner API (Admin SDK). `{ keyId, expireAt, createdAt }`. TTL on `expireAt` (10 min). No client rule matches this path, so clients are denied. | nobody |
-| `river_bridge_audit/{id}` | Partner API. `{ requestId, keyId, email, method, path, result, reason, at }`. No tokens, secrets or bodies. | nobody |
+| `river_bridge_audit/{id}` | Partner API. `{ requestId, direction, method, path, keyId, caller, result, status, reason, at, expireAt }` (TTL 90 days). No tokens, signatures, secrets or bodies. | nobody |
 | `river_bridge_idempotency/{id}` | Partner API. Hash of the Idempotency-Key, body hash, method, path, booking id. No raw key and no customer fields. | nobody |
 | `staff_links/{token}` | owner (rules: own shop, allow-listed fields, ≤40 days) | nobody (server only) |
 | `public_tickets/{ticketId}` | members / server routes | anyone by id, no list |

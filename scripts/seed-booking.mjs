@@ -18,7 +18,8 @@ import { createHash, createHmac, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 
 const BASE = (process.env.LAUNDRY_API_BASE || "https://laundry-dev--mylaundryph.asia-southeast1.hosted.app").replace(/\/$/, "");
-const AUDIENCE = "https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1";
+// OIDC audience is the laundry-dev origin only (River Bridge contract), not origin + /api/v1.
+const AUDIENCE = "https://laundry-dev--mylaundryph.asia-southeast1.hosted.app";
 const SHOP_ID = process.argv.slice(2).find((a) => a !== "--") || process.env.SHOP_ID || "sample-laundry";
 
 if (BASE.includes("laundry-prod")) {

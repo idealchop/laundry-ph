@@ -1,21 +1,34 @@
 {
   "name": "@laundry-ph/river-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Laundry.ph copy of the River Bridge request/webhook scheme. Swap this module for bridge-kit when that package lands; keep these function names.",
+  "description": "Laundry.ph adapter over the vendored River Bridge kit (kit/, from idealchop/River-Mobile-App PR #3).",
   "type": "module",
   "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "types": "./dist/src/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./src/index.ts"
+    },
+    "./oidc": {
+      "types": "./dist/src/oidc.d.ts",
+      "default": "./src/oidc.ts"
+    }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json --noEmit",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "kit:install": "npm --prefix kit ci --no-audit --no-fund",
+    "kit:test": "npm --prefix kit test",
+    "kit:conformance": "npm --prefix kit run conformance"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
     "typescript": "5.9.3"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "google-auth-library": "^9.15.1"
+  }
 }

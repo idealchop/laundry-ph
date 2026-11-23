@@ -1,5 +1,5 @@
 import { parseNearbyQuery } from "@laundry-ph/river-bridge";
-import { apiError, apiOk, guard, isDocId, logApiError } from "@/lib/server/api";
+import { partnerError, apiOk, guard, isDocId, logApiError } from "@/lib/server/api";
 import { listShops, listShopsNearby } from "@/lib/server/partner-store";
 
 export const runtime = "nodejs";
@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const lat = url.searchParams.get("lat");
   const lng = url.searchParams.get("lng");
-  if ((lat == null) !== (lng == null)) return apiError("invalid_request", "lat and lng must be sent together.");
+  if ((lat == null) !== (lng == null)) return partnerError("invalid_request", "lat and lng must be sent together.");
   try {
     if (lat != null && lng != null) {
       const parsed = parseNearbyQuery({
@@ -22,17 +22,17 @@ export async function GET(req: Request) {
         limit: url.searchParams.get("limit"),
         cursor: url.searchParams.get("cursor"),
       });
-      if (!parsed.ok) return apiError("invalid_request", parsed.message);
+      if (!parsed.ok) return partnerError("invalid_request", parsed.message);
       return apiOk(await listShopsNearby(parsed.query), 200, { "X-Request-Id": ctx.requestId });
     }
     const limitRaw = url.searchParams.get("limit");
     const limit = limitRaw == null ? 20 : Number(limitRaw);
-    if (!Number.isInteger(limit) || limit < 1 || limit > 50) return apiError("invalid_request", "limit must be an integer 1–50.");
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) return partnerError("invalid_request", "limit must be an integer 1–50.");
     const cursor = url.searchParams.get("cursor");
-    if (cursor != null && !isDocId(cursor)) return apiError("invalid_request", "Invalid cursor.");
+    if (cursor != null && !isDocId(cursor)) return partnerError("invalid_request", "Invalid cursor.");
     return apiOk(await listShops({ limit, cursor }), 200, { "X-Request-Id": ctx.requestId });
   } catch (err) {
     logApiError("GET /shops", err);
-    return apiError("internal", "Could not load shops.");
+    return partnerError("internal", "Could not load shops.");
   }
 }

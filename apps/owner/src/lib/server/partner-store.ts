@@ -10,6 +10,7 @@ import { createHash, randomInt } from "node:crypto";
 import { FieldPath, FieldValue, Timestamp, type DocumentData, type DocumentSnapshot, type Firestore } from "firebase-admin/firestore";
 import {
   NEARBY_QUERY_CAP,
+  RIVER_MOBILE_SOURCE,
   bridgeBookingId,
   encodeNearbyCursor,
   idempotencyDocId,
@@ -123,12 +124,16 @@ export async function listShops(opts: { limit: number; cursor?: string | null })
 export async function listShopsNearby(opts: { lat: number; lng: number; radiusKm: number; limit: number; cursor: NearbyCursor | null }): Promise<{ data: (PublicShop & { distanceKm: number })[]; nextCursor: string | null }> {
   const db = adminDb();
   const bounds = latBounds(opts.lat, opts.radiusKm);
-  const snap = await db.collection("shops")
-    .where("location.lat", ">=", bounds.min)
-    .where("location.lat", "<=", bounds.max)
-    .orderBy("location.lat")
-    .limit(NEARBY_QUERY_CAP)
-    .get();
+  // Two capped range reads on the single-field location.lat index, walking outward from the caller's
+  // latitude (north, then south), so the cap keeps the closest band rather than the southern edge.
+  // At most 2 × NEARBY_QUERY_CAP docs per call; no composite index needed.
+  const [north, south] = await Promise.all([
+    db.collection("shops").where("location.lat", ">=", opts.lat).where("location.lat", "<=", bounds.max)
+      .orderBy("location.lat", "asc").limit(NEARBY_QUERY_CAP).get(),
+    db.collection("shops").where("location.lat", ">=", bounds.min).where("location.lat", "<", opts.lat)
+      .orderBy("location.lat", "desc").limit(NEARBY_QUERY_CAP).get(),
+  ]);
+  const snap = { docs: [...north.docs, ...south.docs] };
   const rows: { id: string; lat: number; lng: number; snap: DocumentSnapshot }[] = [];
   for (const doc of snap.docs) {
     if (doc.data()?.sample === true && !showSamples()) continue;
@@ -306,7 +311,8 @@ export async function createBooking(shopId: string, input: BookingInput, meta: C
       id,
       shopId,
       ref: makeBookingRef(),
-      source: "river-mobile",
+      // Shared River source (Bridge contract). Older rows use "river-mobile"; readers accept both.
+      source: RIVER_MOBILE_SOURCE,
       status: "requested",
       customer: input.customer,
       serviceId: String(service.id),

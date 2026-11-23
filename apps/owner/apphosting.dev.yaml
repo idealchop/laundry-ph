@@ -6,20 +6,24 @@ env:
   - variable: NEXT_PUBLIC_FIRESTORE_DATABASE
     value: laundrydb-dev
     availability: [BUILD, RUNTIME]
-  # River Bridge audience for laundry-dev. Tokens minted for laundry-prod are rejected.
-  # Allowlist, key ids and Secret Manager resource names are set later (see docs/partner-api.md).
-  # Do not put secret values here.
+  # River Bridge (Partner API /api/v1). Names only — never secret values here.
+  # Audience = laundry-dev origin only. Tokens minted for laundry-prod (or origin + /api/v1) are rejected.
   - variable: RIVER_BRIDGE_OIDC_AUDIENCE
-    value: "https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1"
+    value: "https://laundry-dev--mylaundryph.asia-southeast1.hosted.app"
+    availability: [RUNTIME]
+  # Exactly the River Bridge dev service account (rivermobile-ph).
+  - variable: RIVER_BRIDGE_SERVICE_ACCOUNTS
+    value: "248617671827-compute@developer.gserviceaccount.com"
     availability: [RUNTIME]
   - variable: RIVER_BRIDGE_SCOPES
     value: "shops:read,orders:read,orders:write"
     availability: [RUNTIME]
-  # RIVER_BRIDGE_SERVICE_ACCOUNTS=
-  # RIVER_BRIDGE_REQUEST_KEYS=
-  # RIVER_BRIDGE_WEBHOOK_URL=
-  # RIVER_BRIDGE_WEBHOOK_AUDIENCE=
-  # RIVER_BRIDGE_WEBHOOK_KEYS=
+  # Request-direction key ids. Each maps to the mylaundryph Secret Manager secret of the same name
+  # (projects/mylaundryph/secrets/<key id>/versions/latest), read at runtime by the backend's service
+  # account. Until those secrets exist and the account can read them, /api/v1 answers 503 not_configured.
+  - variable: RIVER_BRIDGE_REQUEST_KEYS
+    value: "bridge-to-laundry-dev-v1,bridge-to-laundry-dev-v2"
+    availability: [RUNTIME]
   # AI Companion on for dev only.
   # Test phase: "1" gives every tier Pro features (plans/prices still shown). Pair with config/flags.allFeaturesUnlocked in the db.
   - variable: ALL_FEATURES_UNLOCKED

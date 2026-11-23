@@ -1,27 +1,60 @@
 /**
- * River Bridge ↔ Laundry.ph protocol (dev).
+ * Laundry.ph side of the River Bridge (dev).
  *
- * This is the local stand-in for idealchop/River-Mobile-App `bridge-kit`, which is not
- * published yet. Keep the exported names stable so that kit can replace this file
- * without a rewrite of the route handlers or the webhook trigger.
- *
- * Canonical string (both directions):
- *   v1 \n METHOD \n PATH?SORTED_QUERY \n TIMESTAMP \n NONCE \n hex(SHA-256(raw body))
- * Signature header: `v1=` + hex HMAC-SHA256(secret, canonical).
- * Empty body hashes as SHA-256 of the empty string.
+ * The auth primitives (canonical string, signer, verifier, nonce/idempotency rules,
+ * problem+json) are the River Bridge kit, vendored verbatim in `../kit` from
+ * idealchop/River-Mobile-App PR #3 (see ../kit/KIT_SOURCE.md). Do not edit the kit copy;
+ * re-vendor it instead. This file only adds Laundry settings, status mapping, near-me
+ * search and the webhook event shape the Bridge expects at POST {bridge}/hooks/laundry.
  */
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
+import { normalizePath, sha256Hex } from "../kit/src/canonical";
+import { signRequest } from "../kit/src/sign";
+import { IDEMPOTENCY_KEY, isIdempotencyKey } from "../kit/src/idempotency";
+import { problem, AUTH_LEAK_PATTERN, type Problem } from "../kit/src/problems";
 
-/** Public Partner API base. OIDC `aud` for laundry-dev. Prod audiences are rejected. */
-export const DEV_API_AUDIENCE = "https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1";
+export { canonicalString, normalizePath, sha256Hex, signaturesMatch, macHex } from "../kit/src/canonical";
+export { signRequest, type SignInput, type SignedRequest } from "../kit/src/sign";
+export {
+  verifyRequest,
+  headerValue,
+  type ActiveSecret,
+  type AuthAudit,
+  type OidcIdentity,
+  type OidcVerifier,
+  type VerifyInput,
+  type VerifyOptions,
+  type VerifyResult,
+} from "../kit/src/verify";
+export { MemoryNonceStore, NONCE_TTL_MS, TIMESTAMP_WINDOW_SECONDS, isUuidV4, type NonceStore } from "../kit/src/nonce";
+export { IDEMPOTENCY_KEY, isIdempotencyKey, idempotencyBodyHash } from "../kit/src/idempotency";
+export { problem, AUTH_LEAK_PATTERN, type Problem };
 
+/** OIDC `aud` for laundry-dev: the origin only (same as Carwash). Never origin + /api/v1. */
+export const DEV_API_AUDIENCE = "https://laundry-dev--mylaundryph.asia-southeast1.hosted.app";
+
+/** Prod origins. A token minted for these is never accepted by the dev verifier. */
 export const PROD_API_AUDIENCES = [
   "https://laundry-prod--mylaundryph.asia-southeast1.hosted.app",
   "https://laundry-prod--mylaundryph.asia-southeast1.hosted.app/api/v1",
 ] as const;
 
-export const TIMESTAMP_WINDOW_SEC = 5 * 60;
-export const NONCE_TTL_MS = 10 * 60 * 1000;
+/** River Bridge (rivermobile-ph, dev) caller. Exactly this account; nothing else. */
+export const BRIDGE_DEV_SERVICE_ACCOUNT = "248617671827-compute@developer.gserviceaccount.com";
+
+/** Request-direction key ids (Bridge → Laundry). Two active versions for rotation. */
+export const REQUEST_KEY_IDS = ["bridge-to-laundry-dev-v1", "bridge-to-laundry-dev-v2"] as const;
+/** Webhook-direction key ids (Laundry → Bridge). Separate secrets from the request direction. */
+export const WEBHOOK_KEY_IDS = ["laundry-to-bridge-dev-v1", "laundry-to-bridge-dev-v2"] as const;
+
+/** Bridge webhook receiver. Also the OIDC audience of the tokens Laundry mints for it. */
+export const BRIDGE_WEBHOOK_URL = "https://asia-southeast1-rivermobile-ph.cloudfunctions.net/bridge/hooks/laundry";
+/**
+ * The Bridge verifies webhooks over the path from `/hooks/` on (its `signaturePath()` trims the
+ * Cloud Functions `/bridge` prefix). Signing `/bridge/hooks/laundry` would fail there.
+ */
+export const BRIDGE_WEBHOOK_SIGNED_PATH = "/hooks/laundry";
+
 export const MAX_BODY_BYTES = 16 * 1024;
 export const NEARBY_QUERY_CAP = 100;
 export const DEFAULT_RADIUS_KM = 10;
@@ -32,88 +65,50 @@ export type BridgeScope = (typeof BRIDGE_SCOPES)[number];
 
 export type RiverStatus = "requested" | "accepted" | "in_progress" | "ready" | "completed" | "declined" | "cancelled";
 
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const KEY_ID = /^[A-Za-z0-9_.:-]{1,80}$/;
+/** Stored on bookings created through the Partner API. Older rows use the hyphen spelling. */
+export const RIVER_MOBILE_SOURCE = "river_mobile";
+export const RIVER_MOBILE_SOURCES: readonly string[] = ["river_mobile", "river-mobile", "river_mobile_api", "river"];
+export function isRiverMobileSource(value: unknown): boolean {
+  return typeof value === "string" && RIVER_MOBILE_SOURCES.includes(value);
+}
+
 const SECRET_RESOURCE = /^projects\/[a-z0-9-]+\/secrets\/[A-Za-z0-9_-]+\/versions\/[A-Za-z0-9_-]+$/;
-const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:~-]{8,128}$/;
+const KEY_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/;
 const EXTERNAL_REF = /^[A-Za-z0-9_.:-]{1,64}$/;
-
-export function sha256Hex(body: string | Buffer): string {
-  return createHash("sha256").update(body).digest("hex");
-}
-
-/** Path plus a sorted query. No `?` when there are no parameters. */
-export function pathWithSortedQuery(pathname: string, params: URLSearchParams): string {
-  const pairs: [string, string][] = [];
-  params.forEach((value, key) => pairs.push([key, value]));
-  pairs.sort((a, b) => (a[0] === b[0] ? (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0) : a[0] < b[0] ? -1 : 1));
-  if (pairs.length === 0) return pathname;
-  const query = pairs.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join("&");
-  return `${pathname}?${query}`;
-}
-
-export function canonicalString(parts: {
-  method: string;
-  pathWithQuery: string;
-  timestamp: string;
-  nonce: string;
-  body: string | Buffer;
-}): string {
-  return ["v1", parts.method.toUpperCase(), parts.pathWithQuery, parts.timestamp, parts.nonce, sha256Hex(parts.body)].join("\n");
-}
-
-export function signHmac(secret: string, canonical: string): string {
-  return createHmac("sha256", secret).update(canonical).digest("hex");
-}
-
-function hexBuffer(hex: string): Buffer | null {
-  if (!/^[0-9a-fA-F]+$/.test(hex) || hex.length % 2 !== 0 || hex.length === 0) return null;
-  return Buffer.from(hex, "hex");
-}
-
-/** Constant-time compare of `v1=<hex>` against every active secret's expected hex digest. */
-export function signaturesMatch(expectedHexList: readonly string[], header: string | null | undefined): boolean {
-  const raw = (header ?? "").trim();
-  if (!raw.startsWith("v1=")) return false;
-  const got = hexBuffer(raw.slice(3));
-  if (!got) return false;
-  let ok = false;
-  for (const hex of expectedHexList) {
-    const want = hexBuffer(hex);
-    if (want && want.length === got.length) ok = timingSafeEqual(want, got) || ok;
-    else timingSafeEqual(got, Buffer.alloc(got.length));
-  }
-  if (expectedHexList.length === 0) timingSafeEqual(got, Buffer.alloc(got.length));
-  return ok;
-}
-
-export function isNonce(value: string): boolean {
-  return UUID_V4.test(value);
-}
-
-export function timestampFresh(raw: string, nowMs: number, windowSec = TIMESTAMP_WINDOW_SEC): boolean {
-  if (!/^[0-9]{1,12}$/.test(raw)) return false;
-  return Math.abs(Number(raw) - Math.floor(nowMs / 1000)) <= windowSec;
-}
 
 export function isProdAudience(audience: string): boolean {
   return (PROD_API_AUDIENCES as readonly string[]).includes(audience) || audience.includes("laundry-prod--mylaundryph");
 }
 
+/** True for https, or for plain http on localhost (local dev only). x-forwarded-proto wins when present. */
+export function requestIsHttps(url: string, forwardedProto: string | null): boolean {
+  const proto = (forwardedProto ?? "").split(",")[0]?.trim().toLowerCase() ?? "";
+  if (proto === "https") return true;
+  if (proto === "http") return false;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:") return true;
+    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+/** Kit regex: 8–128 of A-Za-z0-9_.:- */
 export function parseIdempotencyKey(value: string | null | undefined): string | null {
-  const key = value?.trim() ?? "";
-  return IDEMPOTENCY_KEY.test(key) ? key : null;
+  const key = value ?? "";
+  return isIdempotencyKey(key) ? key : null;
 }
 
 /**
- * The header is the dedupe key. A body `externalRef` must match it.
- * Keys that fit the existing externalRef pattern are also stored there so booking ids stay stable.
+ * The Idempotency-Key header is the dedupe key. The Bridge also sends `externalRef` = key.slice(0, 64);
+ * a body externalRef must be the key or that prefix. It is kept on the booking for owner lookups.
  */
 export function externalRefForKey(key: string, bodyRef: string | null): { ok: true; externalRef: string | null } | { ok: false; message: string } {
-  if (bodyRef && bodyRef !== key) return { ok: false, message: "externalRef must match the Idempotency-Key header." };
+  if (bodyRef && bodyRef !== key && bodyRef !== key.slice(0, 64)) return { ok: false, message: "externalRef must match the Idempotency-Key header." };
   if (bodyRef) return { ok: true, externalRef: bodyRef };
-  if (EXTERNAL_REF.test(key)) return { ok: true, externalRef: key };
-  return { ok: true, externalRef: null };
+  const short = key.slice(0, 64);
+  return { ok: true, externalRef: EXTERNAL_REF.test(short) ? short : null };
 }
 
 export function bridgeBookingId(shopId: string, idempotencyKey: string): string {
@@ -130,6 +125,7 @@ export interface IdempotencyRecord {
   path: string;
 }
 
+/** Same key + same body replays; a different body (or route) is 422. Kit semantics. */
 export function idempotencyVerdict(stored: IdempotencyRecord | null, next: IdempotencyRecord): "proceed" | "replay" | "conflict" {
   if (!stored) return "proceed";
   if (stored.bodySha256 !== next.bodySha256 || stored.method !== next.method || stored.path !== next.path) return "conflict";
@@ -141,17 +137,25 @@ export interface KeyBinding {
   resource: string;
 }
 
-/** `keyId=projects/<project>/secrets/<name>/versions/<version>`, one or two entries. Empty is an empty list. Malformed is null. */
-export function parseKeyBindings(raw: string | undefined): KeyBinding[] | null {
+/** Secret Manager resource for a key id in a project. The secret is named after the key id. */
+export function secretResource(project: string, keyId: string, version = "latest"): string {
+  return `projects/${project}/secrets/${keyId}/versions/${version}`;
+}
+
+/**
+ * `keyId=projects/<p>/secrets/<name>/versions/<v>` pairs, comma-separated, one or two.
+ * A bare key id maps to `projects/<defaultProject>/secrets/<keyId>/versions/latest`.
+ * Empty is an empty list. Malformed is null.
+ */
+export function parseKeyBindings(raw: string | undefined, defaultProject = "mylaundryph"): KeyBinding[] | null {
   const parts = (raw ?? "").split(",").map((part) => part.trim()).filter(Boolean);
   if (parts.length === 0) return [];
   if (parts.length > 2) return null;
   const out: KeyBinding[] = [];
   for (const part of parts) {
     const at = part.indexOf("=");
-    if (at < 1) return null;
-    const keyId = part.slice(0, at).trim();
-    const resource = part.slice(at + 1).trim();
+    const keyId = (at === -1 ? part : part.slice(0, at)).trim();
+    const resource = at === -1 ? secretResource(defaultProject, keyId) : part.slice(at + 1).trim();
     if (!KEY_ID.test(keyId) || !SECRET_RESOURCE.test(resource)) return null;
     out.push({ keyId, resource });
   }
@@ -164,9 +168,13 @@ export interface LaundryBridgeSettings {
   accounts: string[];
   scopes: string[];
   keys: KeyBinding[];
+  requireHttps: boolean;
 }
 
-/** Dev/local only. Prod stays unconfigured until a later approved rollout. A prod audience is never accepted. */
+/**
+ * Dev/local only. Prod stays unconfigured (503) until a later approved rollout, and a prod
+ * audience is never accepted. Values are names only; secret values come from Secret Manager.
+ */
 export function loadLaundryBridgeSettings(env: Record<string, string | undefined>): { ok: true; settings: LaundryBridgeSettings } | { ok: false; reason: string } {
   if (env.NEXT_PUBLIC_APP_ENV === "prod") return { ok: false, reason: "prod_disabled" };
   const audience = (env.RIVER_BRIDGE_OIDC_AUDIENCE ?? DEV_API_AUDIENCE).trim();
@@ -176,88 +184,16 @@ export function loadLaundryBridgeSettings(env: Record<string, string | undefined
   const keys = parseKeyBindings(env.RIVER_BRIDGE_REQUEST_KEYS);
   if (!keys || keys.length === 0) return { ok: false, reason: "keys" };
   const scopes = (env.RIVER_BRIDGE_SCOPES ?? BRIDGE_SCOPES.join(",")).split(",").map((scope) => scope.trim()).filter(Boolean);
-  return { ok: true, settings: { audience, accounts, scopes, keys } };
+  const requireHttps = env.NEXT_PUBLIC_APP_ENV !== "local";
+  return { ok: true, settings: { audience, accounts, scopes, keys, requireHttps } };
 }
 
-export interface BridgeVerifierDeps {
-  now(): number;
-  audience: string;
-  accounts: readonly string[];
-  scopes: readonly string[];
-  secrets: readonly { keyId: string; secret: string }[];
-  verifyOidc(token: string, audience: string): Promise<{ email: string } | null>;
-  consumeNonce(keyId: string, nonce: string): Promise<"new" | "replay">;
-}
+/** Titles the kit's `problem()` does not know (it covers 400/401/403/413/422). */
+const EXTRA_TITLES: Record<number, string> = { 404: "Not Found", 409: "Conflict", 429: "Too Many Requests", 500: "Internal Server Error", 503: "Service Unavailable" };
 
-export type AuthDecision =
-  | { ok: true; keyId: string; email: string }
-  | { ok: false; http: 401 | 403 | 503; reason: string; keyId: string; email: string };
-
-export function publicAuthError(decision: Extract<AuthDecision, { ok: false }>): { status: 401 | 403 | 503; code: "unauthorized" | "forbidden" | "not_configured"; message: string } {
-  if (decision.http === 503) return { status: 503, code: "not_configured", message: "The Partner API is not configured on this server." };
-  if (decision.http === 403) return { status: 403, code: "forbidden", message: "Forbidden." };
-  return { status: 401, code: "unauthorized", message: "Unauthorized." };
-}
-
-export interface BridgeRequestParts {
-  method: string;
-  pathWithQuery: string;
-  rawBody: string;
-  scope: string;
-  authorization: string | null;
-  keyId: string | null;
-  timestamp: string | null;
-  nonce: string | null;
-  signature: string | null;
-}
-
-/**
- * Factor 1 then factor 2. Reasons stay server-side; callers map failures through `publicAuthError`.
- * Nonces are consumed only after the signature matches, so a bad signature cannot burn a nonce.
- */
-export async function verifyBridgeRequest(req: BridgeRequestParts, deps: BridgeVerifierDeps): Promise<AuthDecision> {
-  const deny = (http: 401 | 403 | 503, reason: string, keyId = "", email = ""): AuthDecision => ({ ok: false, http, reason, keyId, email });
-  if (deps.secrets.length === 0 || deps.accounts.length === 0) return deny(503, "not_configured");
-  if (deps.audience !== DEV_API_AUDIENCE || isProdAudience(deps.audience)) return deny(503, "audience");
-
-  const presentedKey = req.keyId?.trim() ?? "";
-  const header = req.authorization?.trim() ?? "";
-  if (!header.toLowerCase().startsWith("bearer ")) return deny(401, "oidc_missing", presentedKey);
-  const token = header.slice(header.indexOf(" ") + 1).trim();
-  if (!token) return deny(401, "oidc_missing", presentedKey);
-  const identity = await deps.verifyOidc(token, deps.audience);
-  if (!identity?.email) return deny(401, "oidc_invalid", presentedKey);
-  const email = identity.email.trim().toLowerCase();
-  if (!deps.accounts.includes(email)) return deny(401, "oidc_email", presentedKey, email);
-
-  const keyId = presentedKey;
-  if (!deps.secrets.some((row) => row.keyId === keyId)) return deny(401, "key_id", keyId, email);
-  const timestamp = req.timestamp?.trim() ?? "";
-  if (!timestampFresh(timestamp, deps.now())) return deny(401, "timestamp", keyId, email);
-  const nonce = req.nonce?.trim() ?? "";
-  if (!isNonce(nonce)) return deny(401, "nonce", keyId, email);
-
-  const canonical = canonicalString({ method: req.method, pathWithQuery: req.pathWithQuery, timestamp, nonce, body: req.rawBody });
-  const expected = deps.secrets.map((row) => signHmac(row.secret, canonical));
-  if (!signaturesMatch(expected, req.signature)) return deny(401, "signature", keyId, email);
-
-  const consumed = await deps.consumeNonce(keyId, nonce);
-  if (consumed === "replay") return deny(401, "nonce_replay", keyId, email);
-  if (!deps.scopes.includes(req.scope)) return deny(403, "scope", keyId, email);
-  return { ok: true, keyId, email };
-}
-
-export function requestIsHttps(url: string, forwardedProto: string | null): boolean {
-  const proto = (forwardedProto ?? "").split(",")[0]?.trim().toLowerCase() ?? "";
-  if (proto === "https") return true;
-  if (proto === "http") return false;
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol === "https:") return true;
-    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "::1";
-  } catch {
-    return false;
-  }
+/** Kit problem+json body. Auth failures are only `unauthorized` / `forbidden`, no reason. */
+export function problemBody(status: number, code: string, detail?: string, errors?: Record<string, unknown>): Problem & { detail?: string; errors?: Record<string, unknown> } {
+  return { ...problem(status, code, EXTRA_TITLES[status]), ...(detail ? { detail } : {}), ...(errors ? { errors } : {}) };
 }
 
 /* ---------- near-me ---------- */
@@ -361,18 +297,20 @@ export function parseNearbyQuery(input: { lat: string; lng: string; radiusKm: st
   return { ok: true, query: { lat, lng, radiusKm, limit, cursor } };
 }
 
-/* ---------- webhooks ---------- */
+/* ---------- status + webhooks ---------- */
 
+/** Booking statuses (shops/{id}/bookings). `received` and `converted` are in_progress (Bridge LEGACY map). */
 const BOOKING_STATUS: Record<string, RiverStatus> = {
   requested: "requested",
   accepted: "accepted",
   received: "in_progress",
-  completed: "completed",
   converted: "in_progress",
+  completed: "completed",
   declined: "declined",
   cancelled: "cancelled",
 };
 
+/** Order statuses (shops/{id}/orders) for an order converted from a River Mobile booking. */
 const ORDER_STATUS: Record<string, RiverStatus> = {
   received: "in_progress",
   washing: "in_progress",
@@ -392,67 +330,62 @@ export function mapOrderStatus(status: string): RiverStatus | null {
   return ORDER_STATUS[status] ?? null;
 }
 
-/** Partner API bookings only. QR (`channel` / `apiKeyId` qr) and dev-tool test bookings stay off the Bridge. */
+/**
+ * Partner API bookings only (`river_mobile`, or the older `river-mobile` written by the API).
+ * QR-page bookings (`channel`/`apiKeyId` qr) and dev-tool test bookings stay off the Bridge.
+ */
 export function isBridgeBooking(data: { source?: unknown; channel?: unknown; apiKeyId?: unknown; test?: unknown } | null | undefined): boolean {
-  if (!data || data.source !== "river-mobile") return false;
+  if (!data || !isRiverMobileSource(data.source)) return false;
   if (data.channel === "qr" || data.apiKeyId === "qr") return false;
   if (data.test === true) return false;
   return true;
 }
 
-export function webhookEventId(kind: "booking" | "order", shopId: string, docId: string, status: RiverStatus): string {
-  return `laundry_${createHash("sha256").update(`${kind}|${shopId}|${docId}|${status}`).digest("hex").slice(0, 32)}`;
+/** One event per booking per shared status, so a retry or a booking+order echo dedupes at the Bridge. */
+export function webhookEventId(shopId: string, bookingId: string, status: RiverStatus): string {
+  return `laundry_${createHash("sha256").update(`${shopId}|${bookingId}|${status}`).digest("hex").slice(0, 32)}`;
 }
 
+export type WebhookType = "order.accepted" | "order.declined" | "order.in_progress" | "order.ready" | "order.completed" | "order.cancelled";
+
+/** WebhookEvent from docs/partner-api/openapi.yaml. `data.orderId` is the booking id the create call returned. */
 export interface WebhookEvent {
-  event: string;
   id: string;
+  type: WebhookType;
   occurredAt: string;
   data: {
-    app: "laundry";
-    shopId: string;
-    kind: "booking" | "order";
-    bookingId: string | null;
-    orderId: string | null;
+    orderId: string;
     status: RiverStatus;
-    internalStatus: string;
-    externalRef: string | null;
-    source: "river-mobile";
+    shopId: string;
+    reference?: string;
   };
 }
 
-/** Null when the mapped River status did not change (washing → drying stays `in_progress`). */
+/** Null when nothing River-visible changed (washing → drying stays `in_progress`), or for `requested`. */
 export function bridgeStatusEvent(input: {
   kind: "booking" | "order";
   shopId: string;
-  docId: string;
+  bookingId: string;
+  reference: string | null;
   beforeStatus: string | null;
   afterStatus: string | null;
-  externalRef: string | null;
-  bookingId: string | null;
-  orderId: string | null;
   occurredAt: string;
 }): WebhookEvent | null {
   if (!input.afterStatus || input.afterStatus === input.beforeStatus) return null;
-  const status = input.kind === "booking" ? mapBookingStatus(input.afterStatus) : mapOrderStatus(input.afterStatus);
-  if (!status) return null;
-  const previous = input.beforeStatus ? (input.kind === "booking" ? mapBookingStatus(input.beforeStatus) : mapOrderStatus(input.beforeStatus)) : null;
+  const map = input.kind === "booking" ? mapBookingStatus : mapOrderStatus;
+  const status = map(input.afterStatus);
+  if (!status || status === "requested") return null;
+  const previous = input.beforeStatus ? map(input.beforeStatus) : null;
   if (previous === status) return null;
-  const id = webhookEventId(input.kind, input.shopId, input.docId, status);
   return {
-    event: `order.${status}`,
-    id,
+    id: webhookEventId(input.shopId, input.bookingId, status),
+    type: `order.${status}` as WebhookType,
     occurredAt: input.occurredAt,
     data: {
-      app: "laundry",
-      shopId: input.shopId,
-      kind: input.kind,
-      bookingId: input.bookingId,
-      orderId: input.orderId,
+      orderId: input.bookingId,
       status,
-      internalStatus: input.afterStatus,
-      externalRef: input.externalRef,
-      source: "river-mobile",
+      shopId: input.shopId,
+      ...(input.reference ? { reference: input.reference } : {}),
     },
   };
 }
@@ -463,32 +396,52 @@ export interface SignedWebhook {
   headers: Record<string, string>;
 }
 
-/** Outbound webhook. Uses the webhook-direction secret (never the request secret). HTTPS only. */
+/**
+ * Laundry → Bridge webhook, signed with the kit's `signRequest`: webhook-direction secret
+ * (never the request secret), OIDC token whose audience is the hook URL, Idempotency-Key = event id.
+ */
 export function signWebhook(opts: {
   url: string;
-  body: string;
+  event: WebhookEvent;
   secret: string;
   keyId: string;
-  timestamp: string;
-  nonce: string;
-  token: string;
-  idempotencyKey: string;
+  idToken: string;
+  now?: Date;
+  nonce?: string;
 }): SignedWebhook {
   const target = new URL(opts.url);
   if (target.protocol !== "https:") throw new Error("webhook URL must be https");
-  const pathWithQuery = pathWithSortedQuery(target.pathname, target.searchParams);
-  const canonical = canonicalString({ method: "POST", pathWithQuery, timestamp: opts.timestamp, nonce: opts.nonce, body: opts.body });
-  return {
-    url: opts.url,
-    body: opts.body,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${opts.token}`,
-      "X-River-Key-Id": opts.keyId,
-      "X-River-Timestamp": opts.timestamp,
-      "X-River-Nonce": opts.nonce,
-      "X-River-Signature": `v1=${signHmac(opts.secret, canonical)}`,
-      "Idempotency-Key": opts.idempotencyKey,
-    },
-  };
+  const hook = target.pathname.indexOf("/hooks/");
+  const pathWithQuery = normalizePath(`${hook >= 0 ? target.pathname.slice(hook) : target.pathname}${target.search}`);
+  const body = JSON.stringify(opts.event);
+  if (Buffer.byteLength(body) > MAX_BODY_BYTES) throw new Error("webhook body too large");
+  const signed = signRequest({
+    method: "POST",
+    pathWithQuery,
+    body,
+    keyId: opts.keyId,
+    secret: opts.secret,
+    authorization: `Bearer ${opts.idToken}`,
+    idempotencyKey: opts.event.id,
+    now: opts.now,
+    nonce: opts.nonce,
+  });
+  return { url: opts.url, body, headers: signed.headers };
 }
+
+/** Webhook config (names only). Hardcoded to the dev Bridge hook; anything else is refused. */
+export function loadWebhookSettings(env: Record<string, string | undefined>): { ok: true; url: string; audience: string; keys: KeyBinding[] } | { ok: false; reason: string } {
+  const url = (env.RIVER_BRIDGE_WEBHOOK_URL ?? "").trim();
+  if (!url) return { ok: false, reason: "not_configured" };
+  if (url !== BRIDGE_WEBHOOK_URL) return { ok: false, reason: "url" };
+  const audience = (env.RIVER_BRIDGE_WEBHOOK_AUDIENCE ?? url).trim();
+  if (audience !== url) return { ok: false, reason: "audience" };
+  const keys = parseKeyBindings(env.RIVER_BRIDGE_WEBHOOK_KEYS);
+  if (!keys || keys.length === 0) return { ok: false, reason: "keys" };
+  if (keys.some((key) => !(WEBHOOK_KEY_IDS as readonly string[]).includes(key.keyId))) return { ok: false, reason: "keys" };
+  return { ok: true, url, audience, keys };
+}
+
+/** Constant re-exported for tests that check the kit idempotency rule. */
+export const IDEMPOTENCY_KEY_PATTERN = IDEMPOTENCY_KEY;
+export { sha256Hex as bodySha256 };

@@ -1,3 +1,4 @@
+import { DEV_API_AUDIENCE } from "@laundry-ph/river-bridge";
 import { apiOk } from "@/lib/server/api";
 
 export const runtime = "nodejs";
@@ -8,9 +9,10 @@ export function GET() {
   return apiOk({
     service: "laundry-ph-partner-api",
     version: "v1",
-    auth: "OIDC Bearer + HMAC (X-River-Key-Id, X-River-Timestamp, X-River-Nonce, X-River-Signature)",
-    audience: "https://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1",
+    auth: "Google OIDC Bearer (River Bridge) + HMAC v1 (X-River-Key-Id, X-River-Timestamp, X-River-Nonce, X-River-Signature)",
+    audience: DEV_API_AUDIENCE,
     endpoints: [
+      "GET /api/v1/health",
       "GET /api/v1/shops?lat&lng&radiusKm&limit&cursor",
       "GET /api/v1/shops/{shopId}",
       "POST /api/v1/shops/{shopId}/bookings",

@@ -25,3 +25,6 @@ __pycache__/
 
 # firebase local cache
 .firebase/
+
+packages/river-bridge/kit/node_modules/
+packages/river-bridge/kit/dist/

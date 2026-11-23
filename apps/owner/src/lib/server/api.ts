@@ -1,12 +1,12 @@
 /**
- * Partner API plumbing: OIDC + HMAC auth, per-instance rate limits, JSON helpers.
+ * Partner API plumbing: OIDC + HMAC auth (River Bridge kit), per-instance rate limits, JSON helpers.
  * Caller identity is the River Bridge service account. HMAC secrets stay in Secret Manager.
  * Without the dev allowlist and secret bindings the API answers 503 not_configured.
  * Prod (`NEXT_PUBLIC_APP_ENV=prod`) stays unconfigured until a later approved rollout.
  */
 import { NextResponse } from "next/server";
-import { MAX_BODY_BYTES, requestIsHttps, type BridgeScope } from "@laundry-ph/river-bridge";
-import { auditBridge, authorizeRequest, newRequestId, publicAuthError } from "./bridge-runtime";
+import { MAX_BODY_BYTES, problemBody, requestIsHttps, type BridgeScope } from "@laundry-ph/river-bridge";
+import { authorizeRequest, newRequestId, writeAudit } from "./bridge-runtime";
 
 export type ApiErrorCode =
   | "unauthorized" | "forbidden" | "not_configured" | "rate_limited" | "invalid_request" | "not_found"
@@ -21,6 +21,19 @@ const BASE_HEADERS = { "Cache-Control": "no-store", "X-Laundry-Api-Version": "1"
 
 export function apiError(code: ApiErrorCode, message: string, details?: Record<string, unknown>, headers?: Record<string, string>) {
   return NextResponse.json({ error: { code, message, ...(details ? { details } : {}) } }, { status: STATUS[code], headers: { ...BASE_HEADERS, ...headers } });
+}
+/**
+ * Partner API (/api/v1) errors: kit problem+json. Auth failures carry only `unauthorized` /
+ * `forbidden` with no detail; other errors may add a short `detail` and field `errors`.
+ */
+export function partnerError(code: ApiErrorCode, message: string, details?: Record<string, unknown>, headers?: Record<string, string>) {
+  const status = STATUS[code];
+  const auth = code === "unauthorized" || code === "forbidden";
+  const fields = details && typeof details.fields === "object" && details.fields ? (details.fields as Record<string, unknown>) : details;
+  return new NextResponse(JSON.stringify(problemBody(status, code, auth ? undefined : message, auth ? undefined : fields)), {
+    status,
+    headers: { ...BASE_HEADERS, "Content-Type": "application/problem+json", ...headers },
+  });
 }
 export function apiOk<T>(body: T, status = 200, headers?: Record<string, string>) {
   return NextResponse.json(body, { status, headers: { ...BASE_HEADERS, ...headers } });
@@ -57,34 +70,36 @@ export type ApiContext = { keyId: string; email: string; ip: string; rawBody: st
 
 async function readBody(req: Request): Promise<{ ok: true; raw: string } | { ok: false; res: NextResponse }> {
   const declared = req.headers.get("content-length");
-  if (declared && Number(declared) > MAX_BODY_BYTES) return { ok: false, res: apiError("payload_too_large", `Body must be at most ${MAX_BODY_BYTES} bytes.`) };
+  if (declared && Number(declared) > MAX_BODY_BYTES) return { ok: false, res: partnerError("payload_too_large", `Body must be at most ${MAX_BODY_BYTES} bytes.`) };
   const raw = await req.text();
-  if (Buffer.byteLength(raw) > MAX_BODY_BYTES) return { ok: false, res: apiError("payload_too_large", `Body must be at most ${MAX_BODY_BYTES} bytes.`) };
+  if (Buffer.byteLength(raw) > MAX_BODY_BYTES) return { ok: false, res: partnerError("payload_too_large", `Body must be at most ${MAX_BODY_BYTES} bytes.`) };
   return { ok: true, raw };
 }
 
 /**
- * HTTPS, OIDC, HMAC, then the existing read/write limits. `scope` is shops:read, orders:read or orders:write.
- * Auth failures are generic 401/403 with the reason only in the server audit log.
+ * HTTPS, 16 KB body cap, OIDC + HMAC + scope (kit `verifyRequest`), then the existing read/write limits.
+ * `scope` is shops:read, orders:read or orders:write.
+ * Auth failures are generic problem+json 401/403; the reason is only in the server audit log.
  */
 export async function guard(req: Request, kind: "read" | "write", scope: BridgeScope): Promise<ApiContext | NextResponse> {
   const requestId = newRequestId();
   const headers = { "X-Request-Id": requestId };
-  if (!requestIsHttps(req.url, req.headers.get("x-forwarded-proto"))) {
-    auditBridge(req, requestId, { ok: false, http: 403, reason: "https", keyId: "", email: "" });
-    return apiError("forbidden", "Forbidden.", undefined, headers);
+  const secure = requestIsHttps(req.url, req.headers.get("x-forwarded-proto"));
+  if (!secure && process.env.NEXT_PUBLIC_APP_ENV !== "local") {
+    writeAudit({ at: new Date().toISOString(), method: req.method, path: new URL(req.url).pathname, result: "deny", status: 401, reason: "insecure_transport", requestId, direction: "inbound" });
+    return partnerError("unauthorized", "Unauthorized.", undefined, headers);
   }
   const body = await readBody(req);
   if (!body.ok) return body.res;
-  const decision = await authorizeRequest(req, body.raw, scope, requestId);
+  const decision = await authorizeRequest(req, body.raw, scope, requestId, secure);
   if (!decision.ok) {
-    const pub = publicAuthError(decision);
-    return apiError(pub.code, pub.message, undefined, headers);
+    if (decision.code === "not_configured") return partnerError("not_configured", "The Partner API is not configured on this server.", undefined, headers);
+    return partnerError(decision.code, "Unauthorized.", undefined, headers);
   }
-  const ctx: ApiContext = { keyId: decision.keyId, email: decision.email, ip: clientIp(req), rawBody: body.raw, requestId };
+  const ctx: ApiContext = { keyId: decision.keyId, email: decision.caller, ip: clientIp(req), rawBody: body.raw, requestId };
   const lim = LIMITS[kind];
   const retry = take(`k:${ctx.keyId}:${kind}`, lim.perKey, LIMITS.windowMs) ?? take(`i:${ctx.ip}:${kind}`, lim.perIp, LIMITS.windowMs);
-  if (retry) return apiError("rate_limited", `Too many requests. Retry in ${retry}s.`, undefined, { ...headers, "Retry-After": String(retry) });
+  if (retry) return partnerError("rate_limited", `Too many requests. Retry in ${retry}s.`, undefined, { ...headers, "Retry-After": String(retry) });
   return ctx;
 }
 
@@ -110,14 +125,14 @@ export function parseJson(raw: string): { ok: true; body: unknown } | { ok: fals
   try {
     return { ok: true, body: JSON.parse(raw) };
   } catch {
-    return { ok: false, res: apiError("invalid_request", "Body is not valid JSON.") };
+    return { ok: false, res: partnerError("invalid_request", "Body is not valid JSON.") };
   }
 }
 
 export function requireJson(req: Request, raw: string): { ok: true; body: unknown } | { ok: false; res: NextResponse } {
   const type = req.headers.get("content-type") ?? "";
   if (!type.toLowerCase().includes("application/json")) {
-    return { ok: false, res: apiError("invalid_request", "Content-Type must be application/json.") };
+    return { ok: false, res: partnerError("invalid_request", "Content-Type must be application/json.") };
   }
   return parseJson(raw);
 }

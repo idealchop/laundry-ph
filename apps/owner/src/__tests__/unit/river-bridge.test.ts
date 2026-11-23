@@ -1,172 +1,111 @@
-import { readFileSync } from "node:fs";
+/**
+ * River Bridge unit checks (no emulator). The end-to-end checklist against the real /api/v1
+ * handlers + Firestore nonce/idempotency stores is test/bridge-conformance.ts (pnpm test:bridge).
+ */
 import { describe, expect, it } from "vitest";
 import {
+  BRIDGE_DEV_SERVICE_ACCOUNT,
+  BRIDGE_WEBHOOK_URL,
   DEV_API_AUDIENCE,
+  MemoryNonceStore,
   PROD_API_AUDIENCES,
+  REQUEST_KEY_IDS,
+  WEBHOOK_KEY_IDS,
+  bridgeStatusEvent,
   canonicalString,
   decodeNearbyCursor,
   encodeNearbyCursor,
   externalRefForKey,
   idempotencyVerdict,
+  isBridgeBooking,
   loadLaundryBridgeSettings,
+  loadWebhookSettings,
   mapBookingStatus,
   mapOrderStatus,
+  normalizePath,
   parseIdempotencyKey,
-  pathWithSortedQuery,
-  publicAuthError,
-  requestIsHttps,
+  parseKeyBindings,
   selectNearby,
-  sha256Hex,
-  signHmac,
   signWebhook,
-  signaturesMatch,
-  verifyBridgeRequest,
-  bridgeStatusEvent,
-  type BridgeVerifierDeps,
+  verifyRequest,
+  type OidcVerifier,
 } from "@laundry-ph/river-bridge";
 
-const NOW = 1_763_457_060_000;
-const TS = "1763457060";
-const NONCE = "11111111-1111-4111-8111-111111111111";
-const NONCE_2 = "22222222-2222-4222-8222-222222222222";
-const EMAIL = "bridge-dev@example.iam.gserviceaccount.com";
-const SECRET_V1 = "request-secret-v1";
-const SECRET_V2 = "request-secret-v2";
-const WEBHOOK_SECRET = "webhook-secret-v1";
+const LAUNDRY_FN_SA = "500578192242-compute@developer.gserviceaccount.com";
+const fakeOidc: OidcVerifier = {
+  async verify(token, audience) {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8")) as { aud?: string; email?: string };
+    if (!payload.email || payload.aud !== audience) throw new Error("oidc");
+    return { email: payload.email, audience };
+  },
+};
+const jwt = (payload: Record<string, unknown>) =>
+  `${Buffer.from('{"alg":"none"}').toString("base64url")}.${Buffer.from(JSON.stringify(payload)).toString("base64url")}.sig`;
 
-function deps(overrides: Partial<BridgeVerifierDeps> = {}): BridgeVerifierDeps {
-  const seen = new Set<string>();
-  return {
-    now: () => NOW,
-    audience: DEV_API_AUDIENCE,
-    accounts: [EMAIL],
-    scopes: ["shops:read", "orders:read", "orders:write"],
-    secrets: [
-      { keyId: "bridge-to-laundry-dev-v1", secret: SECRET_V1 },
-      { keyId: "bridge-to-laundry-dev-v2", secret: SECRET_V2 },
-    ],
-    async verifyOidc(token, audience) {
-      if (token === "good" && audience === DEV_API_AUDIENCE) return { email: EMAIL };
-      if (token === "other" && audience === DEV_API_AUDIENCE) return { email: "other@example.iam.gserviceaccount.com" };
-      return null;
-    },
-    async consumeNonce(keyId, nonce) {
-      const id = `${keyId}:${nonce}`;
-      if (seen.has(id)) return "replay";
-      seen.add(id);
-      return "new";
-    },
-    ...overrides,
+describe("settings", () => {
+  const env = {
+    NEXT_PUBLIC_APP_ENV: "dev",
+    RIVER_BRIDGE_SERVICE_ACCOUNTS: BRIDGE_DEV_SERVICE_ACCOUNT,
+    RIVER_BRIDGE_REQUEST_KEYS: REQUEST_KEY_IDS.join(","),
   };
-}
-
-function signed(body: string, opts?: { secret?: string; keyId?: string; timestamp?: string; nonce?: string; path?: string; method?: string }) {
-  const method = opts?.method ?? "POST";
-  const path = opts?.path ?? "/api/v1/shops/sample-laundry/bookings";
-  const timestamp = opts?.timestamp ?? TS;
-  const nonce = opts?.nonce ?? NONCE;
-  const secret = opts?.secret ?? SECRET_V1;
-  const canonical = canonicalString({ method, pathWithQuery: path, timestamp, nonce, body });
-  return {
-    method,
-    pathWithQuery: path,
-    rawBody: body,
-    scope: "orders:write",
-    authorization: "Bearer good",
-    keyId: opts?.keyId ?? "bridge-to-laundry-dev-v1",
-    timestamp,
-    nonce,
-    signature: `v1=${signHmac(secret, canonical)}`,
-  };
-}
-
-describe("river bridge auth", () => {
-  it("TC-BR-HP-01 accepts a valid OIDC token and HMAC, including the second secret version", async () => {
-    const body = "{\"ok\":true}";
-    const first = await verifyBridgeRequest(signed(body), deps());
-    expect(first.ok).toBe(true);
-    const second = await verifyBridgeRequest(signed(body, { secret: SECRET_V2, keyId: "bridge-to-laundry-dev-v2", nonce: NONCE_2 }), deps());
-    expect(second.ok).toBe(true);
-    if (second.ok) expect(publicAuthError({ ok: false, http: 401, reason: "signature", keyId: "", email: "" })).toEqual({ status: 401, code: "unauthorized", message: "Unauthorized." });
+  it("uses the origin-only dev audience and the two request key ids by name", () => {
+    expect(DEV_API_AUDIENCE).toBe("https://laundry-dev--mylaundryph.asia-southeast1.hosted.app");
+    const loaded = loadLaundryBridgeSettings(env);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    expect(loaded.settings.audience).toBe(DEV_API_AUDIENCE);
+    expect(loaded.settings.accounts).toEqual([BRIDGE_DEV_SERVICE_ACCOUNT]);
+    expect(loaded.settings.keys).toEqual([
+      { keyId: "bridge-to-laundry-dev-v1", resource: "projects/mylaundryph/secrets/bridge-to-laundry-dev-v1/versions/latest" },
+      { keyId: "bridge-to-laundry-dev-v2", resource: "projects/mylaundryph/secrets/bridge-to-laundry-dev-v2/versions/latest" },
+    ]);
   });
-
-  it("TC-BR-NEG-01 rejects a missing, invalid, or foreign OIDC token", async () => {
-    const body = "{}";
-    const base = signed(body);
-    expect((await verifyBridgeRequest({ ...base, authorization: null }, deps())).ok).toBe(false);
-    expect(await verifyBridgeRequest({ ...base, authorization: "Bearer bad" }, deps())).toMatchObject({ ok: false, http: 401, reason: "oidc_invalid" });
-    expect(await verifyBridgeRequest({ ...base, authorization: "Bearer other" }, deps())).toMatchObject({ ok: false, http: 401, reason: "oidc_email" });
-    const pub = publicAuthError({ ok: false, http: 401, reason: "oidc_invalid", keyId: "k", email: EMAIL });
-    expect(pub).toEqual({ status: 401, code: "unauthorized", message: "Unauthorized." });
-    expect(JSON.stringify(pub)).not.toContain("oidc");
+  it("refuses prod, origin+/api/v1, and prod audiences", () => {
+    expect(loadLaundryBridgeSettings({ ...env, NEXT_PUBLIC_APP_ENV: "prod" }).ok).toBe(false);
+    expect(loadLaundryBridgeSettings({ ...env, RIVER_BRIDGE_OIDC_AUDIENCE: `${DEV_API_AUDIENCE}/api/v1` }).ok).toBe(false);
+    for (const aud of PROD_API_AUDIENCES) expect(loadLaundryBridgeSettings({ ...env, RIVER_BRIDGE_OIDC_AUDIENCE: aud }).ok).toBe(false);
+    expect(loadLaundryBridgeSettings({ ...env, RIVER_BRIDGE_SERVICE_ACCOUNTS: "" }).ok).toBe(false);
+    expect(parseKeyBindings("a,b,c")).toBeNull();
   });
-
-  it("TC-BR-NEG-02 rejects a bad signature, a 6-minute timestamp, a replayed nonce, and a changed body", async () => {
-    const rt = deps();
-    const body = "{\"customer\":1}";
-    const ok = signed(body);
-    expect(await verifyBridgeRequest({ ...ok, signature: "v1=ab" }, rt)).toMatchObject({ reason: "signature" });
-    expect(await verifyBridgeRequest(signed(body, { timestamp: String(Number(TS) + 301) }), rt)).toMatchObject({ reason: "timestamp" });
-    expect(await verifyBridgeRequest(signed(body, { timestamp: String(Number(TS) - 301) }), rt)).toMatchObject({ reason: "timestamp" });
-    expect(await verifyBridgeRequest(signed(body, { timestamp: String(Number(TS) + 300), nonce: NONCE_2 }), rt)).toMatchObject({ ok: true });
-    const replay = signed(body);
-    expect((await verifyBridgeRequest(replay, rt)).ok).toBe(true);
-    expect(await verifyBridgeRequest(replay, rt)).toMatchObject({ reason: "nonce_replay" });
-    const changed = signed(body);
-    expect(await verifyBridgeRequest({ ...changed, rawBody: "{\"customer\":2}", nonce: "33333333-3333-4333-8333-333333333333" }, rt)).toMatchObject({ reason: "signature" });
+  it("webhook settings accept only the dev Bridge hook and the webhook key ids", () => {
+    const ok = loadWebhookSettings({ RIVER_BRIDGE_WEBHOOK_URL: BRIDGE_WEBHOOK_URL, RIVER_BRIDGE_WEBHOOK_KEYS: WEBHOOK_KEY_IDS.join(",") });
+    expect(ok.ok).toBe(true);
+    expect(loadWebhookSettings({}).ok).toBe(false);
+    expect(loadWebhookSettings({ RIVER_BRIDGE_WEBHOOK_URL: "https://evil.example/hooks/laundry", RIVER_BRIDGE_WEBHOOK_KEYS: WEBHOOK_KEY_IDS[0] }).ok).toBe(false);
+    // A request-direction key can never sign a webhook.
+    expect(loadWebhookSettings({ RIVER_BRIDGE_WEBHOOK_URL: BRIDGE_WEBHOOK_URL, RIVER_BRIDGE_WEBHOOK_KEYS: REQUEST_KEY_IDS[0] }).ok).toBe(false);
   });
+});
 
-  it("TC-BR-NEG-03 refuses the prod audience and plain HTTP on the public host", () => {
-    expect(loadLaundryBridgeSettings({
-      NEXT_PUBLIC_APP_ENV: "prod",
-      RIVER_BRIDGE_OIDC_AUDIENCE: DEV_API_AUDIENCE,
-      RIVER_BRIDGE_SERVICE_ACCOUNTS: EMAIL,
-      RIVER_BRIDGE_REQUEST_KEYS: "bridge-to-laundry-dev-v1=projects/mylaundryph/secrets/river-bridge-request-dev-v1/versions/latest",
-    })).toEqual({ ok: false, reason: "prod_disabled" });
-    expect(loadLaundryBridgeSettings({
-      NEXT_PUBLIC_APP_ENV: "dev",
-      RIVER_BRIDGE_OIDC_AUDIENCE: PROD_API_AUDIENCES[1],
-      RIVER_BRIDGE_SERVICE_ACCOUNTS: EMAIL,
-      RIVER_BRIDGE_REQUEST_KEYS: "bridge-to-laundry-dev-v1=projects/mylaundryph/secrets/river-bridge-request-dev-v1/versions/latest",
-    })).toEqual({ ok: false, reason: "audience" });
-    expect(requestIsHttps("http://laundry-dev--mylaundryph.asia-southeast1.hosted.app/api/v1/shops", null)).toBe(false);
-    expect(requestIsHttps("http://localhost:3300/api/v1/shops", null)).toBe(true);
-    expect(requestIsHttps("http://localhost:3300/api/v1/shops", "http")).toBe(false);
-    expect(signaturesMatch([sha256Hex("x")], "v1=zz")).toBe(false);
-    expect(signaturesMatch([], "v1=abcd")).toBe(false);
-  });
-
-  it("locks the canonical string", () => {
-    expect(sha256Hex("")).toBe("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-    expect(canonicalString({ method: "get", pathWithQuery: "/api/v1/shops", timestamp: TS, nonce: NONCE, body: "" })).toBe(
-      ["v1", "GET", "/api/v1/shops", TS, NONCE, sha256Hex("")].join("\n"),
-    );
-    expect(pathWithSortedQuery("/api/v1/shops", new URLSearchParams("limit=2&lat=1"))).toBe("/api/v1/shops?lat=1&limit=2");
+describe("canonical string (kit)", () => {
+  it("sorts the query and hashes the raw body", () => {
+    expect(normalizePath("/api/v1/shops?lng=121&lat=14.5&limit=5")).toBe("/api/v1/shops?lat=14.5&limit=5&lng=121");
+    expect(canonicalString({ method: "get", pathWithQuery: "/api/v1/shops?b=2&a=1", timestamp: "1", nonce: "n", body: "" }))
+      .toBe("v1\nGET\n/api/v1/shops?a=1&b=2\n1\nn\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
   });
 });
 
 describe("idempotency", () => {
-  it("TC-IDEM-HP-01 replays the same key and body and maps the key onto externalRef", () => {
-    const next = { bodySha256: "abc", method: "POST", path: "/api/v1/shops/s/bookings" };
-    expect(idempotencyVerdict(null, next)).toBe("proceed");
-    expect(idempotencyVerdict(next, next)).toBe("replay");
-    expect(parseIdempotencyKey("rm_booking_01")).toBe("rm_booking_01");
-    expect(externalRefForKey("rm_booking_01", null)).toEqual({ ok: true, externalRef: "rm_booking_01" });
-    expect(externalRefForKey("rm_booking_01", "rm_booking_01")).toEqual({ ok: true, externalRef: "rm_booking_01" });
-  });
-
-  it("TC-IDEM-NEG-01 rejects a reused key with a different body and a missing key", () => {
-    const stored = { bodySha256: "abc", method: "POST", path: "/api/v1/shops/s/bookings" };
-    expect(idempotencyVerdict(stored, { ...stored, bodySha256: "def" })).toBe("conflict");
-    expect(idempotencyVerdict(stored, { ...stored, path: "/api/v1/bookings/b/cancel" })).toBe("conflict");
+  it("uses the kit key rule and maps the key onto externalRef (Bridge sends key.slice(0, 64))", () => {
     expect(parseIdempotencyKey("short")).toBeNull();
-    expect(parseIdempotencyKey(null)).toBeNull();
-    expect(externalRefForKey("rm_booking_01", "other")).toEqual({ ok: false, message: "externalRef must match the Idempotency-Key header." });
+    expect(parseIdempotencyKey("ok_key:1.2-3")).toBe("ok_key:1.2-3");
+    expect(parseIdempotencyKey("bad key with spaces")).toBeNull();
+    expect(parseIdempotencyKey("a".repeat(129))).toBeNull();
+    const long = `rm_${"x".repeat(100)}`;
+    expect(externalRefForKey(long, long.slice(0, 64))).toEqual({ ok: true, externalRef: long.slice(0, 64) });
+    expect(externalRefForKey("key-12345", null)).toEqual({ ok: true, externalRef: "key-12345" });
+    expect(externalRefForKey("key-12345", "other-ref").ok).toBe(false);
+  });
+  it("replays the same body and conflicts on a different one", () => {
+    const rec = { bodySha256: "a", method: "POST", path: "/api/v1/shops/s/bookings" };
+    expect(idempotencyVerdict(null, rec)).toBe("proceed");
+    expect(idempotencyVerdict(rec, rec)).toBe("replay");
+    expect(idempotencyVerdict(rec, { ...rec, bodySha256: "b" })).toBe("conflict");
   });
 });
 
 describe("near me", () => {
-  it("TC-NEAR-HP-01 returns the nearest shops first and respects the limit", () => {
+  it("returns the nearest shops first with distanceKm, pages with a cursor, and drops shops outside the radius", () => {
     const origin = { lat: 14.57, lng: 121 };
     const rows = [
       { id: "far", lat: 14.6, lng: 121 },
@@ -177,85 +116,57 @@ describe("near me", () => {
     const page = selectNearby(rows, origin, 2, 2, null);
     expect(page.data.map((row) => row.id)).toEqual(["near", "east"]);
     expect(page.data[0]!.distanceKm).toBeLessThan(page.data[1]!.distanceKm);
-    expect(page.nextCursor).not.toBeNull();
-    const encoded = encodeNearbyCursor(page.nextCursor!);
-    expect(encoded).toBeTruthy();
-    const decoded = decodeNearbyCursor(encoded!);
-    const next = selectNearby(rows, origin, 2, 2, decoded);
-    expect(next.data.map((row) => row.id)).toEqual(["mid"]);
+    const decoded = decodeNearbyCursor(encodeNearbyCursor(page.nextCursor!)!);
+    expect(selectNearby(rows, origin, 2, 2, decoded).data.map((row) => row.id)).toEqual(["mid"]);
     expect(selectNearby(rows, origin, 2, 10, null).data.some((row) => row.id === "far")).toBe(false);
   });
 });
 
-describe("webhooks", () => {
-  it("TC-HOOK-HP-01 maps statuses and signs the webhook so the same verifier accepts it", () => {
+describe("status mapping + webhooks", () => {
+  it("maps Laundry statuses onto the shared set (converted/received → in_progress)", () => {
     expect(mapBookingStatus("converted")).toBe("in_progress");
     expect(mapBookingStatus("received")).toBe("in_progress");
-    expect(mapBookingStatus("accepted")).toBe("accepted");
-    expect(mapBookingStatus("completed")).toBe("completed");
-    expect(mapOrderStatus("ready")).toBe("ready");
+    expect(mapBookingStatus("declined")).toBe("declined");
     expect(mapOrderStatus("washing")).toBe("in_progress");
+    expect(mapOrderStatus("ready")).toBe("ready");
     expect(mapOrderStatus("delivered")).toBe("completed");
-    const event = bridgeStatusEvent({
-      kind: "booking",
-      shopId: "sample-laundry",
-      docId: "bk1",
-      beforeStatus: "accepted",
-      afterStatus: "converted",
-      externalRef: "rm_booking_01",
-      bookingId: "bk1",
-      orderId: "ord1",
-      occurredAt: "2026-11-23T05:00:00.000Z",
-    });
-    expect(event?.event).toBe("order.in_progress");
-    expect(event?.data.status).toBe("in_progress");
-    expect(event?.data.internalStatus).toBe("converted");
-    expect(bridgeStatusEvent({ ...{
-      kind: "order" as const,
-      shopId: "sample-laundry",
-      docId: "ord1",
-      beforeStatus: "washing",
-      afterStatus: "drying",
-      externalRef: null,
-      bookingId: "bk1",
-      orderId: "ord1",
-      occurredAt: "2026-11-23T05:00:00.000Z",
-    } })).toBeNull();
-    const body = JSON.stringify(event);
-    const signed = signWebhook({
-      url: "https://bridge.example/hooks/laundry",
-      body,
-      secret: WEBHOOK_SECRET,
-      keyId: "laundry-to-bridge-dev-v1",
-      timestamp: TS,
-      nonce: NONCE,
-      token: "oidc-token",
-      idempotencyKey: event!.id,
-    });
-    expect(signed.headers.Authorization).toBe("Bearer oidc-token");
-    expect(signed.headers["Idempotency-Key"]).toBe(event!.id);
-    expect(signed.headers["X-River-Key-Id"]).toBe("laundry-to-bridge-dev-v1");
-    const path = pathWithSortedQuery("/hooks/laundry", new URLSearchParams());
-    const expected = signHmac(WEBHOOK_SECRET, canonicalString({ method: "POST", pathWithQuery: path, timestamp: TS, nonce: NONCE, body }));
-    expect(signaturesMatch([expected], signed.headers["X-River-Signature"])).toBe(true);
-    expect(signaturesMatch([signHmac(SECRET_V1, canonicalString({ method: "POST", pathWithQuery: path, timestamp: TS, nonce: NONCE, body }))], signed.headers["X-River-Signature"])).toBe(false);
-    expect(() => signWebhook({ ...{
-      url: "http://bridge.example/hooks/laundry",
-      body,
-      secret: WEBHOOK_SECRET,
-      keyId: "laundry-to-bridge-dev-v1",
-      timestamp: TS,
-      nonce: NONCE,
-      token: "oidc-token",
-      idempotencyKey: event!.id,
-    } })).toThrow(/https/);
+    expect(mapOrderStatus("claimed")).toBe("completed");
   });
-});
-
-describe("protocol copy", () => {
-  it("functions vendor matches packages/river-bridge", () => {
-    const source = readFileSync(new URL("../../../../../packages/river-bridge/src/index.ts", import.meta.url), "utf8");
-    const copy = readFileSync(new URL("../../../../../functions/src/vendor/river-bridge.ts", import.meta.url), "utf8");
-    expect(copy).toBe(source);
+  it("treats river_mobile and the older river-mobile as Bridge bookings, never QR or test rows", () => {
+    expect(isBridgeBooking({ source: "river_mobile" })).toBe(true);
+    expect(isBridgeBooking({ source: "river-mobile" })).toBe(true);
+    expect(isBridgeBooking({ source: "river-mobile", channel: "qr" })).toBe(false);
+    expect(isBridgeBooking({ source: "river_mobile", test: true })).toBe(false);
+    expect(isBridgeBooking({ source: "walk-in" })).toBe(false);
+  });
+  it("builds the openapi WebhookEvent and skips no-op transitions", () => {
+    const ev = bridgeStatusEvent({ kind: "booking", shopId: "s1", bookingId: "rmabc", reference: "BK-1", beforeStatus: "requested", afterStatus: "accepted", occurredAt: "2026-11-23T07:00:00Z" });
+    expect(ev).toMatchObject({ type: "order.accepted", data: { orderId: "rmabc", status: "accepted", shopId: "s1", reference: "BK-1" } });
+    expect(parseIdempotencyKey(ev!.id)).toBe(ev!.id);
+    expect(bridgeStatusEvent({ kind: "order", shopId: "s1", bookingId: "rmabc", reference: null, beforeStatus: "washing", afterStatus: "drying", occurredAt: "x" })).toBeNull();
+    expect(bridgeStatusEvent({ kind: "booking", shopId: "s1", bookingId: "rmabc", reference: null, beforeStatus: null, afterStatus: "requested", occurredAt: "x" })).toBeNull();
+    // Booking "completed" and order "delivered" share one event id, so the Bridge dedupes them.
+    const a = bridgeStatusEvent({ kind: "booking", shopId: "s1", bookingId: "b", reference: null, beforeStatus: "received", afterStatus: "completed", occurredAt: "x" });
+    const b = bridgeStatusEvent({ kind: "order", shopId: "s1", bookingId: "b", reference: null, beforeStatus: "ready", afterStatus: "delivered", occurredAt: "x" });
+    expect(a!.id).toBe(b!.id);
+  });
+  it("signs webhooks the way the Bridge verifies them (/hooks/laundry, webhook secret, hook audience)", async () => {
+    const event = bridgeStatusEvent({ kind: "order", shopId: "s1", bookingId: "rmabc", reference: "BK-1", beforeStatus: "folding", afterStatus: "ready", occurredAt: "2026-11-23T07:00:00Z" })!;
+    const signed = signWebhook({ url: BRIDGE_WEBHOOK_URL, event, secret: "test-webhook-secret", keyId: WEBHOOK_KEY_IDS[0], idToken: jwt({ aud: BRIDGE_WEBHOOK_URL, email: LAUNDRY_FN_SA }) });
+    expect(signed.headers["Idempotency-Key"]).toBe(event.id);
+    const bridgeOptions = (secret: string, nonces = new MemoryNonceStore()) => ({
+      audience: BRIDGE_WEBHOOK_URL,
+      secrets: [{ keyId: WEBHOOK_KEY_IDS[0], secret }],
+      allowedEmails: [LAUNDRY_FN_SA],
+      oidc: fakeOidc,
+      nonces,
+      allowKeyFallback: false,
+      requireHttps: true,
+    });
+    const input = { method: "POST", pathWithQuery: "/hooks/laundry", headers: signed.headers, rawBody: signed.body, secure: true };
+    expect((await verifyRequest(input, bridgeOptions("test-webhook-secret"))).ok).toBe(true);
+    expect((await verifyRequest(input, bridgeOptions("a-request-secret"))).ok).toBe(false);
+    expect((await verifyRequest({ ...input, pathWithQuery: "/bridge/hooks/laundry" }, bridgeOptions("test-webhook-secret"))).ok).toBe(false);
+    expect(() => signWebhook({ url: "http://insecure.example/hooks/laundry", event, secret: "s", keyId: "k", idToken: "t" })).toThrow();
   });
 });

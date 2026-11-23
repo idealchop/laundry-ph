@@ -1,27 +1,32 @@
 /**
- * Google OIDC, Secret Manager, nonce store and audit for the Partner API.
- * Secret values stay in memory only. Logs never include tokens, signatures or bodies.
+ * River Bridge runtime for the Partner API: Google OIDC (kit verifier), Secret Manager,
+ * a shared Firestore nonce store (create + expireAt TTL) and audit lines.
+ * Secret values stay in memory only. Logs never include tokens, signatures, secrets or bodies.
  */
 import { createHash, randomUUID } from "node:crypto";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { GoogleAuth, OAuth2Client } from "google-auth-library";
+import { GoogleAuth } from "google-auth-library";
 import {
   DEV_API_AUDIENCE,
   NONCE_TTL_MS,
+  isProdAudience,
   loadLaundryBridgeSettings,
-  pathWithSortedQuery,
-  publicAuthError,
-  verifyBridgeRequest,
-  type AuthDecision,
+  normalizePath,
+  verifyRequest,
+  type ActiveSecret,
+  type AuthAudit,
   type BridgeScope,
   type KeyBinding,
+  type NonceStore,
+  type OidcVerifier,
+  type VerifyResult,
 } from "@laundry-ph/river-bridge";
+import { googleOidcVerifier } from "@laundry-ph/river-bridge/oidc";
 import { adminDb } from "./admin";
 
 const SECRET_TTL_MS = 5 * 60 * 1000;
 const secretCache = new Map<string, { value: string; at: number }>();
 let googleAuth: GoogleAuth | null = null;
-const oidc = new OAuth2Client();
 
 function auth(): GoogleAuth {
   googleAuth ??= new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
@@ -35,37 +40,33 @@ export async function readSecret(resource: string): Promise<string> {
   const res = await client.request<{ payload?: { data?: string } }>({ url: `https://secretmanager.googleapis.com/v1/${resource}:access` });
   const encoded = res.data.payload?.data;
   if (!encoded) throw new Error("empty secret payload");
-  const value = Buffer.from(encoded, "base64").toString("utf8");
+  const value = Buffer.from(encoded, "base64").toString("utf8").trim();
   if (!value) throw new Error("empty secret payload");
   secretCache.set(resource, { value, at: Date.now() });
   return value;
 }
 
-async function loadSecrets(keys: readonly KeyBinding[]): Promise<{ keyId: string; secret: string }[] | null> {
-  try {
-    const out: { keyId: string; secret: string }[] = [];
-    for (const key of keys) out.push({ keyId: key.keyId, secret: await readSecret(key.resource) });
-    return out;
-  } catch (err) {
-    console.error("[partner-api] secret read failed:", err instanceof Error ? err.name : "error");
-    return null;
+/** Loads each active version on its own, so one missing version (mid-rotation) does not take the API down. */
+async function loadSecrets(keys: readonly KeyBinding[]): Promise<ActiveSecret[]> {
+  const out: ActiveSecret[] = [];
+  for (const key of keys) {
+    try {
+      out.push({ keyId: key.keyId, secret: await deps().readSecret(key.resource) });
+    } catch (err) {
+      console.error(JSON.stringify({ type: "river-bridge-audit", at: new Date().toISOString(), result: "secret_unavailable", keyId: key.keyId, error: err instanceof Error ? err.name : "error" }));
+    }
   }
+  return out;
 }
 
-export async function verifyGoogleOidc(token: string, audience: string): Promise<{ email: string } | null> {
-  if (audience !== DEV_API_AUDIENCE) return null;
-  try {
-    const ticket = await oidc.verifyIdToken({ idToken: token, audience });
-    const payload = ticket.getPayload();
-    if (!payload?.email || payload.email_verified === false) return null;
-    if (payload.iss !== "https://accounts.google.com" && payload.iss !== "accounts.google.com") return null;
-    const aud = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-    if (!aud.includes(audience)) return null;
-    if (aud.some((value) => String(value).includes("laundry-prod--mylaundryph"))) return null;
-    return { email: payload.email };
-  } catch {
-    return null;
-  }
+/** Kit OIDC verifier, plus a hard refusal of any non-dev or prod audience. */
+function laundryOidc(base: OidcVerifier): OidcVerifier {
+  return {
+    async verify(idToken, audience) {
+      if (audience !== DEV_API_AUDIENCE || isProdAudience(audience)) throw new Error("oidc");
+      return base.verify(idToken, audience);
+    },
+  };
 }
 
 function alreadyExists(err: unknown): boolean {
@@ -73,84 +74,132 @@ function alreadyExists(err: unknown): boolean {
   return code === 6 || code === "already-exists" || code === 409;
 }
 
-export async function consumeNonce(keyId: string, nonce: string): Promise<"new" | "replay"> {
-  const id = createHash("sha256").update(`${keyId}\n${nonce}`).digest("hex");
-  const ref = adminDb().collection("river_bridge_nonces").doc(id);
-  try {
-    await ref.create({
-      keyId,
-      expireAt: Timestamp.fromMillis(Date.now() + NONCE_TTL_MS),
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    return "new";
-  } catch (err) {
-    if (alreadyExists(err)) return "replay";
-    throw err;
-  }
+/** Shared across instances: `create()` fails on the second claim. Firestore TTL on `expireAt` cleans up. */
+export const firestoreNonceStore: NonceStore = {
+  async claim(keyId, nonce, now) {
+    const id = createHash("sha256").update(`${keyId}\n${nonce}`).digest("hex");
+    try {
+      await adminDb().collection("river_bridge_nonces").doc(id).create({
+        keyId,
+        expireAt: Timestamp.fromMillis(now.getTime() + NONCE_TTL_MS),
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return "ok";
+    } catch (err) {
+      if (alreadyExists(err)) return "replay";
+      throw err;
+    }
+  },
+};
+
+function safeId(value: string | undefined): string {
+  return (value ?? "").replace(/[^\w.:@-]/g, "").slice(0, 120);
 }
 
-function safeId(value: string): string {
-  return value.replace(/[^\w.:@-]/g, "").slice(0, 80);
-}
-
-export function auditBridge(req: Request, requestId: string, decision: AuthDecision) {
-  const path = new URL(req.url).pathname;
-  const entry = {
-    requestId,
-    keyId: safeId(decision.keyId),
-    email: safeId(decision.email),
-    method: req.method,
-    path,
-    result: decision.ok ? "ok" : "reject",
-    reason: decision.ok ? "ok" : decision.reason,
+/** One line per decision (stdout + river_bridge_audit). Reason codes stay server-side. */
+export function writeAudit(entry: AuthAudit & { requestId: string; direction: "inbound" | "outbound-webhook" }) {
+  const line = {
+    type: "river-bridge-audit",
+    at: entry.at,
+    requestId: safeId(entry.requestId),
+    direction: entry.direction,
+    method: entry.method,
+    path: entry.path,
+    keyId: safeId(entry.keyId),
+    caller: safeId(entry.caller),
+    result: entry.result,
+    status: entry.status,
+    reason: entry.reason,
   };
-  console.info(JSON.stringify({ type: "river-bridge-audit", at: new Date().toISOString(), ...entry }));
+  console.info(JSON.stringify(line));
+  deps().persistAudit(line);
+}
+
+function persistAudit(line: Record<string, unknown>) {
   try {
-    void adminDb().collection("river_bridge_audit").add({ ...entry, at: FieldValue.serverTimestamp() }).catch(() => undefined);
+    void adminDb().collection("river_bridge_audit").add({
+      ...line,
+      createdAt: FieldValue.serverTimestamp(),
+      expireAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+    }).catch(() => undefined);
   } catch {
     // stdout already has the audit line
   }
 }
 
-export async function authorizeRequest(req: Request, rawBody: string, scope: BridgeScope, requestId: string): Promise<AuthDecision> {
+/* ---------- injectable deps (tests swap these; production uses Google + Firestore) ---------- */
+
+export interface BridgeRuntimeDeps {
+  oidc: OidcVerifier;
+  nonces: NonceStore;
+  readSecret(resource: string): Promise<string>;
+  persistAudit(line: Record<string, unknown>): void;
+  now(): Date;
+}
+
+let current: BridgeRuntimeDeps | null = null;
+function deps(): BridgeRuntimeDeps {
+  current ??= { oidc: laundryOidc(googleOidcVerifier()), nonces: firestoreNonceStore, readSecret, persistAudit, now: () => new Date() };
+  return current;
+}
+
+/** Test hook. Pass null to restore the production deps. */
+export function setBridgeRuntimeDeps(next: Partial<BridgeRuntimeDeps> | null) {
+  if (!next) {
+    current = null;
+    secretCache.clear();
+    return;
+  }
+  const base = deps();
+  current = { ...base, ...next, ...(next.oidc ? { oidc: laundryOidc(next.oidc) } : {}) };
+}
+
+export type AuthDecision =
+  | { ok: true; keyId: string; caller: string }
+  | { ok: false; status: 401 | 403 | 503; code: "unauthorized" | "forbidden" | "not_configured" };
+
+/**
+ * TLS → OIDC → key id → timestamp → nonce → HMAC → scope, via the kit's `verifyRequest`.
+ * `pathWithQuery` is the request path (with /api/v1) plus the kit-sorted query.
+ */
+export async function authorizeRequest(req: Request, rawBody: string, scope: BridgeScope, requestId: string, secure: boolean): Promise<AuthDecision> {
+  const now = deps().now();
+  const url = new URL(req.url);
   const loaded = loadLaundryBridgeSettings(process.env);
   if (!loaded.ok) {
-    const decision: AuthDecision = { ok: false, http: 503, reason: loaded.reason, keyId: "", email: "" };
-    auditBridge(req, requestId, decision);
-    return decision;
+    writeAudit({ at: now.toISOString(), method: req.method, path: url.pathname, result: "deny", status: 503, reason: `config_${loaded.reason}`, requestId, direction: "inbound" });
+    return { ok: false, status: 503, code: "not_configured" };
   }
   const secrets = await loadSecrets(loaded.settings.keys);
-  if (!secrets) {
-    const decision: AuthDecision = { ok: false, http: 503, reason: "secrets", keyId: "", email: "" };
-    auditBridge(req, requestId, decision);
-    return decision;
+  if (secrets.length === 0) {
+    writeAudit({ at: now.toISOString(), method: req.method, path: url.pathname, result: "deny", status: 503, reason: "config_secrets", requestId, direction: "inbound" });
+    return { ok: false, status: 503, code: "not_configured" };
   }
-  const url = new URL(req.url);
-  const decision = await verifyBridgeRequest({
+  const headers: Record<string, string> = {};
+  req.headers.forEach((value, key) => { headers[key.toLowerCase()] = value; });
+  const result: VerifyResult = await verifyRequest({
     method: req.method,
-    pathWithQuery: pathWithSortedQuery(url.pathname, url.searchParams),
+    pathWithQuery: normalizePath(`${url.pathname}${url.search}`),
+    headers,
     rawBody,
-    scope,
-    authorization: req.headers.get("authorization"),
-    keyId: req.headers.get("x-river-key-id"),
-    timestamp: req.headers.get("x-river-timestamp"),
-    nonce: req.headers.get("x-river-nonce"),
-    signature: req.headers.get("x-river-signature"),
+    secure,
   }, {
-    now: () => Date.now(),
     audience: loaded.settings.audience,
-    accounts: loaded.settings.accounts,
-    scopes: loaded.settings.scopes,
     secrets,
-    verifyOidc: verifyGoogleOidc,
-    consumeNonce,
+    allowedEmails: loaded.settings.accounts,
+    oidc: deps().oidc,
+    nonces: deps().nonces,
+    allowKeyFallback: false,
+    requireHttps: loaded.settings.requireHttps,
+    grantedScopes: loaded.settings.scopes,
+    requiredScope: scope,
+    now,
+    onAudit: (entry) => writeAudit({ ...entry, requestId, direction: "inbound" }),
   });
-  auditBridge(req, requestId, decision);
-  return decision;
+  if (!result.ok) return { ok: false, status: result.status, code: result.code };
+  return { ok: true, keyId: result.keyId, caller: result.caller };
 }
 
 export function newRequestId(): string {
   return randomUUID();
 }
-
-export { publicAuthError };
